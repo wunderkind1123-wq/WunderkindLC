@@ -1,3 +1,25 @@
+---
+description: A'zolikning faol davrlari — PastPeriods, ClosePeriod tartibi, BillableInMonth/AccruableInPeriod, arxivlash = guruhdan chiqish.
+paths:
+  - "WunderkindLC.Application/Services/Membership*.cs"
+  - "WunderkindLC.Application/Services/TuitionService.cs"
+  - "WunderkindLC.Application/Services/StudentGroupLedger.cs"
+  - "WunderkindLC.Application/Services/StudentArchiving.cs"
+  - "WunderkindLC.Application/Services/LeaverArchive.cs"
+  - "WunderkindLC.Application/Services/GroupUnarchive.cs"
+  - "WunderkindLC.Application/Services/CourseAnalytics.cs"
+  - "WunderkindLC.Application/Services/GroupBalanceService.cs"
+  - "WunderkindLC.Application/Services/LeadConversion.cs"
+  - "WunderkindLC.Server/Controllers/ClassesController*.cs"
+  - "WunderkindLC.Server/Controllers/StudentsController*.cs"
+  - "WunderkindLC.Server/Controllers/StudentArchiveFlow.cs"
+  - "WunderkindLC.Tests/FinanceLogicTests.cs"
+  - "WunderkindLC.Tests/FinanceDbTests.cs"
+  - "WunderkindLC.Tests/Membership*.cs"
+  - "WunderkindLC.Tests/LeaverArchiveTests.cs"
+  - "WunderkindLC.Tests/AuditFix*Tests.cs"
+---
+
 # A'zolikning FAOL DAVRLARI qoidalari
 
 Migratsiya: `AddStudentGroupPastPeriods` (`StudentGroup.PastPeriods`, `text[]`).

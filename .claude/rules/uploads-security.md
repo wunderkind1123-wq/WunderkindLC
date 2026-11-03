@@ -1,3 +1,31 @@
+---
+description: /uploads xavfsizligi — UploadsGuard cookie, ochiq fayllar ro'yxati, ReadRequiresPerm, UploadUrlRules, marketing-public istisnosi.
+paths:
+  - "WunderkindLC.Application/Services/Upload*.cs"
+  - "WunderkindLC.Application/Services/PrivateFolderFileProvider.cs"
+  - "WunderkindLC.Application/Services/FaceStorage.cs"
+  - "WunderkindLC.Application/Services/MarketingPublicMedia.cs"
+  - "WunderkindLC.Application/Services/StudentPurge*.cs"
+  - "WunderkindLC.Server/UploadsGuard.cs"
+  - "WunderkindLC.Server/Program.cs"
+  - "WunderkindLC.Server/Controllers/UploadsController.cs"
+  - "WunderkindLC.Server/Controllers/ContractsController.cs"
+  - "WunderkindLC.Server/Controllers/CareerController.cs"
+  - "WunderkindLC.Server/Controllers/PublicCareerController.cs"
+  - "WunderkindLC.Server/Controllers/CertificatesController.cs"
+  - "WunderkindLC.Server/Controllers/AiCheckController.cs"
+  - "WunderkindLC.Server/Controllers/*FaceController.cs"
+  - "WunderkindLC.Server/Controllers/LandingCmsController.cs"
+  - "WunderkindLC.Server/Controllers/PublicLandingController.cs"
+  - "WunderkindLC.Server/Controllers/InstagramController.Media.cs"
+  - "WunderkindLC.Server/Controllers/StudentAchievementsController.cs"
+  - "WunderkindLC.Server/Controllers/TestResultsController*.cs"
+  - "WunderkindLC.Client/src/components/ui/PhotoUpload.tsx"
+  - "WunderkindLC.Tests/*Upload*.cs"
+  - "WunderkindLC.Tests/PrivateFolderFileProviderTests.cs"
+  - "WunderkindLC.Tests/MarketingPublicMediaTests.cs"
+---
+
 # `/uploads` xavfsizlik modeli
 
 Yuklangan barcha fayllar bitta TEKIS papkada: `ContentRoot/uploads`. U docker volume

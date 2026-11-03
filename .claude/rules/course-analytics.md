@@ -1,3 +1,13 @@
+---
+description: Kurslar analitikasi — keldi/ketdi oraliqlari, oy oxirida faol, kesishuv, grafik ranglari.
+paths:
+  - "WunderkindLC.Application/Services/CourseAnalytics.cs"
+  - "WunderkindLC.Server/Controllers/CourseAnalyticsController.cs"
+  - "WunderkindLC.Client/src/api/services/courseAnalytics.ts"
+  - "WunderkindLC.Client/src/pages/admin/subjects/CourseAnalyticsPage.tsx"
+  - "WunderkindLC.Tests/CourseAnalyticsTests.cs"
+---
+
 # Kurslar analitikasi qoidalari
 
 "O'quv bo'limi → Kurslar analitikasi" (`/admin/subjects/analitika`, ruxsat `schedule.analytics`).

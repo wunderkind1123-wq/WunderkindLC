@@ -1,3 +1,16 @@
+---
+description: Bilimlar bazasi — shaxsiy eslatmalar, rahbariyat, qulf, avtosaqlash/409, bo'limlar, faqat matn (BlockNote).
+paths:
+  - "WunderkindLC.Application/Services/Wiki/**"
+  - "WunderkindLC.Application/Dtos/WikiDtos.cs"
+  - "WunderkindLC.Domain/WikiEntities.cs"
+  - "WunderkindLC.Server/Controllers/Wiki/**"
+  - "WunderkindLC.Client/src/api/services/wiki.ts"
+  - "WunderkindLC.Client/src/pages/admin/wiki/**"
+  - "WunderkindLC.Client/src/pages/teacher/**/*Note*"
+  - "WunderkindLC.Tests/Wiki*.cs"
+---
+
 # Bilimlar bazasi (wiki) qoidalari
 
 Xodimlarning SHAXSIY eslatmalari (insaytlar, ish rejasi, qaydlar) — Notion'ga o'xshash, CRM ICHIDA. Menyuda

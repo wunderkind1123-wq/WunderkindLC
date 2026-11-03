@@ -1,3 +1,20 @@
+---
+description: Topshiriqlar (HR) — LMS'dan 1:1 port, scope, hayot sikli, Telegram «Qabul qildim», sinov darsi topshiriqlari.
+paths:
+  - "WunderkindLC.Application/HrTasks/**"
+  - "WunderkindLC.Application/Abstractions/IAppDbContext.HrTasks.cs"
+  - "WunderkindLC.Domain/Hr*.cs"
+  - "WunderkindLC.Infrastructure/Data/AppDbContext.HrTasks.cs"
+  - "WunderkindLC.Server/Controllers/Hr*.cs"
+  - "WunderkindLC.Server/Controllers/StaffController.cs"
+  - "WunderkindLC.Server/Controllers/TeachersController.cs"
+  - "WunderkindLC.Client/src/api/services/hrTasks.ts"
+  - "WunderkindLC.Client/src/types/hrTasks.ts"
+  - "WunderkindLC.Client/src/pages/admin/hr-tasks/**"
+  - "WunderkindLC.Client/src/pages/teacher/**/*opshiriq*"
+  - "WunderkindLC.Tests/HrTasks/**"
+---
+
 # Topshiriqlar (HR) qoidalari
 
 Boshliq o'z xodimlariga topshiriq beradi, xodim o'z panelida («Mening topshiriqlarim») bajaradi.

@@ -1,3 +1,17 @@
+---
+description: «Aktiv muzlatish» — YearFreeze kosmetik bayrog'i, faqat superadmin, qayerda qo'yiladi/tozalanadi.
+paths:
+  - "WunderkindLC.Application/Services/MembershipBulk.cs"
+  - "WunderkindLC.Application/Services/MembershipLifecycle.cs"
+  - "WunderkindLC.Application/Services/MembershipReasons.cs"
+  - "WunderkindLC.Application/Services/StudentMembershipView.cs"
+  - "WunderkindLC.Server/Controllers/ClassesController*.cs"
+  - "WunderkindLC.Client/src/pages/admin/classes/ClassMembersModal.tsx"
+  - "WunderkindLC.Client/src/pages/admin/classes/detail/GroupStudentsTab.tsx"
+  - "WunderkindLC.Client/src/lib/groupDisplay.ts"
+  - "WunderkindLC.Tests/MembershipBulkTests.cs"
+---
+
 # «Aktiv muzlatish» qoidalari
 
 Yangi o'quv yiliga o'tishda qilinadigan muzlatish. Migratsiya: `AddStudentGroupYearFreeze`

@@ -1,3 +1,18 @@
+---
+description: O'quvchining maktab sinfi — SchoolGrade/SchoolGradeNow, yillik oshish, import, sinfga qarab narx.
+paths:
+  - "WunderkindLC.Application/Services/GradeRepricing.cs"
+  - "WunderkindLC.Application/Services/StudentImportPlan.cs"
+  - "WunderkindLC.Domain/SchoolGrades.cs"
+  - "WunderkindLC.Client/src/lib/schoolGrades.ts"
+  - "WunderkindLC.Client/src/pages/admin/reports/SchoolGradesReportPage.tsx"
+  - "WunderkindLC.Client/src/pages/admin/students/StudentFormModal.tsx"
+  - "WunderkindLC.Client/src/pages/admin/students/studentFormModel.ts"
+  - "WunderkindLC.Server/Controllers/StudentsController*.cs"
+  - "WunderkindLC.Tests/SchoolGradesTests.cs"
+  - "WunderkindLC.Tests/StudentImportPlanTests.cs"
+---
+
 # O'quvchining MAKTAB SINFI qoidalari
 
 Maqsad: "markazda maktabning nechanchi sinflari o'qiyapti" statistikasi.

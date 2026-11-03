@@ -1,3 +1,17 @@
+---
+description: «Hisobotlar» bo'limi — config/reports.ts yagona manba, inNav, ?tab=, activeNavTo, rahbariyat analitikasi.
+paths:
+  - "WunderkindLC.Client/src/config/reports.ts"
+  - "WunderkindLC.Client/src/config/navigation.ts"
+  - "WunderkindLC.Client/src/config/__tests__/**"
+  - "WunderkindLC.Client/src/lib/tabParam.ts"
+  - "WunderkindLC.Client/src/components/layout/Sidebar*.tsx"
+  - "WunderkindLC.Client/src/pages/admin/reports/**"
+  - "WunderkindLC.Client/src/pages/admin/analytics/**"
+  - "WunderkindLC.Application/Services/ExecutiveDashboard.cs"
+  - "WunderkindLC.Server/Controllers/ExecutiveAnalyticsController.cs"
+---
+
 # "Hisobotlar" bo'limi qoidalari
 
 Barcha analitika/hisobot yuzalari BIR joyda: yon menyudagi **Hisobotlar** guruhi va

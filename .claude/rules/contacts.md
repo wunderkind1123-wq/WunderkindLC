@@ -1,4 +1,24 @@
-﻿# "Bog'lanish kerak" (follow-up navbati) qoidalari
+---
+description: «Bog'lanish kerak» (Service) — navbat, bosqichlar, kanban taxtasi va ustunlar, hisobot (faqat superadmin), avtomatik talablar (kelmaslik, qarz).
+paths:
+  - "WunderkindLC.Application/Services/Contact*.cs"
+  - "WunderkindLC.Application/Services/DebtContactService.cs"
+  - "WunderkindLC.Application/Services/Attendance/AbsenceStreak*.cs"
+  - "WunderkindLC.Domain/Crm/DebtContacts.cs"
+  - "WunderkindLC.Server/Controllers/ContactsController.cs"
+  - "WunderkindLC.Server/Controllers/ActionReasonsController.cs"
+  - "WunderkindLC.Client/src/api/services/contact*.ts"
+  - "WunderkindLC.Client/src/components/contacts/**"
+  - "WunderkindLC.Client/src/components/ai/ContactAiPanel.tsx"
+  - "WunderkindLC.Client/src/lib/contactDue.ts"
+  - "WunderkindLC.Client/src/pages/admin/students/contacts/**"
+  - "WunderkindLC.Client/src/pages/admin/settings/ContactServiceSettings.tsx"
+  - "WunderkindLC.Tests/Contact*.cs"
+  - "WunderkindLC.Tests/Crm/AbsenceStreakTests.cs"
+  - "WunderkindLC.Tests/Crm/DebtContactTests.cs"
+---
+
+# "Bog'lanish kerak" (follow-up navbati) qoidalari
 
 Migratsiya: `AddContactRequests`. Modul O'quvchilar bo'limi ostida, lekin **ruxsati alohida**.
 

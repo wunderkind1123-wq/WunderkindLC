@@ -1,3 +1,23 @@
+---
+description: Dars jadvali — ScheduleRules, bo'sh oraliqlar, sanali jadval, qavatlar, to'qnashuv taqig'i (409).
+paths:
+  - "WunderkindLC.Application/Services/Schedule*.cs"
+  - "WunderkindLC.Application/Services/DatedSchedule.cs"
+  - "WunderkindLC.Application/Services/RoomConflictService.cs"
+  - "WunderkindLC.Application/Services/RescheduleConflicts.cs"
+  - "WunderkindLC.Application/Mcp/Tools/ScheduleTools.cs"
+  - "WunderkindLC.Server/Controllers/Schedule*.cs"
+  - "WunderkindLC.Server/Controllers/ClassesController*.cs"
+  - "WunderkindLC.Server/Controllers/RoomsController.cs"
+  - "WunderkindLC.Client/src/api/services/schedule.ts"
+  - "WunderkindLC.Client/src/components/dashboard/home/**"
+  - "WunderkindLC.Client/src/components/schedule/**"
+  - "WunderkindLC.Client/src/lib/schedule*.ts"
+  - "WunderkindLC.Client/src/pages/admin/schedule/**"
+  - "WunderkindLC.Tests/*Schedule*.cs"
+  - "WunderkindLC.Tests/RescheduleConflictTests.cs"
+---
+
 # Dars jadvali qoidalari
 
 "Future → Jadval: bo'sh oraliqlar" (`/admin/jadval/bosh-oraliqlar`, ruxsat `schedule.timetable`).

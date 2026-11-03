@@ -1,3 +1,16 @@
+---
+description: Xodimlar va Rollar — StaffRoleTemplate jonli bog'lanish, HasFullAccess(staff), o'chirishda StaffRelease, faollik.
+paths:
+  - "WunderkindLC.Application/Services/Staff*.cs"
+  - "WunderkindLC.Server/Controllers/StaffController.cs"
+  - "WunderkindLC.Server/Controllers/ArchiveController.cs"
+  - "WunderkindLC.Client/src/lib/staffRoles.ts"
+  - "WunderkindLC.Client/src/lib/staffActivity.ts"
+  - "WunderkindLC.Client/src/pages/admin/staff/**"
+  - "WunderkindLC.Domain/Roles.cs"
+  - "WunderkindLC.Tests/StaffRoles*.cs"
+---
+
 # Xodimlar va Rollar qoidalari
 
 "Boshqaruv → Xodimlar" (`/admin/boshqaruv/xodimlar`) + "Boshqaruv → Rollar" (`/admin/boshqaruv/rollar`).

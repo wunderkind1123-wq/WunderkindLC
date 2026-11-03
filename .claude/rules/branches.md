@@ -1,3 +1,18 @@
+---
+description: Filiallar — har filial alohida ilova va baza (new-branch.sh, BRANCH_LINKS, BranchSwitcher).
+paths:
+  - "infra/branch/**"
+  - "infra/nginx/**"
+  - "docker-compose*.yml"
+  - "WunderkindLC.Application/Services/BranchLinks.cs"
+  - "WunderkindLC.Server/Controllers/Branch*.cs"
+  - "WunderkindLC.Client/src/api/services/branch*.ts"
+  - "WunderkindLC.Client/src/components/layout/BranchSwitcher.tsx"
+  - "WunderkindLC.Client/src/components/layout/Topbar.tsx"
+  - "WunderkindLC.Client/src/pages/admin/branches/**"
+  - "WunderkindLC.Tests/BranchLinksTests.cs"
+---
+
 # Filiallar — har filial ALOHIDA ilova va baza (2026-10-27)
 
 Egasining talabi: yangi filial — noldan bo'sh baza, o'z xodimlari va login/parollari; tepadagi tanlovdan FAQAT superadmin

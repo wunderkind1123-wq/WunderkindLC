@@ -1,3 +1,24 @@
+---
+description: O'quvchilar reytingi — formula (test+ball+uy vazifasi), davrlar, RatingEngine keshi, TOP/BOTTOM, ruxsat classes.rating.
+paths:
+  - "WunderkindLC.Application/Services/Rating/**"
+  - "WunderkindLC.Application/Services/RatingService.cs"
+  - "WunderkindLC.Application/Mcp/Tools/RatingTools.cs"
+  - "WunderkindLC.Server/Controllers/RatingController*.cs"
+  - "WunderkindLC.Server/Controllers/*PortalController.Rating.cs"
+  - "WunderkindLC.Server/Crm/CrmRatingSetup.cs"
+  - "WunderkindLC.Domain/Crm/Rating.cs"
+  - "WunderkindLC.Infrastructure/Data/AppDbContext.CrmRating.cs"
+  - "WunderkindLC.Client/src/api/services/rating.ts"
+  - "WunderkindLC.Client/src/components/rating/**"
+  - "WunderkindLC.Client/src/lib/ratingPeriods.ts"
+  - "WunderkindLC.Client/src/pages/admin/reports/Rating*.tsx"
+  - "WunderkindLC.Client/src/pages/student/Rating.tsx"
+  - "WunderkindLC.Client/src/pages/teacher/rating/**"
+  - "WunderkindLC.Tests/*Rating*.cs"
+  - "WunderkindLC.Tests/Mcp/McpRatingToolsTests.cs"
+---
+
 # O'quvchilar REYTINGI qoidalari (testlar + ball)
 
 CRM 4-bosqich (docs/SPEC-crm-upgrade.md §5, P4.3–P4.4; egasining qarorlari `docs/ASSUMPTIONS.md` 2026-10-11).

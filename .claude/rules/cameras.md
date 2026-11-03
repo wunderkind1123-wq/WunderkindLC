@@ -1,3 +1,19 @@
+---
+description: Kameralar — jonli kuzatuv vs 24/7 yozuv, CameraRules, shlyuz resync, NVR arxivi (Hikvision), RTSP parol maxfiyligi.
+paths:
+  - "WunderkindLC.Application/Services/Camera*.cs"
+  - "WunderkindLC.Application/Services/HikvisionNvr.cs"
+  - "WunderkindLC.Application/Services/NvrArchiveService.cs"
+  - "WunderkindLC.Server/Controllers/CamerasController.cs"
+  - "WunderkindLC.Server/Controllers/SettingsController.cs"
+  - "WunderkindLC.Client/src/api/services/cameras.ts"
+  - "WunderkindLC.Client/src/pages/admin/cameras/**"
+  - "WunderkindLC.Client/src/pages/admin/settings/CameraSettings.tsx"
+  - "WunderkindLC.Tests/CameraRulesTests.cs"
+  - "WunderkindLC.Tests/HikvisionNvrTests.cs"
+  - "infra/**/mediamtx*"
+---
+
 # Kameralar (videokuzatuv) qoidalari
 
 "Boshqaruv → Kameralar" (`/admin/boshqaruv/cameras`, ruxsat `cameras` — O'QISH ham, §9) +
