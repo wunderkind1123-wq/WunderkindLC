@@ -195,7 +195,9 @@ export function StudentsPage() {
    * guruhsizlarni birga beradi va eski saqlangan tanlov ham buzilmaydi.
    */
   const [activeFilter, setActiveFilter] = usePersistentState<StateFilter>(
-    'students.activeFilter', 'all', fresh<StateFilter>(preset === 'frozen' ? 'anyFrozen' : 'all'),
+    // «Qarzdorlar» kartochkasi — FAQAT aktiv o'quvchilar (`DashboardSummary.DebtorKind`), ro'yxat ham shunday.
+    'students.activeFilter', 'all',
+    fresh<StateFilter>(preset === 'frozen' ? 'anyFrozen' : preset === 'debtors' ? 'active' : 'all'),
   )
   // Maktab sinfi: 'all' | 'none' (kiritilmagan) | "1".."12" (`lib/schoolGrades.ts`).
   const [gradeFilter, setGradeFilter] = usePersistentState<SchoolGradeFilter>('students.gradeFilter', 'all', fresh<SchoolGradeFilter>('all'))

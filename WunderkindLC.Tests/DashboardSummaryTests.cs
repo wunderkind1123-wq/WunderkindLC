@@ -346,4 +346,94 @@ public class DashboardSummaryTests
         Assert.Equal(0, dto.Frozen);
         Assert.Equal(1, dto.Archived);
     }
+
+    // ============================ Qarzdorlar toifasi (2026-11-03) ============================
+
+    [Theory]
+    [InlineData(false, "active", DashboardSummary.DebtActive)]
+    [InlineData(false, "trial", DashboardSummary.DebtTrial)]
+    [InlineData(false, "frozen", DashboardSummary.DebtFrozen)]
+    [InlineData(false, "yearFrozen", DashboardSummary.DebtFrozen)]
+    [InlineData(false, "", DashboardSummary.DebtLeft)]
+    [InlineData(true, "active", DashboardSummary.DebtArchived)]   // arxiv hamma narsadan ustun (eski tirik a'zolik)
+    [InlineData(true, "", DashboardSummary.DebtArchived)]
+    public void DebtorKind_toifa(bool archived, string state, string expected) =>
+        Assert.Equal(expected, DashboardSummary.DebtorKind(archived, state));
+
+    [Fact]
+    public void Qarzdorlar_kartochkasi_FAQAT_aktiv_oquvchilarni_sanaydi()
+    {
+        var students = new[]
+        {
+            new DashboardSummary.StudentRow("act", false, -100),     // aktiv qarzdor
+            new DashboardSummary.StudentRow("mix", false, -100),     // bir guruhda aktiv, boshqasidan ketgan — AKTIV
+            new DashboardSummary.StudentRow("tri", false, -100),     // sinovdagi
+            new DashboardSummary.StudentRow("frz", false, -100),     // muzlatilgan
+            new DashboardSummary.StudentRow("lft", false, -100),     // guruhdan chiqqan, arxivlanmagan
+            new DashboardSummary.StudentRow("arc", true, -100),      // arxivdagi
+            new DashboardSummary.StudentRow("pos", false, 50),       // qarzsiz aktiv
+        };
+        var ms = new[]
+        {
+            M("act", "gA", "active", "2026-05-01", activated: "2026-05-01"),
+            M("mix", "gA", "active", "2026-05-01", activated: "2026-05-01"),
+            M("mix", "gB", "active", "2026-03-01", activated: "2026-03-01", left: "2026-08-01"),
+            M("tri", "gA", "trial", "2026-09-01"),
+            M("frz", "gA", "frozen", "2026-05-01", activated: "2026-05-01", frozen: "2026-08-01"),
+            M("lft", "gA", "active", "2026-05-01", activated: "2026-05-01", left: "2026-09-04"),
+            M("arc", "gA", "active", "2026-05-01", activated: "2026-05-01"),
+            M("pos", "gA", "active", "2026-05-01", activated: "2026-05-01"),
+        };
+        var groups = new[]
+        {
+            new DashboardSummary.GroupRow("gA", "eng", false, "active"),
+            new DashboardSummary.GroupRow("gB", "eng", false, "active"),
+        };
+
+        var dto = DashboardSummary.Compute([], [], [], students, ms, groups, [], Month, Today);
+        Assert.Equal(2, dto.Debtors);
+
+        var kinds = DashboardSummary.DebtorKinds(students, ms);
+        Assert.Equal(6, kinds.Count); // qarzsiz o'quvchi toifaga tushmaydi
+        Assert.Equal(DashboardSummary.DebtActive, kinds["mix"]);
+        Assert.Equal(DashboardSummary.DebtTrial, kinds["tri"]);
+        Assert.Equal(DashboardSummary.DebtFrozen, kinds["frz"]);
+        Assert.Equal(DashboardSummary.DebtLeft, kinds["lft"]);
+        Assert.Equal(DashboardSummary.DebtArchived, kinds["arc"]);
+    }
+
+    [Fact]
+    public async Task OtherDebtorsAsync_toifalar_summalar_va_royxat()
+    {
+        using var db = TestDb.Sqlite();
+        var ctx = db.Context;
+        var g = new Group { Name = "A" };
+        ctx.Classes.Add(g);
+        var active = new Student { FullName = "Aktiv", Balance = -100_000 };
+        var leaver = new Student { FullName = "Ketgan", Balance = -300_000 };
+        var archived = new Student { FullName = "Arxiv", Balance = -50_000, IsArchived = true, ArchivedAt = "2026-10-01" };
+        var trial = new Student { FullName = "Sinov", Balance = -20_000 };
+        var paid = new Student { FullName = "Toza", Balance = 0 };
+        ctx.Students.AddRange(active, leaver, archived, trial, paid);
+        ctx.StudentGroups.AddRange(
+            M(active.Id, g.Id, "active", "2026-05-01", activated: "2026-05-01"),
+            M(leaver.Id, g.Id, "active", "2026-05-01", activated: "2026-05-01", left: "2026-10-10"),
+            M(trial.Id, g.Id, "trial", "2026-10-20"),
+            M(paid.Id, g.Id, "active", "2026-05-01", activated: "2026-05-01"));
+        await ctx.SaveChangesAsync();
+
+        var r = await DashboardSummary.OtherDebtorsAsync(ctx);
+
+        Assert.Equal((1, 100_000m), (r.ActiveCount, r.ActiveTotal));
+        Assert.Equal(["left", "archived", "trial", "frozen"], r.Groups.Select(x => x.Kind));
+        Assert.Equal((1, 300_000m), (r.Groups[0].Count, r.Groups[0].Total));
+        Assert.Equal((1, 50_000m), (r.Groups[1].Count, r.Groups[1].Total));
+        Assert.Equal((1, 20_000m), (r.Groups[2].Count, r.Groups[2].Total));
+        Assert.Equal((0, 0m), (r.Groups[3].Count, r.Groups[3].Total));
+        // Aktiv qarzdor ro'yxatda YO'Q, eng katta qarz tepada, summa musbat.
+        Assert.Equal(["Ketgan", "Arxiv", "Sinov"], r.Items.Select(i => i.FullName));
+        Assert.Equal(300_000m, r.Items[0].Debt);
+        Assert.Equal("2026-10-01", r.Items[1].ArchivedAt);
+        Assert.False(r.Truncated);
+    }
 }

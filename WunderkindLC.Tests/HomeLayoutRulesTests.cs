@@ -19,7 +19,7 @@ public class HomeLayoutRulesTests
         Assert.All(d.Cards, c => Assert.True(c.Visible));
         Assert.Equal("orders", d.Cards[0].Key);
         Assert.Equal(["cashboxes", "schedule"], d.Blocks.Where(b => b.Visible).Select(b => b.Key));
-        Assert.Equal(7, d.Blocks.Count);
+        Assert.Equal(8, d.Blocks.Count);
     }
 
     [Fact]

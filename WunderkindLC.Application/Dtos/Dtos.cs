@@ -1204,6 +1204,18 @@ public record DashboardSummaryDto(
     int OrdersLeft, int NewLeft, int ActiveLeft,
     int Debtors, int Groups, int FirstPayments, int Frozen, int Archived);
 
+/// <summary>«Boshqa qarzdorlar» vidjetidagi bitta toifa (<c>DashboardSummary.OtherDebtKinds</c>).</summary>
+public record OtherDebtGroupDto(string Kind, string Label, int Count, decimal Total);
+
+/// <summary>Aktiv bo'lmagan qarzdor: <paramref name="Debt"/> — musbat qarz summasi (so'm).</summary>
+public record OtherDebtorDto(string StudentId, string FullName, string Kind, decimal Debt, string? ArchivedAt);
+
+/// <summary>Bosh sahifa «Boshqa qarzdorlar» vidjeti: aktiv qarzdorlar jamlanmasi (kartochka bilan bir xil ta'rif),
+/// boshqa toifalar va ro'yxat (<paramref name="Truncated"/> — ro'yxat chegarada qirqilgan; sanoqlar to'liq).</summary>
+public record OtherDebtorsDto(
+    int ActiveCount, decimal ActiveTotal, IReadOnlyList<OtherDebtGroupDto> Groups,
+    IReadOnlyList<OtherDebtorDto> Items, bool Truncated);
+
 /// <summary>Bosh sahifa "Bugungi darslar" monitoringi: bugun dars kuni bo'lgan har bir guruh uchun
 /// o'qituvchi davomat qildimi (bugungi Conducted LessonNote) va baho qo'ydimi (bugungi jurnal
 /// bahosi yoki mezon belgisi).</summary>

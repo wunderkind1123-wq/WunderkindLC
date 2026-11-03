@@ -22,6 +22,7 @@ export type HomeBlockKey =
   | 'redList'
   | 'contactsToday'
   | 'aiAnalysis'
+  | 'otherDebtors'
 
 export interface HomeBlockDef {
   key: HomeBlockKey
@@ -45,6 +46,7 @@ export const HOME_BLOCKS: HomeBlockDef[] = [
   { key: 'redList', label: "Qizil ro'yxat", description: 'Ketma-ket sababsiz dars qoldirganlar (top 10)', defaultVisible: false, perm: 'students.attendance', available: true },
   { key: 'contactsToday', label: "Bog'lanish kerak — bugun", description: "Bugun qo'ng'iroq qilinishi kerak bo'lganlar", defaultVisible: false, perm: 'contacts', available: true },
   { key: 'aiAnalysis', label: 'AI tahlil', description: 'Markaz bo\'yicha kunlik AI tahlil', defaultVisible: false, perm: 'ai', available: true },
+  { key: 'otherDebtors', label: 'Boshqa qarzdorlar', description: "Guruhdan ketgan, arxivdagi, sinovdagi va muzlatilgan o'quvchilardagi qarz", defaultVisible: false, perm: 'students.list', available: true },
 ]
 
 export const HOME_CARD_KEYS: string[] = HOME_CARDS.map((c) => c.key)

@@ -162,7 +162,9 @@ public static class DashboardSummary
             OrdersLeft: deletedLeadAts.Count(d => InMonth(d, month)),
             NewLeft: newLeft,
             ActiveLeft: activeLeft,
-            Debtors: students.Count(s => !s.IsArchived && s.Balance < 0),
+            // FAQAT AKTIV o'quvchidagi qarzdorlar (2026-11-03, egasining talabi): sinovdagi, muzlatilgan,
+            // guruhdan ketgan va arxivdagi qarzdorlar «Boshqa qarzdorlar» vidjetida (`OtherDebtorsAsync`).
+            Debtors: DebtorKinds(students, memberships).Count(k => k.Value == DebtActive),
             Groups: groups.Count(g => !g.IsArchived && g.Status != "archived"),
             FirstPayments: FirstPaymentsInMonth(payments.Where(p => knownIds.Contains(p.StudentId)), month),
             Frozen: frozen,
@@ -205,6 +207,91 @@ public static class DashboardSummary
                         && string.CompareOrdinal(t.ScheduledAt[..10], today) >= 0
                         && open.Contains(t.LeadId))
             .Select(t => t.LeadId).Distinct().Count();
+    }
+
+    // ============================ QARZDORLAR TOIFASI ============================
+
+    /// <summary>Qarzdor toifalari. <see cref="DebtActive"/> — «Qarzdorlar» kartochkasi, qolganlari —
+    /// «Boshqa qarzdorlar» vidjeti (<see cref="OtherDebtKinds"/> tartibida).</summary>
+    public const string DebtActive = "active";
+    public const string DebtLeft = "left";
+    public const string DebtArchived = "archived";
+    public const string DebtTrial = "trial";
+    public const string DebtFrozen = "frozen";
+
+    /// <summary>Vidjetdagi toifalar va yorliqlari — ko'rsatish tartibida.</summary>
+    public static readonly IReadOnlyList<(string Kind, string Label)> OtherDebtKinds =
+    [
+        (DebtLeft, "Guruhdan ketganlar"),
+        (DebtArchived, "Arxivdagilar"),
+        (DebtTrial, "Sinovdagilar"),
+        (DebtFrozen, "Muzlatilganlar"),
+    ];
+
+    /// <summary>
+    /// Qarzdor qaysi toifada: arxivda bo'lsa — <see cref="DebtArchived"/>; aks holda o'quvchining UMUMIY holati
+    /// (<see cref="MembershipLifecycle.MemberState"/>): aktiv → sinov → muzlatilgan, birorta tirik a'zoligi yo'q —
+    /// <see cref="DebtLeft"/> (guruhdan chiqqan, lekin arxivlanmagan). Har qarzdor AYNAN bitta toifada.
+    /// <para>Bitta guruhda o'qib, boshqasidan chiqqan o'quvchi — AKTIV (balans bitta, o'quvchi markazda).</para>
+    /// </summary>
+    public static string DebtorKind(bool isArchived, string memberState) =>
+        isArchived ? DebtArchived : memberState switch
+        {
+            "active" => DebtActive,
+            "trial" => DebtTrial,
+            "frozen" or "yearFrozen" => DebtFrozen,
+            _ => DebtLeft,
+        };
+
+    /// <summary>Balansi manfiy o'quvchilar → toifa (o'quvchi id bo'yicha).</summary>
+    public static Dictionary<string, string> DebtorKinds(
+        IEnumerable<StudentRow> students, IEnumerable<StudentGroup> memberships)
+    {
+        var states = memberships.GroupBy(m => m.StudentId, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => MembershipLifecycle.MemberState(g), StringComparer.Ordinal);
+        return students.Where(s => s.Balance < 0)
+            .ToDictionary(
+                s => s.Id,
+                s => DebtorKind(s.IsArchived, states.GetValueOrDefault(s.Id, "")),
+                StringComparer.Ordinal);
+    }
+
+    /// <summary>Vidjet ro'yxatining chegarasi (eng katta qarzlar) — toifa sanoqlari va summalari CHEGARASIZ.</summary>
+    public const int MaxOtherDebtors = 300;
+
+    /// <summary>
+    /// «Boshqa qarzdorlar» vidjeti: aktiv bo'lmagan qarzdorlar — toifa bo'yicha soni va jami qarzi + ro'yxat
+    /// (eng katta qarz tepada). Aktiv qarzdorlar soni/summasi ham qaytadi (umumiy qarz bilan solishtirish uchun).
+    /// </summary>
+    public static async Task<OtherDebtorsDto> OtherDebtorsAsync(IAppDbContext db, CancellationToken ct = default)
+    {
+        var debtors = await db.Students.AsNoTracking()
+            .Where(s => s.Balance < 0)
+            .Select(s => new { s.Id, s.FullName, s.IsArchived, s.ArchivedAt, s.Balance })
+            .ToListAsync(ct);
+        var ids = debtors.Select(d => d.Id).ToList();
+        var memberships = await db.StudentGroups.AsNoTracking()
+            .Where(m => ids.Contains(m.StudentId) && m.IsActive)
+            .ToListAsync(ct);
+        var kinds = DebtorKinds(debtors.Select(d => new StudentRow(d.Id, d.IsArchived, d.Balance)), memberships);
+
+        var rows = debtors
+            .Select(d => new OtherDebtorDto(d.Id, d.FullName, kinds[d.Id], -d.Balance, d.ArchivedAt))
+            .ToList();
+        var active = rows.Where(r => r.Kind == DebtActive).ToList();
+        var other = rows.Where(r => r.Kind != DebtActive)
+            .OrderByDescending(r => r.Debt).ThenBy(r => r.FullName, StringComparer.Ordinal).ToList();
+
+        var groups = OtherDebtKinds
+            .Select(k =>
+            {
+                var inKind = other.Where(r => r.Kind == k.Kind).ToList();
+                return new OtherDebtGroupDto(k.Kind, k.Label, inKind.Count, inKind.Sum(r => r.Debt));
+            })
+            .ToList();
+        return new OtherDebtorsDto(
+            active.Count, active.Sum(r => r.Debt), groups,
+            other.Take(MaxOtherDebtors).ToList(), other.Count > MaxOtherDebtors);
     }
 
     /// <summary>

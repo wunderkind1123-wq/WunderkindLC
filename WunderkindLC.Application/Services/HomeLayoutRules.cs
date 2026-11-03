@@ -42,6 +42,7 @@ public static class HomeLayoutRules
         ("redList", false),
         ("contactsToday", false),
         ("aiAnalysis", false),
+        ("otherDebtors", false),
     ];
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);

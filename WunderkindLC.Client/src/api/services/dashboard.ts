@@ -41,6 +41,7 @@ export interface DashboardSummary {
   newLeft: number
   /** Shu oyda kursdan ketgan, aktivlashgan o'quvchilar. */
   activeLeft: number
+  /** Qarzdorlar — FAQAT aktiv o'quvchilar (boshqalari «Boshqa qarzdorlar» vidjetida). */
   debtors: number
   groups: number
   /** Birinchi o'quv to'lovi shu oyda bo'lganlar. */
@@ -49,6 +50,42 @@ export interface DashboardSummary {
   frozen: number
   /** Arxivlangan o'quvchilar. */
   archived: number
+}
+
+/** «Boshqa qarzdorlar» toifasi: guruhdan ketgan · arxivdagi · sinovdagi · muzlatilgan (server `DashboardSummary.OtherDebtKinds`). */
+export type OtherDebtKind = 'left' | 'archived' | 'trial' | 'frozen'
+
+export interface OtherDebtGroup {
+  kind: OtherDebtKind
+  label: string
+  count: number
+  total: number
+}
+
+export interface OtherDebtor {
+  studentId: string
+  fullName: string
+  kind: OtherDebtKind
+  /** Musbat qarz summasi (so'm). */
+  debt: number
+  archivedAt: string | null
+}
+
+/** Bosh sahifa «Boshqa qarzdorlar» vidjeti (server: `OtherDebtorsDto`). */
+export interface OtherDebtors {
+  /** Aktiv qarzdorlar — «Qarzdorlar» kartochkasi bilan bir xil ta'rif. */
+  activeCount: number
+  activeTotal: number
+  groups: OtherDebtGroup[]
+  /** Eng katta qarz tepada; `truncated` bo'lsa chegarada qirqilgan (sanoqlar to'liq). */
+  items: OtherDebtor[]
+  truncated: boolean
+}
+
+/** «Boshqa qarzdorlar» vidjeti — ruxsat `students.list` (javobda ism va summa bor). */
+export async function getOtherDebtors(): Promise<OtherDebtors> {
+  const { data } = await api.get<OtherDebtors>('/admin/dashboard/other-debtors')
+  return data
 }
 
 /** Bosh sahifa kartochkalari. */

@@ -84,7 +84,7 @@ describe('ruxsat filtri', () => {
     expect(visibleBlocks(layout, admin).map((b) => b.key)).not.toContain('cashboxes')
     // CRM U3b: «Davomat xabarlari» va «Qizil ro'yxat» qurildi — endi ko'rinadi.
     expect(visibleBlocks(layout, all).map((b) => b.key)).toEqual(
-      ['cashboxes', 'schedule', 'lessonsMonitor', 'absentNotices', 'redList', 'contactsToday', 'aiAnalysis'],
+      ['cashboxes', 'schedule', 'lessonsMonitor', 'absentNotices', 'redList', 'contactsToday', 'aiAnalysis', 'otherDebtors'],
     )
     expect(visibleBlocks(layout, staff(['classes.notAttended', 'contacts'])).map((b) => b.key)).toEqual(['lessonsMonitor', 'contactsToday'])
     // Kalitsiz xodim — bu ikki blok oynada ham, sahifada ham yo'q.
@@ -92,6 +92,9 @@ describe('ruxsat filtri', () => {
     expect(allowedBlocks(layout, staff(['contacts'])).map((b) => b.key)).not.toContain('redList')
     expect(visibleBlocks(layout, staff(['students.notices'])).map((b) => b.key)).toEqual(['absentNotices'])
     expect(visibleBlocks(layout, staff(['students.attendance'])).map((b) => b.key)).toEqual(['redList'])
+    // «Boshqa qarzdorlar» — ism va summa: faqat `students.list` bilan.
+    expect(visibleBlocks(layout, staff(['students.list'])).map((b) => b.key)).toEqual(['otherDebtors'])
+    expect(allowedBlocks(layout, staff(['contacts'])).map((b) => b.key)).not.toContain('otherDebtors')
   })
 
   it("kartochkalar sozlama TARTIBIDA va ruxsat bo'yicha", () => {

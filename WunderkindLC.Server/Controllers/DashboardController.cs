@@ -55,6 +55,21 @@ public class DashboardController(DataCache dataCache) : ControllerBase
             db => DashboardSummary.BuildAsync(db, today));
     }
 
+    /// <summary>
+    /// «Boshqa qarzdorlar» vidjeti — guruhdan ketgan, arxivdagi, sinovdagi va muzlatilgan qarzdorlar (aktivlari
+    /// «Qarzdorlar» kartochkasida). Ta'rif — <see cref="DashboardSummary.DebtorKind"/>.
+    /// <para>⚠️ Javobda ISM va SUMMA bor — sinf darajasidagi rol darvozasi yetmaydi, `students.list` o'qish
+    /// ruxsati talab qilinadi (o'quvchilar ro'yxatidagi balans ustuni bilan bir xil huquq).</para>
+    /// </summary>
+    [HttpGet("other-debtors")]
+    [AdminPerm("students.list", ReadRequiresPerm = true)]
+    public async Task<ActionResult<OtherDebtorsDto>> OtherDebtors() =>
+        await dataCache.GetOrCreateAsync(
+            "dashboard:other-debtors",
+            new[] { nameof(Student), nameof(StudentGroup) },
+            TimeSpan.FromMinutes(10),
+            db => DashboardSummary.OtherDebtorsAsync(db));
+
     /// <summary>Darslar monitoringi: tanlangan sanada (default — bugun) darsi BOR guruhlar (guruh kunlari
     /// + ko'chirilgan darslar, guruh umri ichida — <see cref="AttendanceWatch"/>), har biri uchun davomat
     /// qilinganmi va baho qo'yilganmi. "Nazorat → Davomat qilinmagan guruhlar" va "O'quvchilar davomati"

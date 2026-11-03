@@ -45,6 +45,13 @@ Kartochkalar hammasi (`HOME_CARDS` tartibida), `cardsVisible = true`; bloklardan
 | `redList` | `students.attendance` | `RedListBlock` — `GET student-attendance/red-list?min=3`, eng uzun seriyalar top 10 (5+ qizil, 3+ sariq), o'quvchiga havola faqat `students.list` bo'lsa + «Barchasi» → `/admin/students/davomat?tab=qizil` |
 | `contactsToday` | `contacts` | `ContactsTodayBlock` — `contacts/meta` `due.todo` |
 | `aiAnalysis` | `ai` | `CenterAiAnalysisCard` |
+| `otherDebtors` | `students.list` | `OtherDebtorsBlock` — «Boshqa qarzdorlar»: guruhdan ketgan · arxivdagi · sinovdagi · muzlatilgan qarzdorlar (soni, jami, ro'yxat), `GET dashboard/other-debtors` |
+
+⚠️ **«Qarzdorlar» kartochkasi = FAQAT AKTIV o'quvchilar** (2026-11-03, egasining talabi): `DashboardSummary.DebtorKind`
+(arxiv → `archived`; aks holda `MemberState`: active / trial / frozen, tirik a'zoligi yo'q → `left`). Qolgan toifalar —
+`otherDebtors` blokida, ya'ni hech bir qarz ko'zdan yo'qolmaydi. Kartochka ro'yxati (`?preset=debtors`) holat filtrini
+«Aktiv» qilib ochadi — son ro'yxat bilan teng. `ExecutiveDashboard` va MCP `finance_debtors` dagi umumiy qarz
+(arxivlanmagan hammasi) O'ZGARMADI.
 
 ⚠️ `myTasks` («Mening topshiriqlarim», Kanban) — 2026-10-21: Kanban «Topshiriqlar» olib tashlandi (o'rniga HR topshiriqlari); eski sozlamadagi kaliti normallashtirishda tashlanadi.
 

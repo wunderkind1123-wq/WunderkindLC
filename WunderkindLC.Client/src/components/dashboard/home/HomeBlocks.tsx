@@ -1,12 +1,13 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { IconAlertTriangle, IconBell, IconChecklist, IconPhoneCall } from '@tabler/icons-react'
+import { IconAlertTriangle, IconBell, IconCashBanknote, IconChecklist, IconPhoneCall } from '@tabler/icons-react'
 import { getAbsentNoticeSummary } from '@/api/services/attendanceNotices'
 import { getContactMeta } from '@/api/services/contacts'
 import { getRedList } from '@/api/services/absences'
+import { getOtherDebtors, type OtherDebtKind } from '@/api/services/dashboard'
 import { useAsync } from '@/hooks/useAsync'
 import { usePerm } from '@/lib/permissions'
-import { cn } from '@/lib/utils'
+import { cn, formatMoney } from '@/lib/utils'
 
 /**
  * Bosh sahifa vidjetlari (CRM Phase 5, `lib/homeWidgets.ts`) — kichik bloklar. Har biri O'Z ma'lumotini
@@ -23,8 +24,8 @@ function BlockCard({
 }: {
   title: string
   icon: typeof IconChecklist
-  to: string
-  linkLabel: string
+  to?: string
+  linkLabel?: string
   children: ReactNode
 }) {
   return (
@@ -34,9 +35,11 @@ function BlockCard({
           <Icon size={20} stroke={2} className="text-[#3D68FF]" />
           {title}
         </h2>
-        <Link to={to} className="text-[12px] font-medium text-[#3D68FF] hover:underline">
-          {linkLabel}
-        </Link>
+        {to && (
+          <Link to={to} className="text-[12px] font-medium text-[#3D68FF] hover:underline">
+            {linkLabel}
+          </Link>
+        )}
       </div>
       {children}
     </section>
@@ -124,6 +127,111 @@ export function RedListBlock() {
             </li>
           ))}
         </ul>
+      )}
+    </BlockCard>
+  )
+}
+
+const DEBT_KIND_STYLE: Record<OtherDebtKind, string> = {
+  left: 'bg-rose-50 text-rose-700',
+  archived: 'bg-slate-100 text-slate-700',
+  trial: 'bg-violet-50 text-violet-700',
+  frozen: 'bg-sky-50 text-sky-700',
+}
+
+/** Yopiq holatda ko'rsatiladigan qatorlar soni. */
+const OTHER_DEBTORS_PREVIEW = 10
+
+/**
+ * «Boshqa qarzdorlar»: aktiv bo'lmagan o'quvchilardagi qarz — guruhdan ketgan, arxivdagi, sinovdagi, muzlatilgan.
+ * Aktiv qarzdorlar «Qarzdorlar» kartochkasida; bu yerda — qolgani, ya'ni hech bir qarz ko'zdan yo'qolmaydi.
+ * Toifa chipi bosilsa ro'yxat o'sha toifaga toraytiriladi. Ruxsat `students.list` (server ham shu bilan).
+ */
+export function OtherDebtorsBlock() {
+  const res = useAsync(() => getOtherDebtors(), [])
+  const [kind, setKind] = useState<OtherDebtKind | null>(null)
+  const [expanded, setExpanded] = useState(false)
+  const data = res.data
+  const labels = new Map((data?.groups ?? []).map((g) => [g.kind, g.label]))
+  const rows = (data?.items ?? []).filter((r) => !kind || r.kind === kind)
+  const shown = expanded ? rows : rows.slice(0, OTHER_DEBTORS_PREVIEW)
+  const totalCount = (data?.groups ?? []).reduce((s, g) => s + g.count, 0)
+  const totalSum = (data?.groups ?? []).reduce((s, g) => s + g.total, 0)
+
+  return (
+    <BlockCard title="Boshqa qarzdorlar" icon={IconCashBanknote}>
+      {res.error ? (
+        <p className="text-[12px] text-red-600">Qarzdorlarni yuklab bo'lmadi: {res.error}</p>
+      ) : res.loading || !data ? (
+        <p className="text-[12px] text-[#6B7280]">Yuklanmoqda…</p>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2 text-[12px] font-semibold">
+            <button
+              type="button"
+              onClick={() => setKind(null)}
+              className={cn(
+                'rounded-full px-3 py-1.5 text-left',
+                kind === null ? 'bg-[#3D68FF] text-white' : 'bg-[#EEF2FF] text-[#3D68FF]',
+              )}
+            >
+              Hammasi: {totalCount} ta · {formatMoney(totalSum)}
+            </button>
+            {data.groups.map((g) => (
+              <button
+                key={g.kind}
+                type="button"
+                onClick={() => setKind(kind === g.kind ? null : g.kind)}
+                className={cn(
+                  'rounded-full px-2.5 py-1.5 text-left',
+                  DEBT_KIND_STYLE[g.kind],
+                  kind === g.kind && 'ring-2 ring-current',
+                )}
+              >
+                {g.label}: {g.count} ta · {formatMoney(g.total)}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-[#6B7280]">
+            Aktiv o'quvchilardagi qarz («Qarzdorlar» kartochkasi): {data.activeCount} ta · {formatMoney(data.activeTotal)}
+          </p>
+          {rows.length === 0 ? (
+            <p className="text-[12px] text-[#6B7280]">Bu toifada qarzdor yo'q.</p>
+          ) : (
+            <>
+              <ul className="space-y-1">
+                {shown.map((r) => (
+                  <li
+                    key={r.studentId}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-[#F0F2F2] px-2 py-1.5 text-[13px]"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className={cn('shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-semibold', DEBT_KIND_STYLE[r.kind])}>
+                        {labels.get(r.kind) ?? r.kind}
+                      </span>
+                      <Link to={`/admin/students/${r.studentId}`} className="truncate text-black hover:underline">
+                        {r.fullName}
+                      </Link>
+                    </span>
+                    <span className="shrink-0 text-[12px] font-semibold text-rose-600">{formatMoney(r.debt)}</span>
+                  </li>
+                ))}
+              </ul>
+              {rows.length > OTHER_DEBTORS_PREVIEW && (
+                <button
+                  type="button"
+                  onClick={() => setExpanded((v) => !v)}
+                  className="text-[12px] font-medium text-[#3D68FF] hover:underline"
+                >
+                  {expanded ? "Qisqartirish" : `Barchasini ko'rsatish (${rows.length})`}
+                </button>
+              )}
+              {data.truncated && expanded && (
+                <p className="text-[11px] text-[#6B7280]">Ro'yxatda eng katta {data.items.length} ta qarz; sanoqlar to'liq.</p>
+              )}
+            </>
+          )}
+        </div>
       )}
     </BlockCard>
   )
