@@ -354,6 +354,9 @@ builder.Services.AddSignalR();
 WunderkindLC.Application.Services.ImportMode.Configure(builder.Configuration);
 
 builder.Services.AddHostedService<WunderkindLC.Application.Services.TurnstileLiveService>();
+// P&L 2.0: rejali xarajat shablonlarining joriy oy yozuvi (docs/finance-reports). Pul yozmaydi, xabar yubormaydi —
+// shuning uchun IMPORT_MODE ga bog'lanmagan.
+builder.Services.AddHostedService<WunderkindLC.Application.Services.FinanceReports2.PlannedExpenseAccrualService>();
 
 if (!WunderkindLC.Application.Services.ImportMode.Enabled)
 {

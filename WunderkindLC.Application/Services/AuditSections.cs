@@ -117,6 +117,9 @@ public static class AuditSections
         ["CashboxTransfer"] = "finance",
         ["TransactionType"] = "finance",
         ["PlannedExpense"] = "finance",
+        // Pul oqimi 2.0 · P&L 2.0 (docs/finance-reports): hisobot toifalari, rejali xarajat shablonlari va oylik tuzatishlari.
+        ["FinanceCategoryConfig"] = "finance",
+        ["PlannedExpenseTemplate"] = "finance",
 
         // --- Qolgan bo'limlar ---
         ["Lead"] = "leads",

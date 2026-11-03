@@ -23,6 +23,11 @@ const IncomePlanPage = lazy(() => import('@/pages/admin/finance/IncomePlanPage')
 const FinanceReportsPage = lazy(() => import('@/pages/admin/finance/FinanceReportsPage').then((m) => ({ default: m.FinanceReportsPage })))
 const PnlPage = lazy(() => import('@/pages/admin/finance/PnlPage').then((m) => ({ default: m.PnlPage })))
 const CashflowPage = lazy(() => import('@/pages/admin/finance/CashflowPage').then((m) => ({ default: m.CashflowPage })))
+// Pul oqimi 2.0 · P&L 2.0 (docs/finance-reports) — eski sahifalar o'z joyida qoladi.
+const CashFlow2Page = lazy(() => import('@/pages/admin/finance/v2/CashFlow2Page').then((m) => ({ default: m.CashFlow2Page })))
+const Pnl2Page = lazy(() => import('@/pages/admin/finance/v2/Pnl2Page').then((m) => ({ default: m.Pnl2Page })))
+const FinanceCategoriesPage = lazy(() => import('@/pages/admin/finance/v2/FinanceCategoriesPage').then((m) => ({ default: m.FinanceCategoriesPage })))
+const PlannedTemplatesPage = lazy(() => import('@/pages/admin/finance/v2/PlannedTemplatesPage').then((m) => ({ default: m.PlannedTemplatesPage })))
 const IncomeExpensePage = lazy(() => import('@/pages/admin/finance/IncomeExpensePage').then((m) => ({ default: m.IncomeExpensePage })))
 const ParentsListPage = lazy(() => import('@/pages/admin/students/lists/ParentsListPage').then((m) => ({ default: m.ParentsListPage })))
 const NewStudentsPage = lazy(() => import('@/pages/admin/students/lists/NewStudentsPage').then((m) => ({ default: m.NewStudentsPage })))
@@ -403,6 +408,10 @@ export default function App() {
             <Route path="moliya/hisobotlar" element={<RequirePerm perm="finance.main"><FinanceReportsPage /></RequirePerm>} />
             <Route path="moliya/pnl" element={<RequirePerm perm="finance.main"><PnlPage /></RequirePerm>} />
             <Route path="moliya/pul-oqimi" element={<RequirePerm perm="finance.main"><CashflowPage /></RequirePerm>} />
+            <Route path="moliya/pnl-2" element={<RequirePerm perm="finance.pnl" anyOf={['finance.main']}><Pnl2Page /></RequirePerm>} />
+            <Route path="moliya/pul-oqimi-2" element={<RequirePerm perm="finance.cashflow" anyOf={['finance.main']}><CashFlow2Page /></RequirePerm>} />
+            <Route path="moliya/hisobot-toifalari" element={<RequirePerm perm="finance.main"><FinanceCategoriesPage /></RequirePerm>} />
+            <Route path="moliya/rejali-xarajat-shablonlari" element={<RequirePerm perm="finance.main"><PlannedTemplatesPage /></RequirePerm>} />
             <Route path="moliya/kirim-chiqim" element={<RequirePerm perm="finance.main"><IncomeExpensePage /></RequirePerm>} />
             <Route path="finance" element={<RequirePerm perm="finance.main"><FinancePage /></RequirePerm>} />
             {/* Bitta kassir qabul qilgan to'lovlar — alohida sahifa (Moliya → Kassirlar qatoridan). */}

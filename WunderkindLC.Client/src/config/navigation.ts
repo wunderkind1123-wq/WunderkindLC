@@ -214,6 +214,9 @@ export const navByRole: Record<Role, NavItem[]> = {
             { label: 'Moliya hisobotlari', to: '/admin/moliya/hisobotlar', perm: 'finance.main' },
             { label: "Moliya hisobotlari (P&L)", to: '/admin/moliya/pnl', perm: 'finance.main' },
             { label: 'Pul oqimi', to: '/admin/moliya/pul-oqimi', perm: 'finance.main' },
+            // 2.0 (docs/finance-reports) — egasining qarori: eskilari qoladi, yangilari ularning OSTIDA.
+            { label: 'Moliya hisobotlari (P&L) 2.0', to: '/admin/moliya/pnl-2', permAny: ['finance.pnl', 'finance.main'] },
+            { label: 'Pul oqimi 2.0', to: '/admin/moliya/pul-oqimi-2', permAny: ['finance.cashflow', 'finance.main'] },
           ],
         },
         {
@@ -223,6 +226,8 @@ export const navByRole: Record<Role, NavItem[]> = {
             { label: 'Tranzaksiya turi', to: '/admin/moliya/tranzaksiya-turi', perm: 'finance.main' },
             { label: 'Tranzakisyalar', to: '/admin/finance?tab=payments', perm: 'finance.main' },
             { label: 'Rejalashtirilgan xarajatlar', to: '/admin/moliya/rejalashtirilgan-xarajatlar', perm: 'finance.main' },
+            { label: 'Rejali xarajat shablonlari', to: '/admin/moliya/rejali-xarajat-shablonlari', perm: 'finance.main' },
+            { label: 'Hisobot toifalari', to: '/admin/moliya/hisobot-toifalari', perm: 'finance.main' },
             { label: 'Shartnoma', to: '/admin/contracts', perm: 'contracts' },
           ],
         },

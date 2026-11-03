@@ -212,6 +212,9 @@ export const adminPermissions: AdminPermSection[] = [
       { key: 'finance.debts', label: 'Qarzdorlik tahlili' },
       { key: 'finance.tariffs', label: 'Guruhlar va tariflar' },
       { key: 'finance.invoices', label: 'Hisob-fakturalar' },
+      // Pul oqimi 2.0 · P&L 2.0 (docs/finance-reports) — `finance.main` ruxsatli xodim ham avtomatik ko'radi.
+      { key: 'finance.cashflow', label: 'Pul oqimi 2.0' },
+      { key: 'finance.pnl', label: 'Moliya hisobotlari (P&L) 2.0' },
     ],
   },
   {

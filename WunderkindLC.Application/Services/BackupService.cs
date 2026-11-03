@@ -181,6 +181,11 @@ public static class BackupService
         await Add("monthlyCharges", db.MonthlyCharges);
         await Add("transactionTypes", db.TransactionTypes);
         await Add("plannedExpenses", db.PlannedExpenses);
+        // Pul oqimi 2.0 · P&L 2.0 (docs/finance-reports): hisobot toifalari (qo'lda sozlangan tasnif) va rejali xarajat
+        // shablonlari bilan ularning oylik hisobi/tuzatishlari — admin qarorlari, qayta tiklab bo'lmaydi.
+        await Add("financeCategoryConfigs", db.FinanceCategoryConfigs);
+        await Add("plannedExpenseTemplates", db.PlannedExpenseTemplates);
+        await Add("plannedExpenseAccruals", db.PlannedExpenseAccruals);
         // Kassalar va kassadan kassaga ko'chirishlar — kassa QOLDIG'I shulardan tiklanadi.
         await Add("cashboxes", db.Cashboxes);
         await Add("cashboxTransfers", db.CashboxTransfers);
