@@ -75,6 +75,7 @@ import {
 } from '@/api/services/retentionBonus'
 import { getAttendanceFines } from '@/api/services/attendanceFines'
 import { AttendanceFineLine } from '@/components/salary/AttendanceFineLine'
+import { DiscountCoverLine } from '@/components/salary/DiscountCoverLine'
 import { ManualFineLine } from '@/components/salary/ManualFineLine'
 
 import { DateInput } from '@/components/ui/DateInput'
@@ -1467,6 +1468,10 @@ export function TeacherDetailPage() {
               />
             )}
 
+            {/* Ustoz qoplagan chegirma — markaz ulushi ushlanmasi (2026-11-03) */}
+            {selMonthData && (selMonthData.discountCover ?? 0) > 0 && (
+              <DiscountCoverLine className="mt-3" amount={selMonthData.discountCover ?? 0} items={selMonthData.discountCoverItems} />
+            )}
             {/* Qo'lda jarima (Moliya → Jarima) — sabablari bilan */}
             {selMonthData && (selMonthData.manualFines ?? 0) > 0 && (
               <ManualFineLine className="mt-3" amount={selMonthData.manualFines ?? 0} items={selMonthData.manualFineItems} />

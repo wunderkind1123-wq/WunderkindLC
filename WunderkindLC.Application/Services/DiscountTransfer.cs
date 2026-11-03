@@ -144,6 +144,12 @@ public static class DiscountTransfer
             StartMonth = m7,
             EndMonth = row.EndMonth,
             Reason = row.Reason,
+            // «Ustoz qoplaydi» belgisi ham ko'chadi (kechroq oy — yangi qator shu oydan boshlanadi).
+            TeacherCovers = row.TeacherCovers,
+            TeacherCoverPct = row.TeacherCoverPct,
+            TeacherCoversFrom = row.TeacherCovers ? DiscountCover.CoverFrom(m7, row.TeacherCoversFrom) : "",
+            // Foiz tarixi ham o'sha-o'sha (yangi qator m7 dan boshlanadi — undan oldingi yozuvlar unga ta'sir qilmaydi).
+            TeacherCoverHistory = row.TeacherCoverHistory,
             Status = StudentDiscount.StatusActive,
             CreatedAt = AppClock.Iso(),
             // Chegirmani BERGAN odam o'zgarmaydi — o'tkazishni kim qilgani auditda.

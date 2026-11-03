@@ -479,7 +479,8 @@ public partial class FinanceController(AppDbContext db, AuditService audit, Auto
                 ledger.Months.Count, ledger.TotalExpected, ledger.Remaining,
                 te.SalaryMode, te.SalaryPercent,
                 ledger.TotalDeduction, ledger.Months.Sum(m => m.MissedLessons),
-                AttendanceFines: ledger.TotalAttendanceFines));
+                AttendanceFines: ledger.TotalAttendanceFines,
+                DiscountCover: ledger.Months.Sum(m => m.DiscountCover)));
         }
         return result;
     }

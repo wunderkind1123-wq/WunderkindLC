@@ -20,7 +20,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { MoneyInput, NumberInput } from '@/components/ui/NumberInput'
 import { StatCard } from '@/components/ui/StatCard'
-import { apiErrorMessage, formatDateTime, formatMoney } from '@/lib/utils'
+import { apiErrorMessage, cn, formatDateTime, formatMoney } from '@/lib/utils'
 import { SCOPE_NONE, appliedGroupLabel, defaultScopeKey, periodInvalid, scopeKey } from './discountScope'
 
 /* ─────────────────────────── kichik yordamchilar ─────────────────────────── */
@@ -267,6 +267,10 @@ export function DiscountSection({
                   <Row label="Davr" value={periodLabel(it.startMonth, it.endMonth)} />
                   <Row label="Sabab" value={it.reason || '—'} />
                   <Row
+                    label="Kim qoplaydi"
+                    value={it.teacherCovers ? `Ustoz — chegirmaning ${it.teacherCoverPct ?? 0}% i maoshidan (${it.teacherCoversFrom} dan)` : "Markaz"}
+                  />
+                  <Row
                     label="Kim berdi"
                     value={`${it.createdBy || '—'} · ${formatDateTime(it.createdAt)}`}
                   />
@@ -482,6 +486,10 @@ function DiscountFormModal({
   const [reason, setReason] = useState(initial?.reason ?? '')
   /** Joriy oy hisobiga DARHOL qo'llansinmi (default — HA). */
   const [applyNow, setApplyNow] = useState(true)
+  /** Chegirmani USTOZ qoplaydimi (default — YO'Q: markaz ko'taradi, ustoz maoshi to'liq tarifdan). */
+  const [teacherCovers, setTeacherCovers] = useState(initial?.teacherCovers ?? false)
+  /** Chegirmaning necha foizi ustoz maoshidan ushlanadi — admin kiritadi (standart 60). */
+  const [coverPct, setCoverPct] = useState<number | null>(initial?.teacherCovers ? (initial.teacherCoverPct ?? 60) : 60)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
@@ -517,9 +525,11 @@ function DiscountFormModal({
   const scopeMissing = !initial && groupKey === SCOPE_NONE
   /** Davr teskari ("2026-09" → "2026-06") — saqlansa chegirma HECH QACHON qo'llanmasdi. */
   const badPeriod = periodInvalid(startMonth, endMonth)
+  /** «Ustoz qoplaydi» belgilangan bo'lsa foiz 1–100 majburiy. */
+  const coverPctInvalid = teacherCovers && (coverPct === null || coverPct < 1 || coverPct > 100)
   const canSave =
     !pctInvalid && !amountInvalid && !bothZero && !scopeTaken && !noFreeScope && !scopeMissing &&
-    !badPeriod && !saving
+    !badPeriod && !coverPctInvalid && !saving
 
   /**
    * Oldindan ko'rsatish BAZASI — joriy oyning HAQIQIY hisobi (`currentCharge`), qator hali
@@ -549,6 +559,8 @@ function DiscountFormModal({
       reason: reason.trim(),
       // Tahrirlashda qamrov O'ZGARMAYDI — mavjud qiymat qaytariladi.
       groupId: (initial ? scopeKey(initial.groupId) : groupKey) || null,
+      teacherCovers,
+      teacherCoverPct: teacherCovers ? (coverPct ?? 0) : 0,
     }
     try {
       const res = initial
@@ -732,6 +744,46 @@ function DiscountFormModal({
             </span>
           </span>
         </label>
+
+        {/* «Chegirmani USTOZ qoplaydi» (2026-11-03): standartda markaz ko'taradi — ustoz maoshi to'liq tarifdan. */}
+        <label
+          className={cn(
+            'flex cursor-pointer items-start gap-2.5 rounded-lg border p-3',
+            teacherCovers ? 'border-amber-300 bg-amber-50/70' : 'border-slate-200 bg-slate-50/60',
+          )}
+        >
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 accent-brand-600"
+            checked={teacherCovers}
+            onChange={(e) => setTeacherCovers(e.target.checked)}
+          />
+          <span className="text-sm text-slate-700">
+            Chegirmani ustoz qoplaydi
+            <span className="mt-0.5 block text-xs font-normal text-slate-500">
+              {teacherCovers
+                ? "Chegirmaning quyida kiritilgan foizi ustoz maoshidan markaz hisobiga ushlab qolinadi. Joriy oydan boshlab; o'tgan oylar o'zgarmaydi."
+                : "Belgilanmagan — chegirmani markaz ko'taradi, ustoz maoshi to'liq tarifdan hisoblanadi (o'zgarmaydi)."}
+            </span>
+          </span>
+        </label>
+        {teacherCovers && (
+          <div className="-mt-1 rounded-lg border border-amber-200 bg-white p-3">
+            <NumberInput
+              label="Chegirmaning necha foizi ustoz maoshidan ushlansin? (%)"
+              value={coverPct}
+              onChange={setCoverPct}
+            />
+            {coverPctInvalid ? (
+              <p className="mt-1 text-xs text-red-600">1 dan 100 gacha kiriting.</p>
+            ) : (
+              <p className="mt-1 text-xs text-slate-500">
+                Masalan: chegirma 137 500 so'm, {coverPct}% → ustoz maoshidan{' '}
+                <b>{formatMoney(Math.round((137500 * (coverPct ?? 0)) / 100))}</b> ushlanadi.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* ⚠️ ANIQ sabab: "0 dan 100 gacha" umumiy matni buzuq/kasr qiymatda ADASHTIRARDI. */}
         {pctError && <p className="text-sm text-red-600">Foiz: {pctError}</p>}

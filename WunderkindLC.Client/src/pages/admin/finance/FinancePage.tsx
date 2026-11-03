@@ -338,12 +338,13 @@ export function FinancePage() {
   const handleExportTeachers = () => {
     exportToCsv(
       'oqituvchilar-maoshi.csv',
-      ["O'qituvchi", 'Oylik', 'Jurnal ushlanmasi', "O'tkazib yuborilgan dars", 'Hisoblangan', 'Berilgan', 'Qoldiq'],
+      ["O'qituvchi", 'Oylik', 'Jurnal ushlanmasi', "O'tkazib yuborilgan dars", 'Chegirma ushlanmasi (ustoz)', 'Hisoblangan', 'Berilgan', 'Qoldiq'],
       salaryReport.map((r) => [
         r.teacherName,
         String(r.salary),
         String(r.deduction ?? 0),
         String(r.missedLessons ?? 0),
+        String(r.discountCover ?? 0),
         String(r.expected),
         String(r.totalPaid),
         String(r.remaining),
@@ -495,6 +496,8 @@ export function FinancePage() {
   }
   // Maosh jurnalga bog'langan bo'lsa (Guruhlar → Jurnal boshqaruvi) — "Ushlanma" ustuni ko'rsatiladi.
   const anyDeduction = salaryReport.some((r) => (r.deduction ?? 0) > 0)
+  // «Chegirmani ustoz qoplaydi» ishlatilgan bo'lsa — "Chegirma ushlanmasi" ustuni (discounts.md §14).
+  const anyDiscountCover = salaryReport.some((r) => (r.discountCover ?? 0) > 0)
   // ⚠️ BEKOR QILINGANLAR ro'yxatda ko'rinadi, lekin HECH BIR jamiga kirmaydi (`live`).
   const paymentsTotal = filteredPayments.filter(live).reduce((a, p) => a + p.amount, 0)
   const paymentsCashTotal = filteredPayments.filter(live).reduce((a, p) => a + (p.method === 'cash' ? p.amount : 0), 0)
@@ -922,6 +925,11 @@ export function FinancePage() {
                         <th>O'qituvchi</th>
                         <th className="num">Oylik</th>
                         {anyDeduction && <th className="num">Ushlanma</th>}
+                        {anyDiscountCover && (
+                          <th className="num" title="«Chegirmani ustoz qoplaydi» — chegirmaning kiritilgan foizi maoshdan markazga ushlangan">
+                            Chegirma ushlanmasi
+                          </th>
+                        )}
                         <th className="num">Hisoblangan</th>
                         <th className="num">Berilgan</th>
                         <th className="num">Qoldiq</th>
@@ -962,6 +970,15 @@ export function FinancePage() {
                                     ({r.missedLessons ?? 0} dars)
                                   </span>
                                 </span>
+                              ) : (
+                                <span className="text-slate-300">—</span>
+                              )}
+                            </td>
+                          )}
+                          {anyDiscountCover && (
+                            <td className="num" title="Chegirmani ustoz qoplaydi — maoshdan ushlangan">
+                              {(r.discountCover ?? 0) > 0 ? (
+                                <span className="text-amber-700">−{formatMoney(r.discountCover ?? 0)}</span>
                               ) : (
                                 <span className="text-slate-300">—</span>
                               )}

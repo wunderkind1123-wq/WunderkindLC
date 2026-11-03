@@ -509,6 +509,11 @@ public static class SalaryLedger
         decimal PerLesson(string gid, string month) =>
             subRates.GetValueOrDefault((gid, month))?.PerLessonFee ?? 0m;
 
+        // «CHEGIRMANI USTOZ QOPLAYDI» (2026-11-03, `DiscountCover`): (oy, guruh) → belgilangan chegirmalar. Belgi hech
+        // qayerda yo'q bo'lsa — bitta AnyAsync, boshqa so'rov yo'q.
+        var covered = await DiscountCover.LoadAsync(db, groups.Select(g => g.Id).ToList(), startMonth, toMonth);
+        var groupNames = groups.ToDictionary(g => g.Id, g => g.Name);
+
         var months = new List<MonthSalaryDto>();
         foreach (var month in TuitionService.MonthRange(startMonth, toMonth))
         {
@@ -547,6 +552,8 @@ public static class SalaryLedger
             decimal grossCollectedSum = 0m, collectedGroupDeduction = 0m;
             var lessonLines = new List<SalaryLessonStatDto>();
             int plannedTotal = 0, conductedTotal = 0;
+            decimal monthCover = 0m;
+            var coverItems = new List<DiscountCoverItemDto>();
 
             foreach (var g in groups)
             {
@@ -555,6 +562,19 @@ public static class SalaryLedger
                 if (share <= 0m) continue;   // bu oyda guruh boshqa o'qituvchiniki — na ulush, na jarima
 
                 var mode = EffMode(g.TeacherSalaryMode, teacher.SalaryMode);
+
+                // Ustoz qoplaydigan chegirmalar: chegirma × admin kiritgan foiz (DiscountCover). Guruh ulushi bo'yicha.
+                if (covered.TryGetValue((month, g.Id), out var coverList))
+                {
+                    foreach (var it in coverList)
+                    {
+                        var amt = DiscountCover.Withhold(it.Discount * share, it.RatePct);
+                        if (amt <= 0) continue;
+                        monthCover += amt;
+                        coverItems.Add(new DiscountCoverItemDto(it.StudentName, groupNames.GetValueOrDefault(g.Id, ""),
+                            decimal.Round(it.Discount * share, 2), it.RatePct, amt));
+                    }
+                }
                 decimal contribution, potential, collectedContribution;
                 if (mode == "percent")
                 {
@@ -711,6 +731,9 @@ public static class SalaryLedger
             }
 
             var expected = baseExpected - deduction;
+            // USTOZ QOPLAGAN CHEGIRMA — jurnal ushlanmasidan KEYIN, jarimalardan OLDIN, qoldiqdan oshmaydi (maosh manfiy bo'lmaydi).
+            var coverApplied = decimal.Round(Math.Min(monthCover, Math.Max(0m, expected)), 2);
+            expected -= coverApplied;
             // DAVOMAT JARIMASI: ushlanmadan keyingi qoldiqdan oshmaydi (maosh manfiy bo'lmaydi). Jurnal ushlanmasidan
             // MUSTAQIL — ikkalasi birga qo'llanishi mumkin (SPEC §10 #1).
             var fineInfo = finesByMonth.GetValueOrDefault(month);
@@ -726,7 +749,7 @@ public static class SalaryLedger
             var status = remaining <= 0 ? (expected <= 0 && paid <= 0 ? "unpaid" : "paid") : paid > 0 ? "partial" : "unpaid";
             // Potentsial maoshdan ham o'sha ushlanma ayriladi — aks holda "hammasi to'lansa" raqami
             // jurnal ushlanmasini hisobga olmay, haqiqiydan katta ko'rinardi.
-            var potentialExpected = Math.Max(0m, basePotential - deduction - fineApplied - manualApplied);
+            var potentialExpected = Math.Max(0m, basePotential - deduction - coverApplied - fineApplied - manualApplied);
             if (potentialExpected < expected) potentialExpected = expected;   // yig'ilgan hisoblangandan oshib ketgan holat
 
             // «Hozir chiqadigan» — faqat hisoblangan baza oylarida farq qiladi (yig'ilgan bazada u = expected).
@@ -739,7 +762,7 @@ public static class SalaryLedger
                         Math.Max(0m, TotalSalaryBase(month) - TotalUnpaid(month))
                         * teacher.SalaryPercent / 100m, 2) - monthSubstituteDeduction);
                 var dedCollected = journalLinked && plannedTotal > 0 ? decimal.Round(collectedGroupDeduction, 2) : 0m;
-                collectedExpected = Math.Min(expected, Math.Max(0m, baseCollected + monthSubstituteFee - dedCollected - fineApplied - manualApplied));
+                collectedExpected = Math.Min(expected, Math.Max(0m, baseCollected + monthSubstituteFee - dedCollected - coverApplied - fineApplied - manualApplied));
             }
 
             // Shu oyda to'lamagan o'quvchilar (foizli guruhlarda, o'qituvchiga ulushi tushgan) — «to'lasa yana +X» bilan
@@ -770,7 +793,9 @@ public static class SalaryLedger
                 ManualFines: manualApplied, ManualFineCount: manualInfo.Count,
                 ManualFineItems: manualInfo.Items,
                 UnpaidStudents: monthDebtors.Count,
-                UnpaidStudentsLeft: monthDebtors.Count(kv => !kv.Value)));
+                UnpaidStudentsLeft: monthDebtors.Count(kv => !kv.Value),
+                DiscountCover: coverApplied,
+                DiscountCoverItems: coverItems.Count > 0 ? coverItems : null));
         }
 
         var totalExpected = months.Sum(m => m.Expected);

@@ -297,7 +297,9 @@ export function DiscountsReportPage() {
               icon={Wallet}
               iconBg="bg-sky-50"
               iconColor="text-sky-600"
-              hint={`Hisoblangan: ${formatMoney(s.periodCharged)}`}
+              hint={(s.teacherCovered ?? 0) > 0
+                ? `Markaz: ${formatMoney(s.periodDiscount - (s.teacherCovered ?? 0))} · Ustoz maoshidan: ${formatMoney(s.teacherCovered ?? 0)}`
+                : `Hisoblangan: ${formatMoney(s.periodCharged)}`}
             />
             <StatCard
               label="Chegirma ulushi"
@@ -384,7 +386,7 @@ export function DiscountsReportPage() {
               {tab === 'months' && (
                 <Card
                   title="Kim qopladi — oylar kesimida"
-                  sub="O'quvchidan tushgan pul va markaz qoplagan chegirma alohida. O'qituvchi maoshi to'liq (chegirmasiz) summadan hisoblanadi — chegirma uning ulushini kamaytirmaydi."
+                  sub="O'quvchidan tushgan pul, markaz qoplagan chegirma va ustoz maoshidan ushlanadigan qism alohida. O'qituvchi maoshi to'liq (chegirmasiz) summadan hisoblanadi; faqat «Chegirmani ustoz qoplaydi» belgilangan chegirmada uning kiritilgan foizi maoshdan ushlanadi."
                   tight
                 >
                   <div className="table-wrap">
@@ -395,6 +397,7 @@ export function DiscountsReportPage() {
                           <th className="num">Hisoblangan (to'liq)</th>
                           <th className="num">O'quvchidan tushgan</th>
                           <th className="num">Markaz qoplagan chegirma</th>
+                          <th className="num" title="«Chegirmani ustoz qoplaydi» belgilangan chegirmalardan ustoz maoshidan ushlanadigan qism">Ustoz maoshidan</th>
                           <th className="num">Qoldiq qarz</th>
                         </tr>
                       </thead>
@@ -404,7 +407,8 @@ export function DiscountsReportPage() {
                             <td className="font-medium text-slate-700">{monthLabel(m.month)}</td>
                             <td className="num text-slate-500">{money(m.charged)}</td>
                             <td className="num font-semibold text-indigo-600">{money(m.paid)}</td>
-                            <td className="num font-semibold text-sky-600">{money(m.discount)}</td>
+                            <td className="num font-semibold text-sky-600">{money(m.discount - (m.teacherCovered ?? 0))}</td>
+                            <td className="num text-amber-700">{money(m.teacherCovered ?? 0)}</td>
                             <td className="num">{money(Math.max(0, m.charged - m.discount - m.paid))}</td>
                           </tr>
                         ))}
@@ -412,7 +416,8 @@ export function DiscountsReportPage() {
                           <td>Jami</td>
                           <td className="num">{money(s.periodCharged)}</td>
                           <td className="num text-indigo-600">{money(s.periodPaid)}</td>
-                          <td className="num text-sky-600">{money(s.periodDiscount)}</td>
+                          <td className="num text-sky-600">{money(s.periodDiscount - (s.teacherCovered ?? 0))}</td>
+                          <td className="num text-amber-700">{money(s.teacherCovered ?? 0)}</td>
                           <td className="num">{money(Math.max(0, s.periodCharged - s.periodDiscount - s.periodPaid))}</td>
                         </tr>
                       </tbody>
@@ -441,6 +446,7 @@ export function DiscountsReportPage() {
                             <th className="num">Hisoblangan</th>
                             <th className="num">O'quvchidan tushgan</th>
                             <th className="num">Markaz qoplagan</th>
+                            <th className="num" title="«Chegirmani ustoz qoplaydi» — ustoz maoshidan ushlanadigan qism">Ustoz maoshidan</th>
                             <th className="num">Ulushi</th>
                           </tr>
                         </thead>
@@ -456,7 +462,8 @@ export function DiscountsReportPage() {
                                 <td className="num">{t.students || '—'}</td>
                                 <td className="num text-slate-500">{money(t.charged)}</td>
                                 <td className="num font-semibold text-indigo-600">{money(t.paid)}</td>
-                                <td className="num font-semibold text-sky-600">{money(t.discount)}</td>
+                                <td className="num font-semibold text-sky-600">{money(t.discount - (t.teacherCovered ?? 0))}</td>
+                                <td className="num text-amber-700">{money(t.teacherCovered ?? 0)}</td>
                                 <td className="num">{pctLabel(share(t.discount, t.charged))}</td>
                               </tr>
                             ))}
@@ -487,6 +494,7 @@ export function DiscountsReportPage() {
                             <th className="num">O'quvchilar</th>
                             <th className="num">Hisoblangan</th>
                             <th className="num">Chegirma</th>
+                            <th className="num">Shundan ustoz maoshidan</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -502,6 +510,7 @@ export function DiscountsReportPage() {
                                 <td className="num">{g.students || '—'}</td>
                                 <td className="num text-slate-500">{money(g.charged)}</td>
                                 <td className="num font-semibold text-sky-600">{money(g.discount)}</td>
+                                <td className="num text-amber-700">{money(g.teacherCovered ?? 0)}</td>
                               </tr>
                             ))}
                         </tbody>

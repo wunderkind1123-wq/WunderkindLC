@@ -182,6 +182,16 @@ export function TeacherSalaryDetailModal({ teacher, from, to, onClose }: Props) 
                                 davomat jarimasi −{formatMoney(m.attendanceFines ?? 0)} ({m.attendanceFineCount ?? 0} ta dars)
                               </div>
                             )}
+                            {(m.discountCover ?? 0) > 0 && (
+                              <div
+                                className="text-[11px] text-amber-700"
+                                title={(m.discountCoverItems ?? [])
+                                  .map((f) => `${f.studentName}: chegirma ${formatMoney(f.discount)} × ${f.ratePct}% = −${formatMoney(f.amount)}`)
+                                  .join('\n')}
+                              >
+                                chegirma qoplagani uchun −{formatMoney(m.discountCover ?? 0)} ({m.discountCoverItems?.length ?? 0} ta o'quvchi)
+                              </div>
+                            )}
                             {(m.manualFines ?? 0) > 0 && (
                               <div
                                 className="text-[11px] text-red-600"

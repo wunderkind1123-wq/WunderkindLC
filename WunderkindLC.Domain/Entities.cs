@@ -568,6 +568,23 @@ public class StudentDiscount
     public string EndMonth { get; set; } = string.Empty;
     /// <summary>Sabab/izoh — nega bu chegirma berilgan.</summary>
     public string Reason { get; set; } = string.Empty;
+    /// <summary>
+    /// CHEGIRMANI USTOZ QOPLAYDI (2026-11-03, egasining talabi). <c>false</c> (standart) — chegirmani markaz ko'taradi,
+    /// ustoz maoshi to'liq tarifdan (hozirgi qoida). <c>true</c> — ustoz maoshidan chegirmaning
+    /// <see cref="TeacherCoverPct"/> foizi markaz hisobiga ushlanadi (<c>DiscountCover</c>).
+    /// </summary>
+    public bool TeacherCovers { get; set; }
+    /// <summary>Chegirmaning necha foizi ustoz maoshidan ushlanadi (1–100) — admin kiritadi, ustoz foiziga bog'liq EMAS.</summary>
+    public int TeacherCoverPct { get; set; }
+    /// <summary>«Ustoz qoplaydi» qaysi oydan ("yyyy-MM") — belgi qo'yilgan oy (yoki chegirma boshlanishi, kechrog'i):
+    /// o'tgan oylarning maoshi o'zgarmaydi. Bo'sh — qoplamaydi.</summary>
+    public string TeacherCoversFrom { get; set; } = string.Empty;
+    /// <summary>
+    /// FOIZ TARIXI — "yyyy-MM:pct;yyyy-MM:pct" (0 = belgi olingan). Har oy O'SHA paytdagi foiz bilan hisoblanadi:
+    /// foiz o'zgartirilsa yoki belgi olinsa yangi yozuv JORIY oydan qo'shiladi, o'tgan oylarniki o'zgarmaydi
+    /// (maosh berib bo'lingan bo'lishi mumkin). Qoida — <c>DiscountCover.PctFor</c> / <c>WithChange</c>.
+    /// </summary>
+    public string TeacherCoverHistory { get; set; } = string.Empty;
     /// <summary><see cref="StatusActive"/> | <see cref="StatusReplaced"/> | <see cref="StatusCancelled"/>.</summary>
     public string Status { get; set; } = StatusActive;
     /// <summary>Hozir amaldagi yozuv. HAR QAMROVDA (<c>StudentId</c> + <c>GroupId</c>) ko'pi

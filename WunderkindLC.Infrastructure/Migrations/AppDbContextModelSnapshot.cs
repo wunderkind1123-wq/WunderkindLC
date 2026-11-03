@@ -9044,6 +9044,20 @@ namespace WunderkindLC.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("TeacherCoverHistory")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("TeacherCoverPct")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("TeacherCovers")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("TeacherCoversFrom")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("TeacherId")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");

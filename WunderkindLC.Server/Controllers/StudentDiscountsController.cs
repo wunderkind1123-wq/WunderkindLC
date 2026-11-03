@@ -194,7 +194,10 @@ public class StudentDiscountsController(AppDbContext db, AuditService audit) : C
         if (start.Length > 0 && end.Length > 0 && string.CompareOrdinal(end, start) < 0)
             return (null, "Tugash oyi boshlanish oyidan oldin bo'lishi mumkin emas");
 
-        return (new DiscountSpec(p.Pct, p.Amount, start, end, p.Reason ?? "", p.GroupId).Normalized(), null);
+        if (p.TeacherCovers && p.TeacherCoverPct is < 1 or > 100)
+            return (null, "Ustoz maoshidan chegirmaning necha foizi ushlanishini kiriting (1–100)");
+
+        return (new DiscountSpec(p.Pct, p.Amount, start, end, p.Reason ?? "", p.GroupId, p.TeacherCovers, p.TeacherCoverPct).Normalized(), null);
     }
 
     /// <summary>Bo'sh (cheklovsiz) yoki "yyyy-MM".</summary>
@@ -217,7 +220,8 @@ public class StudentDiscountsController(AppDbContext db, AuditService audit) : C
             _ => "",
         };
         var group = string.IsNullOrWhiteSpace(d.GroupName) ? "" : $" [guruh: {d.GroupName}]";
-        return text + period + group;
+        var cover = d.TeacherCovers ? $" — chegirmani USTOZ qoplaydi: chegirmaning {d.TeacherCoverPct}% i maoshidan ushlanadi ({d.TeacherCoversFrom} dan)" : "";
+        return text + period + group + cover;
     }
 
     /// <summary>Joriy oy hisobiga qo'llandimi — audit matnining oxiri (mavjud o'quvchi formasidagi

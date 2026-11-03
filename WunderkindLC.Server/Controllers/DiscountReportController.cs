@@ -103,6 +103,15 @@ public class DiscountReportController(AppDbContext db) : ControllerBase
         var paidByMonth = paidCells.GroupBy(c => c.Month).ToDictionary(g => g.Key, g => g.Sum(c => c.Applied));
         var paidByGroup = paidCells.GroupBy(c => c.GroupId).ToDictionary(g => g.Key, g => g.Sum(c => c.Applied));
 
+        // ---------- (3.6) USTOZ QOPLAGAN qism («Chegirmani ustoz qoplaydi», discounts.md §14) ----------
+        // (oy, guruh) → ustoz maoshidan ushlanadigan summa (chegirma × admin kiritgan %). Markaz zimmasi = chegirma − shu.
+        var coverRaw = await DiscountCover.LoadAsync(db, groups.Select(g => g.Id).ToList(), fromMonth, toMonth);
+        var coverByCell = coverRaw.ToDictionary(kv => kv.Key, kv => kv.Value.Sum(i => DiscountCover.Withhold(i.Discount, i.RatePct)));
+        decimal CoverOf(string month, string? groupId) =>
+            groupId is null ? 0m : coverByCell.GetValueOrDefault((month, groupId));
+        decimal CoverSum(IEnumerable<(string Month, string? GroupId)> cells) =>
+            cells.Distinct().Sum(c => CoverOf(c.Month, c.GroupId));
+
         // ---------- (4) Jamlanma ----------
         var periodCharged = charges.Sum(c => c.Amount);
         var periodDiscount = charges.Sum(c => c.Discount);
@@ -116,7 +125,8 @@ public class DiscountReportController(AppDbContext db) : ControllerBase
             PeriodDiscount: periodDiscount,
             SharePct: Share(periodDiscount, periodCharged),
             CurrentMonthDiscount: charges.Where(c => c.Month == current).Sum(c => c.Discount),
-            PeriodPaid: paidCells.Sum(c => c.Applied));
+            PeriodPaid: paidCells.Sum(c => c.Applied),
+            TeacherCovered: coverByCell.Values.Sum());
 
         // ---------- (5) Oy kesimi — davrdagi HAR oy (chegirmasizi ham 0 bilan) ----------
         var byMonthRaw = charges.GroupBy(c => c.Month).ToDictionary(g => g.Key, g => g.ToList());
@@ -124,7 +134,8 @@ public class DiscountReportController(AppDbContext db) : ControllerBase
             .Select(m => byMonthRaw.TryGetValue(m, out var rows)
                 ? new DiscountReportMonthDto(m, rows.Sum(r => r.Amount), rows.Sum(r => r.Discount),
                     rows.Where(r => r.Discount != 0m).Select(r => r.StudentId).Distinct().Count(),
-                    paidByMonth.GetValueOrDefault(m))
+                    paidByMonth.GetValueOrDefault(m),
+                    coverByCell.Where(kv => kv.Key.Month == m).Sum(kv => kv.Value))
                 : new DiscountReportMonthDto(m, 0m, 0m, 0))
             .ToList();
 
@@ -139,7 +150,8 @@ public class DiscountReportController(AppDbContext db) : ControllerBase
                 g.Where(c => c.Discount != 0m).Select(c => c.StudentId).Distinct().Count(),
                 g.Where(c => c.GroupId is not null).Select(c => c.GroupId!).Distinct().Count(),
                 g.Select(c => c.GroupId ?? DebtLedger.NoGroup).Distinct()
-                    .Sum(gid => paidByGroup.GetValueOrDefault(gid))))
+                    .Sum(gid => paidByGroup.GetValueOrDefault(gid)),
+                CoverSum(g.Select(c => (c.Month, c.GroupId)))))
             .OrderByDescending(t => t.Discount)
             .ToList();
 
@@ -154,7 +166,8 @@ public class DiscountReportController(AppDbContext db) : ControllerBase
                 return new DiscountReportGroupDto(
                     g.Key, info.Name, info.TeacherName, info.CourseName,
                     g.Sum(c => c.Amount), g.Sum(c => c.Discount),
-                    g.Where(c => c.Discount != 0m).Select(c => c.StudentId).Distinct().Count());
+                    g.Where(c => c.Discount != 0m).Select(c => c.StudentId).Distinct().Count(),
+                    CoverSum(g.Select(c => (c.Month, c.GroupId))));
             })
             .OrderByDescending(g => g.Discount)
             .ToList();

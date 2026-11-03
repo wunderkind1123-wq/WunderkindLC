@@ -45,6 +45,11 @@ export interface StudentDiscountItem {
   endedAt: string
   endedBy: string
   cancelReason: string
+  /** Chegirmani ustoz qoplaydi (maoshidan markaz ulushi ushlanadi) va qaysi oydan ("yyyy-MM"). */
+  teacherCovers?: boolean
+  teacherCoversFrom?: string
+  /** Chegirmaning necha foizi ustoz maoshidan ushlanadi (1–100). */
+  teacherCoverPct?: number
 }
 
 /** Oyda HAQIQATAN qo'llangan chegirma (MonthlyCharge — pul haqiqati). */
@@ -120,6 +125,10 @@ export interface StudentDiscountPayload {
   reason?: string
   /** '' yoki null — barcha guruhlarga. */
   groupId?: string | null
+  /** Chegirmani ustoz qoplaydi — standart false (markaz ko'taradi). */
+  teacherCovers?: boolean
+  /** Belgilangan bo'lsa majburiy: chegirmaning necha foizi ustoz maoshidan ushlanadi (1–100). */
+  teacherCoverPct?: number
 }
 
 /**
@@ -196,6 +205,8 @@ export interface DiscountReportSummary {
   currentMonthDiscount: number
   /** O'quvchidan tushgan — shu oylar hisobini yopgan to'lovlar (chegirmani markaz qoplaydi). */
   periodPaid: number
+  /** Chegirmadan USTOZ maoshidan ushlanadigan qismi («Chegirmani ustoz qoplaydi»). Markaz = periodDiscount − shu. */
+  teacherCovered?: number
 }
 
 export interface DiscountReportMonth {
@@ -206,6 +217,8 @@ export interface DiscountReportMonth {
   students: number
   /** O'quvchidan tushgan (shu oy hisobini yopgan to'lovlar). */
   paid: number
+  /** Shundan ustoz maoshidan ushlanadigan qismi. */
+  teacherCovered?: number
 }
 
 export interface DiscountReportTeacher {
@@ -217,6 +230,8 @@ export interface DiscountReportTeacher {
   groups: number
   /** O'quvchidan tushgan (o'qituvchi guruhlari bo'yicha). */
   paid: number
+  /** Shundan ustoz maoshidan ushlanadigan qismi. */
+  teacherCovered?: number
 }
 
 export interface DiscountReportGroup {
@@ -227,6 +242,8 @@ export interface DiscountReportGroup {
   charged: number
   discount: number
   students: number
+  /** Shundan ustoz maoshidan ushlanadigan qismi. */
+  teacherCovered?: number
 }
 
 export interface DiscountReportStudent {

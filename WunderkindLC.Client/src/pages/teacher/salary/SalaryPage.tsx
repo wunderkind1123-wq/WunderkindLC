@@ -9,6 +9,7 @@ import type { SalaryLedger } from '@/types'
 import { formatMoney } from '@/lib/utils'
 import { getMyAttendanceFines } from '@/api/services/attendanceFines'
 import { AttendanceFineLine } from '@/components/salary/AttendanceFineLine'
+import { DiscountCoverLine } from '@/components/salary/DiscountCoverLine'
 import { ManualFineLine } from '@/components/salary/ManualFineLine'
 import { Loader } from '@/components/ui/Loader'
 
@@ -321,6 +322,10 @@ export function TeacherSalaryPage() {
                     />
                   )}
 
+                  {/* Ustoz qoplagan chegirma — "Hisoblandi" dan allaqachon ayrilgan markaz ulushi (2026-11-03) */}
+                  {(m.discountCover ?? 0) > 0 && (
+                    <DiscountCoverLine className="px-3.5 pb-3" amount={m.discountCover ?? 0} items={m.discountCoverItems} />
+                  )}
                   {/* Qo'lda jarima (Moliya → Jarima) — "Hisoblandi" dan allaqachon ayrilgan, sabablari bilan */}
                   {(m.manualFines ?? 0) > 0 && (
                     <ManualFineLine className="px-3.5 pb-3" amount={m.manualFines ?? 0} items={m.manualFineItems} />

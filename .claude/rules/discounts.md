@@ -455,3 +455,33 @@ ayriladi           = min(oy hisobi − kelgan darslar puli, to'lanmagan qoldiq),
   yuborardi va server uni "kelgan" deb o'qisa deyarli butun oy ayrilardi. Matn: «sahifani yangilang».
 - Audit: «Chegirma (kelgan darslar bo'yicha): N dars keldi × narx — ayrildi X so'm …».
 
+
+## 14. CHEGIRMANI USTOZ QOPLAYDI (2026-11-03, egasining talabi) — `DiscountCover`
+
+Migratsiya `AddDiscountTeacherCovers` (`StudentDiscount.TeacherCovers`, `TeacherCoverPct`, `TeacherCoversFrom`, `TeacherCoverHistory`). Chegirma
+oynasida «Chegirmani ustoz qoplaydi» belgisi — **standart O'CHIQ**: chegirmani markaz ko'taradi, ustoz maoshi to'liq tarifdan
+(`billing.md` FOIZ BAZASI — o'zgarmagan).
+
+- Belgi qo'yilsa oyna **«Chegirmaning necha foizi ustoz maoshidan ushlansin? (%)»** deb so'raydi (standart 60, 1–100;
+  server ham tekshiradi — 400). Ushlanma = `chegirma × TeacherCoverPct%` — ustozning maosh foizi yoki qat'iy/foizli
+  rejimi TA'SIR QILMAYDI (egasining qarori, 2026-11-03: "(100 − ustoz foizi)" formulasi chalkash edi).
+  Misol: 275 000, 50% (137 500), admin 60% → 110 000 − 82 500 = 27 500 (`DiscountCoverTests`).
+- Faqat REGISTR qismi (hisob chegirmasi − kelmagan darslar chegirmasi); `LessonDiscount` markazda qoladi.
+- ⚠️ **O'TGAN OYLAR O'ZGARMAYDI — FOIZ TARIXI** (`StudentDiscount.TeacherCoverHistory`, "yyyy-MM:pct;…", 0 = belgi
+  olingan). Yoqish, o'chirish va foizni o'zgartirish tarixga JORIY oydan (yoki chegirma boshlanishidan, kechrog'i)
+  yoziladi (`DiscountCover.WithChange`); har oy o'sha oydagi foiz bilan (`PctFor`). Shu oyda qayta tuzatilsa — shu oy
+  yozuvi almashadi. Ilgari foiz dekabrda o'zgartirilsa noyabr maoshi (berib bo'lingan) ham jimgina qayta hisoblanardi.
+- ⚠️ **Oyning qatori — o'sha oyda AMALDA BO'LGAN qator** (`ResolveForCover` / `WasInForce`): bekor qilingan yoki
+  almashtirilgan qator o'zi yopilgan oygacha (shu oy ham) hisobga olinadi — chegirma keyin bekor qilinsa o'tgan oylar
+  ushlanmasi YO'QOLMAYDI. Ustunlik `DiscountRules.Resolve` niki (aniq fan → «barcha guruhlar»), bir qamrovda — amaldagisi,
+  keyin eng yangisi. Tarixsiz eski qator — `TeacherCoversFrom`/`TeacherCoverPct` bo'yicha (`EffectivePct`).
+- `TeacherCovers`/`TeacherCoverPct`/`TeacherCoversFrom` — JORIY holat (UI, audit). Guruh almashganda (`DiscountTransfer`)
+  belgi va tarix ham ko'chadi.
+- `SalaryLedger`: guruh ulushi (`share`) bo'yicha, jurnal ushlanmasidan KEYIN, jarimalardan OLDIN, qoldiqdan oshmaydi —
+  `MonthSalaryDto.DiscountCover` + `DiscountCoverItems` (o'quvchi, guruh, chegirma, ulush %, summa). UI:
+  `components/salary/DiscountCoverLine.tsx` (o'qituvchi profili, kabinet), `TeacherSalaryDetailModal`.
+- Kassaga tegmaydi (`FinanceTransaction` emas). P&L 2.0 maosh reestri orqali o'zi ko'radi (ish haqi kamayadi).
+- **Hisobotlarda:** «Chegirmalar hisoboti» — `TeacherCovered` (jamlanma kartasida «Markaz · Ustoz maoshidan», oylar /
+  o'qituvchilar / guruhlar jadvallarida «Ustoz maoshidan» ustuni; «Markaz qoplagan» = chegirma − shu). Bu summa
+  `chegirma × %` — maosh varaqasi uni qoldiqqa qirqishi mumkin (maosh manfiy bo'lmaydi). Moliya → «O'qituvchilar» —
+  «Chegirma ushlanmasi» ustuni (`SalaryReportRowDto.DiscountCover`, faqat bo'lsa) va CSV.

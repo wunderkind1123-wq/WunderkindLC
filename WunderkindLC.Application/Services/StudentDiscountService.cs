@@ -130,7 +130,8 @@ public static class DiscountRules
 /// <param name="Reason">Sabab/izoh.</param>
 /// <param name="GroupId">null/"" — «BARCHA guruhlar» qamrovi; id — faqat o'sha FAN (guruh).</param>
 public record DiscountSpec(
-    int Pct, decimal Amount, string StartMonth, string EndMonth, string Reason, string? GroupId)
+    int Pct, decimal Amount, string StartMonth, string EndMonth, string Reason, string? GroupId,
+    bool TeacherCovers = false, int TeacherCoverPct = 0)
 {
     /// <summary>Chegirma NOLINCHI — bunday qator registrga YOZILMAYDI (chegirma yo'q degani).</summary>
     public bool IsEmpty => Pct <= 0 && Amount <= 0m;
@@ -143,7 +144,9 @@ public record DiscountSpec(
         (StartMonth ?? "").Trim(),
         (EndMonth ?? "").Trim(),
         (Reason ?? "").Trim(),
-        string.IsNullOrWhiteSpace(GroupId) ? null : GroupId.Trim());
+        string.IsNullOrWhiteSpace(GroupId) ? null : GroupId.Trim(),
+        TeacherCovers,
+        TeacherCovers ? Math.Clamp(TeacherCoverPct, 0, 100) : 0);
 }
 
 /// <summary>
@@ -344,6 +347,19 @@ public static class StudentDiscountService
         row.StartMonth = norm.StartMonth;
         row.EndMonth = norm.EndMonth;
         row.Reason = norm.Reason;
+        // «Ustoz qoplaydi»: o'zgarish (yoqish, o'chirish, foiz) TARIXGA joriy oydan yoziladi — o'tgan oylar o'z foizida
+        // qoladi (maosh berib bo'lingan bo'lishi mumkin). Tarixsiz eski qator avval joriy holatidan tiklanadi.
+        var coverFrom = DiscountCover.CoverFrom(norm.StartMonth, AppClock.Today.ToString("yyyy-MM"));
+        if (string.IsNullOrWhiteSpace(row.TeacherCoverHistory) && row.TeacherCovers && PaymentFields.IsMonth(row.TeacherCoversFrom))
+            row.TeacherCoverHistory = DiscountCover.WithChange("", row.TeacherCoversFrom, row.TeacherCoverPct);
+        row.TeacherCoverHistory = DiscountCover.WithChange(
+            row.TeacherCoverHistory, coverFrom, norm.TeacherCovers ? norm.TeacherCoverPct : 0);
+        if (norm.TeacherCovers && !row.TeacherCovers)
+            row.TeacherCoversFrom = DiscountCover.CoverFrom(norm.StartMonth, AppClock.Today.ToString("yyyy-MM"));
+        else if (!norm.TeacherCovers)
+            row.TeacherCoversFrom = "";
+        row.TeacherCovers = norm.TeacherCovers;
+        row.TeacherCoverPct = norm.TeacherCoverPct;
         row.StudentName = student.FullName;
         await RefreshMirrorAsync(db, student);
         return true;
@@ -472,7 +488,8 @@ public static class StudentDiscountService
         d.Reason,
         d.Status, DiscountRules.StatusLabel(d.Status), DiscountRules.InForce(d, month),
         d.CreatedAt, d.CreatedBy,
-        d.EndedAt, d.EndedBy, d.CancelReason);
+        d.EndedAt, d.EndedBy, d.CancelReason,
+        d.TeacherCovers, d.TeacherCoversFrom, d.TeacherCoverPct);
 
     /// <summary>
     /// O'quvchi profilidagi «Chegirma» tabining TO'LIQ javobi: registr qatorlari, HOZIR amaldagi
@@ -698,6 +715,12 @@ public static class StudentDiscountService
             StartMonth = spec.StartMonth,
             EndMonth = spec.EndMonth,
             Reason = spec.Reason,
+            TeacherCovers = spec.TeacherCovers,
+            TeacherCoverPct = spec.TeacherCoverPct,
+            TeacherCoversFrom = spec.TeacherCovers ? DiscountCover.CoverFrom(spec.StartMonth, AppClock.Today.ToString("yyyy-MM")) : "",
+            TeacherCoverHistory = spec.TeacherCovers
+                ? DiscountCover.WithChange("", DiscountCover.CoverFrom(spec.StartMonth, AppClock.Today.ToString("yyyy-MM")), spec.TeacherCoverPct)
+                : "",
             Status = StudentDiscount.StatusActive,
             CreatedAt = AppClock.Iso(),
             CreatedBy = actor,

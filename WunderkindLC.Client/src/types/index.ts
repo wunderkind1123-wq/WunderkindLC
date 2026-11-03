@@ -1860,6 +1860,10 @@ export interface MonthSalary {
    *  BITTA manbadan (balans bo'yicha FIFO). `unpaidStudentsLeft` — ulardan guruhdan chiqqanlari. */
   unpaidStudents?: number
   unpaidStudentsLeft?: number
+  /** «CHEGIRMANI USTOZ QOPLAYDI» ushlanmasi (2026-11-03) — `expected` dan ayrilgan; foizli ustozda chegirma × (100 − foiz)%,
+   *  qat'iy maoshlida × 60%. */
+  discountCover?: number
+  discountCoverItems?: { studentName: string; groupName: string; discount: number; ratePct: number; amount: number }[] | null
 }
 
 /** Maosh hisobida bitta guruhning ulushi (davr bo'yicha) */
@@ -1937,6 +1941,8 @@ export interface SalaryReportRow {
   missedLessons?: number
   /** Davomat jarimalari (davr bo'yicha, maoshdan ayrilgan). */
   attendanceFines?: number
+  /** «Chegirmani ustoz qoplaydi» — davrda maoshdan ushlangan chegirma ulushi. */
+  discountCover?: number
 }
 
 /** O'quvchilar bo'yicha moliya hisoboti qatori (joriy holat) */

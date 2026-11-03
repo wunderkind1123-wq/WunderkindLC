@@ -339,9 +339,16 @@ public record MonthSalaryDto(
     /// <summary>Shu oy uchun to'lamagan o'quvchilar soni (foizli guruhlarda, hisoblangan baza oylarida) —
     /// <paramref name="CollectedExpected"/> bilan BITTA manbadan (balans bo'yicha FIFO, `GroupBalanceService.FifoUnpaid`).
     /// <paramref name="UnpaidStudentsLeft"/> — ulardan guruhdan chiqqan (yoki arxivlangan)lari.</summary>
-    int UnpaidStudents = 0, int UnpaidStudentsLeft = 0);
+    int UnpaidStudents = 0, int UnpaidStudentsLeft = 0,
+    /// <summary>«CHEGIRMANI USTOZ QOPLAYDI» ushlanmasi (2026-11-03, `DiscountCover`) — jurnal ushlanmasidan KEYIN, jarimalardan
+    /// OLDIN <c>Expected</c> dan ayrilgan (qoldiqdan oshmaydi). <paramref name="DiscountCoverItems"/> — qaysi o'quvchi, qancha.</summary>
+    decimal DiscountCover = 0,
+    List<DiscountCoverItemDto>? DiscountCoverItems = null);
 
 public record ManualFineItemDto(decimal Amount, string Reason);
+
+/// <summary>Ustoz qoplagan chegirma: o'quvchi, guruh, chegirma (registr qismi), ushlangan ulush % va summa.</summary>
+public record DiscountCoverItemDto(string StudentName, string GroupName, decimal Discount, decimal RatePct, decimal Amount);
 /// <summary>
 /// Maosh hisobida bitta guruhning ulushi (davr bo'yicha): qaysi rejim (foiz/qat'iy), qiymati,
 /// shu davrda guruhdan yig'ilgan to'lov bazasi va shu guruh keltirgan hisoblangan maosh.
@@ -376,7 +383,9 @@ public record SalaryReportRowDto(
     int Months, decimal Expected, decimal Remaining,
     string SalaryMode = "fixed", decimal SalaryPercent = 0,
     decimal Deduction = 0, int MissedLessons = 0,
-    decimal AttendanceFines = 0);
+    decimal AttendanceFines = 0,
+    /// «Chegirmani ustoz qoplaydi» — davrda maoshdan ushlangan chegirma ulushi (`discounts.md` §14).
+    decimal DiscountCover = 0);
 
 /// <summary>O'qituvchilar davomati — oylik board (o'qituvchilar + belgilangan kunlar).</summary>
 public record TeacherNameDto(string Id, string FullName, string StartDate = "");

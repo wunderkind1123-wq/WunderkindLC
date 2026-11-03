@@ -27,7 +27,9 @@ public record StudentDiscountItemDto(
     string Reason,
     string Status, string StatusLabel, bool InForce,
     string CreatedAt, string CreatedBy,
-    string EndedAt, string EndedBy, string CancelReason);
+    string EndedAt, string EndedBy, string CancelReason,
+    /// <summary>Chegirmani ustoz qoplaydi (maoshidan markaz ulushi ushlanadi) va qaysi oydan — `DiscountCover`.</summary>
+    bool TeacherCovers = false, string TeacherCoversFrom = "", int TeacherCoverPct = 0);
 
 /// <summary>
 /// Oyda HAQIQATAN qo'llangan chegirma — <see cref="WunderkindLC.Domain.MonthlyCharge"/> dan
@@ -79,7 +81,11 @@ public record StudentDiscountsResponseDto(
 /// <summary>Chegirma yaratish/tahrirlash tanasi.</summary>
 public record StudentDiscountPayloadDto(
     int Pct, decimal Amount,
-    string? StartMonth, string? EndMonth, string? Reason, string? GroupId);
+    string? StartMonth, string? EndMonth, string? Reason, string? GroupId,
+    /// <summary>«Chegirmani ustoz qoplaydi» — yuborilmasa false (markaz ko'taradi, hozirgi qoida).</summary>
+    bool TeacherCovers = false,
+    /// <summary>Chegirmaning necha foizi ustoz maoshidan ushlanadi (1–100) — <c>TeacherCovers</c> bo'lsa majburiy.</summary>
+    int TeacherCoverPct = 0);
 
 /// <summary>Chegirmani bekor qilish tanasi.</summary>
 public record StudentDiscountCancelDto(string? Reason);
@@ -93,24 +99,28 @@ public record StudentDiscountCancelDto(string? Reason);
 /// <param name="PeriodCharged">Davrdagi BARCHA hisoblar yig'indisi (chegirmalilar emas).</param>
 /// <param name="PeriodPaid">O'QUVCHIDAN TUSHGAN — shu oylar hisobini yopgan to'lovlar (TZ 1.6; `DebtLedger`).
 /// Chegirmani esa markaz qoplaydi: o'qituvchi maoshi to'liq summadan (`billing.md` «FOIZ BAZASI»).</param>
+/// <param name="TeacherCovered">«Chegirmani ustoz qoplaydi» (`DiscountCover`, `discounts.md` §14): davrdagi chegirmadan USTOZ
+/// MAOSHIDAN ushlanadigan qismi (chegirma × admin kiritgan %). Markaz zimmasi = PeriodDiscount − TeacherCovered.
+/// Har kesimda (oy, o'qituvchi, guruh) ham shu maydon.</param>
 public record DiscountReportSummaryDto(
     int ActiveCount, int StudentCount, int TotalStudents, decimal StudentSharePct,
     decimal PeriodCharged, decimal PeriodDiscount, decimal SharePct,
-    decimal CurrentMonthDiscount, decimal PeriodPaid = 0m);
+    decimal CurrentMonthDiscount, decimal PeriodPaid = 0m, decimal TeacherCovered = 0m);
 
 /// <summary>Oy kesimi. Chegirmasiz oy ham 0 bilan qaytadi — grafik uzilmasin.</summary>
 /// <param name="Paid">O'quvchidan tushgan (shu oy hisobini yopgan to'lovlar).</param>
-public record DiscountReportMonthDto(string Month, decimal Charged, decimal Discount, int Students, decimal Paid = 0m);
+public record DiscountReportMonthDto(string Month, decimal Charged, decimal Discount, int Students, decimal Paid = 0m,
+    decimal TeacherCovered = 0m);
 
 /// <summary>O'qituvchi kesimi (hisob QAYSI guruhda yozilganiga qarab).</summary>
 public record DiscountReportTeacherDto(
     string TeacherId, string TeacherName, decimal Charged, decimal Discount, int Students, int Groups,
-    decimal Paid = 0m);
+    decimal Paid = 0m, decimal TeacherCovered = 0m);
 
 /// <summary>Guruh kesimi.</summary>
 public record DiscountReportGroupDto(
     string GroupId, string GroupName, string TeacherName, string CourseName,
-    decimal Charged, decimal Discount, int Students);
+    decimal Charged, decimal Discount, int Students, decimal TeacherCovered = 0m);
 
 /// <summary>O'quvchi kesimi.</summary>
 /// <param name="ActiveCount">Hozir amaldagi chegirmalar SONI (har fan uchun alohida sanaladi).</param>
