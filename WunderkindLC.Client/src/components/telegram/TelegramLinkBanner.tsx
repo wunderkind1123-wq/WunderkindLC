@@ -11,7 +11,7 @@ import { getTelegramLinkStatus, isKeyboardLaunch, sendBotLinkRequest } from '@/l
  * answers there (the Mini App closes). The «🔔 Bot xabarlarini yoqish» banner appears only if that automatic attempt
  * failed (retry). Rules: `.claude/rules/messaging.md` §0.5.
  */
-export function TelegramLinkBanner({ variant }: { variant: 'student' | 'teacher' }) {
+export function TelegramLinkBanner({ variant }: { variant: 'student' | 'teacher' | 'staff' }) {
   // Soft read: a secondary widget must never break the shell it sits in (e.g. a layout rendered without the provider).
   const userId = useContext(AuthContext)?.user?.id
   const [show, setShow] = useState(false)
@@ -71,7 +71,7 @@ export function TelegramLinkBanner({ variant }: { variant: 'student' | 'teacher'
       onClick={link}
       disabled={busy}
       className={
-        variant === 'teacher'
+        variant !== 'student'
           ? 'tap-scale mt-2 w-full rounded-lg bg-brand-600 px-3 py-2 text-[13px] font-semibold text-white disabled:opacity-60'
           : 'mt-2 w-full rounded-lg px-3 py-2 text-[13px] font-bold disabled:opacity-60'
       }
@@ -86,14 +86,20 @@ export function TelegramLinkBanner({ variant }: { variant: 'student' | 'teacher'
       <div className="flex items-start gap-2.5">
         <BellRing className="mt-0.5 h-4 w-4 shrink-0" style={{ color: variant === 'student' ? 'var(--accent)' : undefined }} />
         <p className="text-[13px] leading-snug">
-          <b>Telegram xabarlari hali ulanmagan.</b> Davomat, to'lov va e'lonlarni shu botda olish uchun bir marta
-          ulang — Panel yopiladi, bot «✅ ulandi» deb yozadi.
+          <b>Telegram xabarlari hali ulanmagan.</b>{' '}
+          {variant === 'staff'
+            ? 'Topshiriqlar va eslatmalarni shu botda olish uchun bir marta ulang'
+            : "Davomat, to'lov va e'lonlarni shu botda olish uchun bir marta ulang"}{' '}
+          — Panel yopiladi, bot «✅ ulandi» deb yozadi.
         </p>
       </div>
       {button}
       {error && <p className="mt-2 text-[12px] font-semibold text-rose-600">{error}</p>}
     </>
   )
+
+  if (variant === 'staff')
+    return <div className="mb-2.5 rounded-xl border border-line bg-white p-3 text-ink shadow-[var(--shadow-card)]">{body}</div>
 
   return variant === 'teacher' ? (
     <div className="mx-4 mt-3 rounded-xl border border-line bg-white p-3 text-ink shadow-[var(--shadow-card)]">{body}</div>

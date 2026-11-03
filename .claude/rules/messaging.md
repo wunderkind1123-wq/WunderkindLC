@@ -134,7 +134,9 @@ chidamlilik va Telegram tezlik chegarasi — hammasi shu jadvaldan.
   `StartWelcomeText` ni INLINE «📱 Panelni ochish» (`PanelInline`) bilan yuboradi, kod so'ralganda ham shu tugma;
   (2) klaviaturadan ochilgan Panel (`isKeyboardLaunch`: Telegram ichida, `sendData` bor, initData bo'sh) akkaunt hali
   ulanmagan bo'lsa (`GET api/telegram/link-status`) «🔔 Bot xabarlarini yoqish» bannerini ko'rsatadi
-  (`components/telegram/TelegramLinkBanner`, kabinet va o'qituvchi qobig'ida) → `POST api/telegram/link-token`
+  (`components/telegram/TelegramLinkBanner`, kabinet, o'qituvchi, **admin panel (`AppLayout`) va kassa** qobig'ida —
+  ⚠️ 2026-11-03 gacha admin/kassa qobig'ida YO'Q edi: klaviaturadan Panel ochgan xodim HECH QACHON ulanmas, HR
+  topshiriqlari botga bormasdi — prod'da `UserId` li ulanish umuman yo'q edi) → `POST api/telegram/link-token`
   (bir martalik, akkauntga bog'langan, 10 daqiqa, xotirada — `TelegramLinkTokens`) → `Telegram.WebApp.sendData`
   (`wlclink:{token}`, Mini App yopiladi) → bot `web_app_data` ni o'sha chat uchun qabul qiladi (kod LOGGA yozilmaydi)
   → `TelegramLinkFlow` (initData yo'li bilan AYNAN bir xil: audit, tasdiq, «01»). Bitta «o'quvchisiz» qator qoidasi

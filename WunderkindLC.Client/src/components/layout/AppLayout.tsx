@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Loader } from '@/components/ui/Loader'
+import { TelegramLinkBanner } from '@/components/telegram/TelegramLinkBanner'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { CommandPalette } from './CommandPalette'
@@ -74,6 +75,10 @@ export function AppLayout() {
           />
 
           <main className="flex-1 overflow-y-auto bg-[var(--bg)] px-3 py-2.5 sm:px-[15px]">
+            {/* Botning pastki «📱 Panel» tugmasidan ochilganda Telegram initData bermaydi — avtomatik ulanish
+                ishlamaydi; xodim (HR topshiriqlari botga kelishi uchun) shu yerda sendData orqali ulanadi.
+                Oddiy brauzerda hech narsa chizilmaydi (`isKeyboardLaunch`). */}
+            <TelegramLinkBanner variant="staff" />
             {/* Suspense LAYOUT ICHIDA — lazy sahifa chunk'i yuklanayotganda faqat kontent
                 maydoni almashadi; Sidebar/Topbar joyida qoladi (qayta mount bo'lmaydi). */}
             <Suspense fallback={<Loader className="h-full min-h-[240px]" />}>
