@@ -3,13 +3,14 @@
 # KUNLIK TO'LIQ ZAXIRA → TELEGRAM (bitta shifrlangan fayl) — egasining talabi, 2026-11-04.
 #
 # Server yo'qolsa: GitHub (kod) + shu fayl + BITTA parol (BACKUP_ENCRYPT_PASSPHRASE) = hammasi tiklanadi.
+# Format: .7z (AES-256, nomlar ham yashirin) — Windows'da bepul 7-Zip bilan ochiladi.
 # Ichida: asosiy markaz VA har bir filial (/root/wlc-branches/<slug>) uchun — baza (pg_dump), yuklangan fayllar,
 # .env; server qismi — Cloudflare Origin sertifikati (/root/certs) va filiallar nginx xaritalari; TIKLASH.txt.
 #
 # ⚠️ XAVFSIZLIK:
-#   - Fayl gpg AES-256 bilan SHIFRLANADI; parolsiz HECH NARSA yuborilmaydi (fail-closed).
+#   - Fayl 7z AES-256 bilan SHIFRLANADI; parolsiz HECH NARSA yuborilmaydi (fail-closed).
 #   - Ichida .env (barcha kalitlar) bor — kanal YOPIQ bo'lsin va unda faqat egasi bo'lsin.
-#   - Token/parol logga, buyruq qatoriga (ps) tushmaydi: parol gpg'ga fd orqali, token faqat curl URL ichida.
+#   - Token/parol logga tushmaydi (7z paroli -p orqali bir necha soniya ps da ko'rinadi — server faqat root'niki).
 #   - Ataylab KIRMAYDI: uploads/face (biometrik selfilar), uploads/messaging (Telegram'da file_id bilan saqlanadi).
 #
 # Ishga tushirish: /etc/cron.d/wunderkind-tg-backup (har kuni 02:30 Toshkent). Qo'lda: bash infra/backup/telegram-bundle.sh
@@ -23,7 +24,7 @@ CERTS_DIR="${CERTS_DIR:-/root/certs}"
 MAIN_PG="${MAIN_PG:-wunderkindlc-postgres}"
 MAIN_UPLOADS_VOL="${MAIN_UPLOADS_VOL:-wunderkindlc_uploads}"
 TOOL_IMAGE="${TOOL_IMAGE:-postgres:16-alpine}"   # serverda allaqachon bor — tar uchun (volume ichini o'qish)
-MAX_PART=$((45 * 1024 * 1024))                   # Telegram bot hujjat chegarasi ~50 MB — 45 MB bo'laklar
+MAX_PART="${MAX_PART:-$((45 * 1024 * 1024))}"                  # Telegram bot hujjat chegarasi ~50 MB — 45 MB bo'laklar
 
 log() { echo "[$(date -u '+%F %T') UTC] $*"; }
 envget() { grep -E "^$1=" "$2" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\r'; }
@@ -111,36 +112,50 @@ WUNDERKIND — SERVERNI NOLDAN TIKLASH (qisqa)
 To'liq: DEPLOY.md / .claude/skills/deploy.
 TXT
 
-# --- bitta fayl: tar → gpg (AES-256). Parol fd orqali — ps/argv'da ko'rinmaydi ---------------------------------------
-OUT="$WORK/wunderkind_$TS.tar.gz.gpg"
-if ! tar czf - -C "$WORK" "wunderkind_$TS" \
-   | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 3 --symmetric --cipher-algo AES256 -o "$OUT" 3<<<"$PASS"; then
+# --- bitta fayl: 7z, AES-256, fayl NOMLARI ham shifrlangan (-mhe=on) ------------------------------------------------
+# Egasining tanlovi (2026-11-04): Windows'da bepul 7-Zip bilan ikki marta bosib ochiladi (gpg kerak emas).
+# ⚠️ Oddiy ZIP (ZipCrypto) ATAYIN emas — zaif. ⚠️ 7z parolni faqat -p orqali oladi: u bir necha soniya `ps` da ko'rinadi —
+# server faqat root'niki, qabul qilingan.
+SEVENZ="$(command -v 7z || command -v 7zz || command -v 7za || true)"
+if [ -z "$SEVENZ" ]; then
+  log "XATO: 7z topilmadi (apt-get install -y 7zip)"
+  tg_msg "❌ Zaxira XATO ($WHEN): serverda 7-Zip o'rnatilmagan — hech narsa yuborilmadi."
+  exit 1
+fi
+OUT="$WORK/wunderkind_$TS.7z"
+pack() {  # $@ — qo'shimcha 7z kalitlari (masalan -v45m)
+  rm -f "$OUT" "$OUT".*
+  ( cd "$WORK" && "$SEVENZ" a -t7z -mx=5 -mhe=on -p"$PASS" "$@" "$OUT" "wunderkind_$TS" >/dev/null )
+}
+if ! pack; then
   log "XATO: arxiv/shifrlash"
   tg_msg "❌ Zaxira XATO ($WHEN): arxivlash yoki shifrlash bajarilmadi — hech narsa yuborilmadi. Serverni tekshiring."
   exit 1
 fi
-rm -rf "$ROOT"
-# Faqat SINOV uchun: shifrlangan faylni berilgan papkada qoldirish (tiklashni tekshirish). Serverda bo'sh.
-[ -n "${KEEP_DIR:-}" ] && cp "$OUT" "$KEEP_DIR/"
 SIZE="$(du -h "$OUT" | cut -f1)"
+# Katta bo'lsa — 7z'ning O'Z bo'laklari (.7z.001, .002 …): 7-Zip birinchisini ochsa qolganini o'zi yig'adi.
+if [ "$(stat -c %s "$OUT")" -gt "$MAX_PART" ]; then
+  pack "-v${MAX_PART}b" || { log "XATO: bo'laklash"; tg_msg "❌ Zaxira XATO ($WHEN): bo'laklarga ajratib bo'lmadi."; exit 1; }
+fi
+rm -rf "$ROOT"
+# Faqat SINOV uchun: shifrlangan fayl(lar)ni berilgan papkada qoldirish (tiklashni tekshirish). Serverda bo'sh.
+[ -n "${KEEP_DIR:-}" ] && cp "$OUT"* "$KEEP_DIR/"
 log "arxiv tayyor: $SIZE"
 
 NOTE=""; [ ${#FAILS[@]} -gt 0 ] && NOTE=$'\n⚠️ Kirmay qoldi: '"$(IFS=', '; echo "${FAILS[*]}")"
 CAPTION="🗄 To'liq zaxira — $WHEN ($SIZE)
 Ichida: $NAMES — baza, fayllar, .env; sertifikat.
-Ochish: gpg -d fayl.gpg > zaxira.tar.gz (parol: BACKUP_ENCRYPT_PASSPHRASE)$NOTE"
+Ochish: 7-Zip (bepul, 7-zip.org) bilan ikki marta bosing → parol: BACKUP_ENCRYPT_PASSPHRASE$NOTE"
 
 SENT=1
-if [ "$(stat -c %s "$OUT")" -le "$MAX_PART" ]; then
+if [ -f "$OUT" ]; then
   tg_doc "$OUT" "$CAPTION" || SENT=0
 else
-  # Katta bo'lsa bo'laklarga — yig'ish: cat *.part-* > fayl.gpg
-  split -b "$MAX_PART" -d -a 2 "$OUT" "$OUT.part-"
-  parts=("$OUT".part-*); n=${#parts[@]}; i=0
+  parts=("$OUT".[0-9][0-9][0-9]); n=${#parts[@]}; i=0
   for p in "${parts[@]}"; do
     i=$((i + 1))
     tg_doc "$p" "$CAPTION
-Qism $i/$n — yig'ish: cat *.part-* > $(basename "$OUT")" || SENT=0
+Qism $i/$n — hammasini bitta papkaga yuklab, .001 ni oching" || SENT=0
   done
 fi
 
