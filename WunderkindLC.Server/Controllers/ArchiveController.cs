@@ -265,6 +265,9 @@ public class ArchiveController(AppDbContext db, AuditService audit, ILogger<Arch
     {
         var rec = await db.ArchivedRecords.FindAsync(id);
         if (rec is null) return NotFound();
+        // Lid surati arxivdan ham faqat superadmin/admin tomonidan butunlay o'chiriladi (`LeadDeleteRights`).
+        if (rec.Type is "lead" or ArchiveService.TypeLeadHistory && !LeadDeleteRights.CanDelete(User))
+            return StatusCode(403, new { message = LeadDeleteRights.Denied });
         db.ArchivedRecords.Remove(rec);
         if (rec.Type == "lead")
             db.ArchivedRecords.RemoveRange(await ArchiveService.LeadHistoryRecordsAsync(db, rec.EntityId));

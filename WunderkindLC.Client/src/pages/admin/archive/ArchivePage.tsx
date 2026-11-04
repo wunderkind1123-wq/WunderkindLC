@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button'
 import { Loader } from '@/components/ui/Loader'
 import { Badge } from '@/components/ui/Badge'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { useAuth } from '@/context/auth-context'
 import { formatDate, cn, apiErrorMessage } from '@/lib/utils'
 import { MONTHS_TITLE } from '@/lib/teacherPortal'
 
@@ -27,6 +28,9 @@ const TABS: { key: string; label: string }[] = [
 ]
 
 export function ArchivePage() {
+  // Lid suratini BUTUNLAY o'chirish — faqat superadmin va direktor (admin roli); server `LeadDeleteRights` bilan bir xil.
+  const role = useAuth().user?.role
+  const canPurgeLead = role === 'superadmin' || role === 'admin'
   const [active, setActive] = useState('lead')
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [rows, setRows] = useState<ArchivedRecord[]>([])
@@ -192,15 +196,17 @@ export function ArchivePage() {
                   >
                     <RotateCcw className="h-4 w-4" /> Tiklash
                   </Button>
-                  <button
-                    type="button"
-                    title="Butunlay o'chirish"
-                    onClick={() => handleDelete(r.id)}
-                    disabled={busyId === r.id}
-                    className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {(r.type !== 'lead' || canPurgeLead) && (
+                    <button
+                      type="button"
+                      title="Butunlay o'chirish"
+                      onClick={() => handleDelete(r.id)}
+                      disabled={busyId === r.id}
+                      className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

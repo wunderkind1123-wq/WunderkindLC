@@ -153,7 +153,8 @@ export const navByRole: Record<Role, NavItem[]> = {
       children: [
         { label: "Yangi o'quvchilar", to: '/admin/students/yangi', perm: 'students.list' },
         { label: "Aktiv o'quvchilar", to: '/admin/students/aktiv', perm: 'students.list' },
-        { label: "Arxiv o'quvchilar", to: '/admin/students/arxiv', perm: 'students.list' },
+        // Arxiv: o'quvchilar + arxivlangan LIDLAR (tab, egasi 2026-11-04) — lid operatori ham ko'radi.
+        { label: "Arxiv o'quvchilar", to: '/admin/students/arxiv', permAny: ['students.list', 'leads.list'] },
         { label: "O'quvchilar ro'yxati", to: '/admin/students', end: true, perm: 'students.list' },
         { label: 'Ota-ona', to: '/admin/students/ota-ona', perm: 'students.list' },
         { label: 'Joriy oyda obunasi tugaydiganlar', to: '/admin/students/obuna-tugaydi', perm: 'students.list' },

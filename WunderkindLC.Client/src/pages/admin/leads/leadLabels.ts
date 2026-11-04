@@ -118,14 +118,18 @@ export const cameBackAfterLoss = (l: { lostAt?: string | null; lastRepeatAt?: st
  * «Buyurtmalar ro'yxati» STATUS filtri (2026-10-09). `lead` — haqiqiy BUYURTMA: o'quvchiga aylantirilmagan VA
  * «Birinchi darsga yozilganlar»da EMAS (`firstLessonAt` — serverdagi `LeadFirstLesson.Pick`, ikkinchi ta'rif yo'q;
  * bosh sahifadagi «Buyurtmalar» sanog'i — `DashboardSummary.OpenLeads` — AYNAN shu). `first` — birinchi darsda,
- * `student` — aylantirilgan, `all` (yoki noma'lum qiymat) — hammasi.
+ * `student` — aylantirilgan, `lost` — YO'QOTILGAN (Lidlar → «Arxiv (yo'qotilganlar)»), `all` (yoki noma'lum
+ * qiymat) — hammasi.
  * ⚠️ Ilgari sinovga yozilgan lid ikkala bo'limda ham turardi ("oldingi bosqichdan o'chmayapti").
+ * ⚠️ 2026-11-04 (egasi): yo'qotilgan lid ham «Buyurtmalar»dan ARXIVGA o'tadi — `lead` uni olmaydi (bosh sahifadagi
+ * `OpenLeads` ham yo'qotilganni sanamaydi — endi ikki son bir xil). Lid o'chirilmaydi: hisobot va «Tiklash» joyida.
  */
 export function leadMatchesStatus(
-  l: Pick<Lead, 'convertedStudentId' | 'firstLessonAt'>,
+  l: Pick<Lead, 'convertedStudentId' | 'firstLessonAt'> & { lostAt?: string | null },
   status: string,
 ): boolean {
-  if (status === 'lead') return !l.convertedStudentId && !l.firstLessonAt
+  if (status === 'lead') return !l.convertedStudentId && !l.firstLessonAt && !isLeadLost(l)
+  if (status === 'lost') return isLeadLost(l)
   if (status === 'first') return !!l.firstLessonAt
   if (status === 'student') return !!l.convertedStudentId
   return true

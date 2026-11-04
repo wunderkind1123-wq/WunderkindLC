@@ -429,6 +429,10 @@ public class LeadsController(
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id, [FromQuery] string? reasonId = null)
     {
+        // Egasi (2026-11-04): «lid CRM'dan hech qachon o'chib ketmasligi kerak» — o'chirish FAQAT superadmin va admin
+        // (direktor) ROLIDA; xodim (`leads.list:delete` bo'lsa ham) — 403. Odatiy yo'l — «Arxivlash» (`PATCH {id}/lost`).
+        if (!LeadDeleteRights.CanDelete(User))
+            return StatusCode(403, new { message = LeadDeleteRights.Denied });
         var lead = await db.Leads.FindAsync(id);
         if (lead is null) return NotFound();
 

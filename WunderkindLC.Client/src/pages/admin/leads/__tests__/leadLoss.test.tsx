@@ -80,7 +80,7 @@ describe('LeadLostModal — sabab MAJBURIY', () => {
   it('sababsiz tasdiqlanmaydi — so\'rov YUBORILMAYDI, xato ko\'rinadi', async () => {
     const onConfirm = vi.fn(async () => {})
     await render(onConfirm)
-    await act(async () => button("Yo'qotilganlarga o'tkazish").click())
+    await act(async () => button('Arxivlash').click())
     expect(onConfirm).not.toHaveBeenCalled()
     expect(host.textContent).toContain("sababini tanlang")
   })
@@ -89,7 +89,7 @@ describe('LeadLostModal — sabab MAJBURIY', () => {
     const onConfirm = vi.fn(async () => {})
     await render(onConfirm)
     await act(async () => button("Vaqt to'g'ri kelmadi").click())
-    await act(async () => button("Yo'qotilganlarga o'tkazish").click())
+    await act(async () => button('Arxivlash').click())
     expect(onConfirm).toHaveBeenCalledWith('r2', '')
   })
 
@@ -99,7 +99,7 @@ describe('LeadLostModal — sabab MAJBURIY', () => {
     })
     await render(onConfirm)
     await act(async () => button('Narx qimmatlik qildi').click())
-    await act(async () => button("Yo'qotilganlarga o'tkazish").click())
+    await act(async () => button('Arxivlash').click())
     expect(host.textContent).toContain("allaqachon yo'qotilganlar ro'yxatida")
   })
 })

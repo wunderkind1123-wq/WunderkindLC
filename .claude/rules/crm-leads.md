@@ -332,6 +332,28 @@ QILINMAGAN — kerak bo'lsa lid yaratuvchi 5 joyning hammasiga (`RepeatCount++` 
 chatida** — menejer izohi bilan bir xil qoida (`messaging.md` «LID KARTASI»). Yo'qotilmagan lid
 kartasining matni/xeshi o'zgarmagan.
 
+### 5.5. «Buyurtmalar ro'yxati»dan ARXIVGA (2026-11-04, egasi)
+
+Yo'qotilgan lid «Buyurtmalar ro'yxati» JADVALIDA ko'rinmaydi — **O'quvchilar → «Arxiv o'quvchilar» → «Lidlar»** tabiga
+(`/admin/students/arxiv/lidlar`, `ArchivedStudentsPage tab="leads"` → `LeadsPage archive`, `leads.list`) o'tadi.
+⚠️ Egasi: «lidlar bo'limidagi arxiv kerak emas, o'quvchilar bo'limidagi arxivga qo'shilishi kerak» — Lidlar menyusida
+alohida arxiv bandi YO'Q, eski `/admin/leads/arxiv` shu tabga yo'naltiradi. Menyu bandi `permAny: students.list | leads.list`
+(faqat lid operatori «O'quvchilar» tabini ko'rmaydi — to'g'ridan-to'g'ri «Lidlar»ga). Qoida — `leadMatchesStatus`: `lead` yo'qotilganni
+OLMAYDI, `lost` — faqat yo'qotilganlar; to'rt bo'lim (buyurtma · birinchi dars · o'quvchi · arxiv) KESISHMAYDI
+(`leadStatus.test.ts`). Bosh sahifadagi «Buyurtmalar» (`OpenLeads`) ham yo'qotilganni sanamaydi — endi ikki son bir xil.
+⚠️ Bu «Sozlamalar → Arxiv» (o'chirish) EMAS: lid bazada joyida, hisobot va voronka o'zgarmaydi; lid sahifasidagi
+«Tiklash» uni buyurtmalarga qaytaradi. Kanban (butun voronka) avvalgidek — «Yo'qotilgan» ustuni turaveradi.
+Jadval ostidagi izoh: «yo'qotilgan N tasi — «Arxiv»» havolasi bilan.
+
+### 5.6. «ARXIVLASH» va O'CHIRISH HUQUQI (2026-11-04, egasi: «lid CRM'dan hech qachon o'chib ketmasligi kerak»)
+
+- Lid sahifasidagi «⋮» menyusida «Yo'qotilgan deb belgilash» o'rnida qizil **«Arxivlash»** — amal AYNAN o'sha
+  (`PATCH {id}/lost`, sabab MAJBURIY, `LeadLostModal` sarlavhasi «Lidni arxivlash»). Lid bazada qoladi → §5.5 arxiv.
+- **Butunlay o'chirish — FAQAT superadmin va direktor = `admin` ROLI** (`LeadDeleteRights.CanDelete`, HARD rol): ruxsat
+  kaliti (`leads`, `leads.list:delete`) xodimga YETMAYDI — 403 sabab matni bilan. Ikkala yo'l: `DELETE api/admin/leads/{id}`
+  va `DELETE api/admin/archive/{id}` (lid surati / `lead_history`). Klientda ham yashirilgan (lid menyusi, Sozlamalar →
+  Arxiv'dagi savat tugmasi). Testlar: `LeadDeleteRightsTests`.
+
 ### 6. Filtrlar (Lidlar sahifasi, ikkala ko'rinish)
 
 `?lost=hide|only` va `?reason=<sabab matni>` (sabab tanlansa — faqat o'sha sabab bilan

@@ -293,6 +293,8 @@ export default function App() {
             <Route path="leads" element={<RequirePerm perm="leads.list"><LeadsPage /></RequirePerm>} />
             {/* edutizim: "Birinchi darsga yozilganlar" va lid sahifasi (`/orders/info/:id`). */}
             <Route path="leads/birinchi-dars" element={<RequirePerm perm="leads.list"><FirstLessonLeadsPage /></RequirePerm>} />
+            {/* Eski manzil — arxivlangan lidlar O'quvchilar → «Arxiv o'quvchilar» → «Lidlar» tabida (egasi, 2026-11-04). */}
+            <Route path="leads/arxiv" element={<Navigate to="/admin/students/arxiv/lidlar" replace />} />
             <Route path="leads/:id" element={<RequirePerm perm="leads.list"><LeadDetailPage /></RequirePerm>} />
             {/* Call Center (bulutli, keyin Local Call / CTI) olib tashlandi (2026-10) — eski havola/xatcho'p
                 bosh sahifaga tushadi. */}
@@ -333,7 +335,8 @@ export default function App() {
             <Route path="students/ota-ona" element={<RequirePerm perm="students.list"><ParentsListPage /></RequirePerm>} />
             <Route path="students/yangi" element={<RequirePerm perm="students.list"><NewStudentsPage /></RequirePerm>} />
             <Route path="students/aktiv" element={<RequirePerm perm="students.list"><ActiveStudentsPage /></RequirePerm>} />
-            <Route path="students/arxiv" element={<RequirePerm perm="students.list"><ArchivedStudentsPage /></RequirePerm>} />
+            <Route path="students/arxiv" element={<RequirePerm perm="students.list" anyOf={['leads.list']}><ArchivedStudentsPage /></RequirePerm>} />
+            <Route path="students/arxiv/lidlar" element={<RequirePerm perm="leads.list"><ArchivedStudentsPage tab="leads" /></RequirePerm>} />
             {/* Bosh sahifa kartochkalarining ro'yxatlari (`lib/homeCards.ts`) — menyuda YO'Q, kartochkadan ochiladi. */}
             <Route path="students/ketganlar" element={<RequirePerm perm="students.list"><LeftStudentsPage /></RequirePerm>} />
             <Route path="students/birinchi-tolov" element={<RequirePerm perm="students.list"><FirstPaymentStudentsPage /></RequirePerm>} />

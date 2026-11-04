@@ -24,9 +24,12 @@ describe('bosh sahifa kartochkalari', () => {
   it("`linkPerm` maqsad marshrutning RequirePerm'i bilan bir xil", () => {
     // Farq qilsa kartochka bosiladigan bo'lib ko'rinib, "ruxsat yo'q" sahifasiga olib borardi
     // (yoki teskarisi: ochiq sahifa uchun kartochka bosilmasdi).
+    // Asosiy `perm` kartochkaniki bilan bir xil bo'lishi SHART; qo'shimcha `anyOf` (masalan «Arxiv o'quvchilar» —
+    // lid operatori ham «Lidlar» tabiga kiradi) ruxsatni faqat KENGAYTIRADI, kartochkadagi kalit baribir ochadi.
     for (const c of HOME_CARDS) {
-      expect(app, `${c.label} → ${c.to}`).toContain(
-        `path="${routeOf(c.to)}" element={<RequirePerm perm="${c.linkPerm}">`,
+      const prefix = `path="${routeOf(c.to)}" element={<RequirePerm perm="${c.linkPerm}"`
+      expect(app, `${c.label} → ${c.to}`).toMatch(
+        new RegExp(prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '( anyOf=\\{[^}]*\\})?>'),
       )
     }
   })

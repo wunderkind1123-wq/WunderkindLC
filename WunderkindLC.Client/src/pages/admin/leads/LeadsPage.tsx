@@ -82,11 +82,15 @@ function uniquePairs(items: { id?: string | null; name?: string | null }[]): { i
   return [...m.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
 }
 
-export function LeadsPage() {
+/**
+ * `archive` — O'quvchilar → «Arxiv o'quvchilar» → «Lidlar» tabi (`/admin/students/arxiv/lidlar`, egasi 2026-11-04): faqat ARXIVLANGAN (yo'qotilgan) lidlar,
+ * faqat jadval. Lid o'chirilmaydi — sahifasidan «Tiklash» bilan «Buyurtmalar»ga qaytadi.
+ */
+export function LeadsPage({ archive = false }: { archive?: boolean } = {}) {
   const { can } = usePerm()
   const navigate = useNavigate()
   const { values: f, set, clear, active: filtersActive, params } = useUrlFilters(FILTER_KEYS)
-  const view: View = params.get('view') === 'kanban' ? 'kanban' : 'table'
+  const view: View = !archive && params.get('view') === 'kanban' ? 'kanban' : 'table'
 
   const [leads, setLeads] = useState<Lead[]>([])
   const [stages, setStages] = useState<Stage[]>([])
@@ -310,7 +314,7 @@ export function LeadsPage() {
    * bosh sahifadagi «Buyurtmalar» sanog'i ham AYNAN shu (`DashboardSummary.OpenLeads`).
    * Kanban — butun voronka (bosqichlar), shuning uchun u yerda standart "hammasi".
    */
-  const status = f.status || (view === 'table' ? 'lead' : 'all')
+  const status = archive ? 'lost' : f.status || (view === 'table' ? 'lead' : 'all')
   const matchesStatus = (l: Lead) => leadMatchesStatus(l, status)
 
   /** Status'dan TASHQARI barcha filtrlar — jadval ostidagi "yashirilganlar" sanog'i uchun ham. */
@@ -336,11 +340,12 @@ export function LeadsPage() {
   const matches = (l: Lead) => matchesStatus(l) && matchesOthers(l)
   const visibleLeads = leads.filter(matches)
   /** Standart (buyurtmalar) jadvalda ko'rinmay qolganlar — jimgina "yo'qolgan" bo'lib tuyulmasin. */
-  const hiddenByStatus = { first: 0, students: 0 }
+  const hiddenByStatus = { first: 0, students: 0, lost: 0 }
   if (view === 'table' && status === 'lead') {
     for (const l of leads) {
       if (!matchesOthers(l)) continue
       if (l.convertedStudentId) hiddenByStatus.students++
+      else if (isLeadLost(l)) hiddenByStatus.lost++
       else if (l.firstLessonAt) hiddenByStatus.first++
     }
   }
@@ -468,7 +473,16 @@ export function LeadsPage() {
       <ListToolbar
         left={
           <>
-            {viewToggle}
+            {archive ? (
+              <div>
+                <p className="text-[15px] font-semibold text-black">Arxivlangan lidlar</p>
+                <p className="text-[12px] text-[#757575]">
+                  «Buyurtmalar ro'yxati»dan shu yerga o'tadi. Lid sahifasida «Tiklash» — buyurtmalarga qaytaradi.
+                </p>
+              </div>
+            ) : (
+              viewToggle
+            )}
             {/* Kanbanda edutizimdagidek keng "Qidirish" maydoni asboblar qatorida. */}
             {view === 'kanban' && (
               <div className="relative min-w-[200px] flex-1">
@@ -485,7 +499,7 @@ export function LeadsPage() {
         }
         filtersOpen={filtersOpen}
         onToggleFilters={() => setFiltersOpen((o) => !o)}
-        addLabel={canCreate ? (view === 'kanban' ? "Qo'shish" : "Buyurtma qo'shish") : undefined}
+        addLabel={canCreate && !archive ? (view === 'kanban' ? "Qo'shish" : "Buyurtma qo'shish") : undefined}
         onAdd={() => setLeadFormOpen(true)}
       />
 
@@ -552,12 +566,15 @@ export function LeadsPage() {
             ))}
             <option value={NONE}>Biriktirilmagan</option>
           </FilterSelect>
-          <FilterSelect placeholder="Status" value={f.status} onChange={(e) => set({ status: e.target.value })}>
-            <option value="lead">Buyurtma (sinovga yozilmagan)</option>
-            <option value="first">Birinchi darsga yozilgan</option>
-            <option value="student">O'quvchiga aylantirilgan</option>
-            <option value="all">Hammasi</option>
-          </FilterSelect>
+          {!archive && (
+            <FilterSelect placeholder="Status" value={f.status} onChange={(e) => set({ status: e.target.value })}>
+              <option value="lead">Buyurtma (sinovga yozilmagan)</option>
+              <option value="first">Birinchi darsga yozilgan</option>
+              <option value="student">O'quvchiga aylantirilgan</option>
+              <option value="lost">Yo'qotilgan (arxiv)</option>
+              <option value="all">Hammasi</option>
+            </FilterSelect>
+          )}
           <FilterSelect placeholder="Manba" value={f.source} onChange={(e) => set({ source: e.target.value })}>
             {sourceOptions.map((s) => (
               <option key={s} value={s}>
@@ -566,10 +583,12 @@ export function LeadsPage() {
             ))}
             <option value={NONE}>Noma'lum</option>
           </FilterSelect>
-          <FilterSelect placeholder="Yo'qotilganlar" value={f.lost} onChange={(e) => set({ lost: e.target.value })}>
-            <option value="hide">Yo'qotilganlarni yashirish</option>
-            <option value="only">Faqat yo'qotilganlar</option>
-          </FilterSelect>
+          {!archive && (
+            <FilterSelect placeholder="Yo'qotilganlar" value={f.lost} onChange={(e) => set({ lost: e.target.value })}>
+              <option value="hide">Yo'qotilganlarni yashirish</option>
+              <option value="only">Faqat yo'qotilganlar</option>
+            </FilterSelect>
+          )}
           <FilterSelect placeholder="Yo'qotish sababi" value={f.reason} onChange={(e) => set({ reason: e.target.value })}>
             {lostReasonOptions.map((r) => (
               <option key={r} value={r}>
@@ -596,7 +615,7 @@ export function LeadsPage() {
               <TotalPill total={visibleLeads.length} />
             </div>
           </div>
-          {(hiddenByStatus.first > 0 || hiddenByStatus.students > 0) && (
+          {(hiddenByStatus.first > 0 || hiddenByStatus.students > 0 || hiddenByStatus.lost > 0) && (
             <p className="mb-2 text-[13px] text-[#757575]">
               Bu yerda faqat buyurtmalar.
               {hiddenByStatus.first > 0 && (
@@ -604,6 +623,15 @@ export function LeadsPage() {
                   {' '}Birinchi darsga yozilgan <b>{hiddenByStatus.first}</b> ta lid —{' '}
                   <Link to="/admin/leads/birinchi-dars" className="font-medium text-brand-600 hover:underline">
                     «Birinchi darsga yozilganlar»
+                  </Link>
+                  {hiddenByStatus.students > 0 || hiddenByStatus.lost > 0 ? ',' : '.'}
+                </>
+              )}
+              {hiddenByStatus.lost > 0 && (
+                <>
+                  {' '}yo'qotilgan <b>{hiddenByStatus.lost}</b> tasi —{' '}
+                  <Link to="/admin/students/arxiv/lidlar" className="font-medium text-brand-600 hover:underline">
+                    «Arxiv»
                   </Link>
                   {hiddenByStatus.students > 0 ? ',' : '.'}
                 </>

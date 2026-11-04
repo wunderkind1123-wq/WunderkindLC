@@ -7,6 +7,7 @@ import {
   Trash2,
   ClipboardCheck,
   UserX,
+  Archive,
   RotateCcw,
 } from 'lucide-react'
 import {
@@ -39,6 +40,7 @@ import { Loader } from '@/components/ui/Loader'
 import { ReasonPromptModal } from '@/components/ui/ReasonPromptModal'
 import { genderOptions } from '@/config/constants'
 import { usePerm } from '@/lib/permissions'
+import { useAuth } from '@/context/auth-context'
 import { apiErrorMessage, cn, formatDate, formatDateTime } from '@/lib/utils'
 import { LeadCustomAnswer } from './LeadCustomAnswer'
 import { LeadLostModal } from './LeadLostModal'
@@ -118,7 +120,9 @@ export function LeadDetailPage() {
   const navigate = useNavigate()
   const { can } = usePerm()
   const canEdit = can('leads.list', 'edit')
-  const canDelete = can('leads.list', 'delete')
+  // Lidni BUTUNLAY o'chirish — faqat superadmin va direktor (admin roli); serverdagi `LeadDeleteRights` bilan bir xil.
+  const role = useAuth().user?.role
+  const canDelete = role === 'superadmin' || role === 'admin'
   // Aylantirish O'QUVCHI yaratadi — server lid ruxsatidan tashqari o'quvchi qo'shish huquqini ham talab qiladi.
   const canConvert = can('leads.list', 'create') && can('students.list', 'create')
 
@@ -328,9 +332,12 @@ export function LeadDetailPage() {
     ...(canEdit && !lead.convertedStudentId
       ? lost
         ? [{ label: 'Tiklash (faol ishga qaytarish)', icon: RotateCcw, onClick: () => void doRestore() }]
-        : [{ label: "Yo'qotilgan deb belgilash", icon: UserX, danger: true, onClick: () => setLosing(true) }]
+        // Egasi (2026-11-04): «o'chirish yoki yo'qotilgan deb belgilash o'rniga ARXIVLASH qizilda tursin» —
+        // amal o'sha (`PATCH {id}/lost`, sabab majburiy), lid CRM'da qoladi va Lidlar → «Arxiv»ga o'tadi.
+        : [{ label: 'Arxivlash', icon: Archive, danger: true, onClick: () => setLosing(true) }]
       : []),
     // Aylantirilgan lid O'CHIRILMAYDI (server 400): KPI "shartnoma" va sotuv tushumi unga tayanadi.
+    // ⚠️ O'chirish — FAQAT superadmin va direktor (admin ROLI), ruxsat kaliti yetmaydi (server `LeadDeleteRights`).
     ...(canDelete && !lead.convertedStudentId
       ? [{ label: "Lidni o'chirish", icon: Trash2, danger: true, onClick: () => setDeleting(true) }]
       : []),

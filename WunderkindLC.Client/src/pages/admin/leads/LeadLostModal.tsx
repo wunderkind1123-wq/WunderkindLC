@@ -77,7 +77,7 @@ export function LeadLostModal({ open, leadName, onClose, onConfirm }: Props) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Yo'qotilgan deb belgilash"
+      title="Lidni arxivlash"
       size="sm"
       footer={
         <>
@@ -90,15 +90,15 @@ export function LeadLostModal({ open, leadName, onClose, onConfirm }: Props) {
             onClick={() => void submit()}
             className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700 disabled:opacity-50"
           >
-            {saving ? 'Saqlanmoqda...' : "Yo'qotilganlarga o'tkazish"}
+            {saving ? 'Saqlanmoqda...' : 'Arxivlash'}
           </button>
         </>
       }
     >
       <div className="space-y-3">
         <p className="text-sm text-slate-600">
-          <b className="text-slate-800">{leadName || 'Lid'}</b> faol ishdan chiqadi va «Yo'qotilgan» ustuniga
-          o'tadi. Keyin istalgan payt tiklash mumkin.
+          <b className="text-slate-800">{leadName || 'Lid'}</b> faol ishdan chiqadi va O'quvchilar → «Arxiv» → «Lidlar»ga
+          o'tadi — CRM'dan o'chmaydi. Keyin istalgan payt tiklash mumkin.
         </p>
 
         <div>
