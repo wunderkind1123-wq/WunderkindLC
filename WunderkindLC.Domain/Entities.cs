@@ -2067,6 +2067,11 @@ public partial class CenterMeta
     /// Bo'sh = hech qachon (faqat yig'ilgan pul, eski qoida). Migratsiya <c>AddStaffRoleLink</c>
     /// prod'da "2026-09" qo'yadi (foydalanuvchi qarori: joriy oydan, o'tgan oylar o'zgarmaydi).</summary>
     public string SalaryChargedBaseFrom { get; set; } = "";
+    /// <summary>"yyyy-MM" — shu oydan boshlab FOIZLI maosh bazasi «MAOSHGA TUSHGAN PUL»: shu oyda (to'lov SANASI
+    /// bo'yicha) kassaga haqiqatan tushgan o'quv to'lovi − vozvrat + shu oy hisoblaridagi chegirma (markaz ko'taradi).
+    /// <see cref="SalaryChargedBaseFrom"/> dan USTUN. Bo'sh = o'chiq. Migratsiya <c>AddSalaryCashBase</c> "2026-10"
+    /// qo'yadi (egasining qarori, 2026-11-04: "ustozlar doim tushirgan pulidan oylik oladi").</summary>
+    public string SalaryCashBaseFrom { get; set; } = "";
 
     /* ---------- O'quvchini ushlab turish bonusi (retention) ---------- */
 

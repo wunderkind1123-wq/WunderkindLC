@@ -1726,6 +1726,10 @@ namespace WunderkindLC.Infrastructure.Migrations
                     b.Property<int>("RetentionMonthsRequired")
                         .HasColumnType("integer");
 
+                    b.Property<string>("SalaryCashBaseFrom")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("SalaryChargedBaseFrom")
                         .IsRequired()
                         .HasColumnType("text");

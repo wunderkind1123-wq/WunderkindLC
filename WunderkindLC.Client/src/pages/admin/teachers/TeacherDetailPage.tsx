@@ -751,7 +751,7 @@ export function TeacherDetailPage() {
               mono
               value={
                 teacher.salaryMode === 'percent'
-                  ? `Foiz — hisoblangan oylikning ${teacher.salaryPercent ?? 0}%i`
+                  ? `Foiz — maoshga tushgan pulning ${teacher.salaryPercent ?? 0}%i`
                   : `Qat'iy summa — ${formatMoney(teacher.salary)}`
               }
             />
@@ -1368,14 +1368,39 @@ export function TeacherDetailPage() {
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
                     Maosh
                   </p>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div
+                    className={cn(
+                      'grid grid-cols-2 gap-3',
+                      selMonthData.cashBase ? 'sm:grid-cols-3 lg:grid-cols-6' : 'sm:grid-cols-4',
+                    )}
+                  >
+                    {/* «MAOSHGA TUSHGAN PUL» (egasi, 2026-11-04): tushgan puldan foiz + chegirmadan foiz = Hisoblandi;
+                        berilgan avans va oyliklar shundan ayriladi (Qoldi). Raqamlar serverdan (`SalaryLedger`). */}
+                    {selMonthData.cashBase && (
+                      <>
+                        <MonthTile
+                          label="Tushgan pul"
+                          value={formatMoney(selMonthData.salaryCash ?? 0)}
+                          valueClass="text-emerald-600"
+                          detail={cashBreakdown(selMonthData)}
+                          hint={`${pctText(selMonthData.cashSalary, selMonthData.salaryCash)}ustozga ${formatMoney(selMonthData.cashSalary ?? 0)}`}
+                        />
+                        <MonthTile
+                          label="Chegirma (markaz)"
+                          value={formatMoney(selMonthData.salaryDiscount ?? 0)}
+                          hint={`${pctText(selMonthData.discountSalary, selMonthData.salaryDiscount)}ustozga +${formatMoney(selMonthData.discountSalary ?? 0)}`}
+                        />
+                      </>
+                    )}
                     <MonthTile
                       label="Hisoblandi"
                       value={formatMoney(selMonthData.expected)}
                       /* Foizli maoshda pul hali kelmagan oyda "Hisoblandi" 0 chiqadi — yonida
                          "hammasi to'lansa qancha bo'lishi" turadi (oylar jadvalidagi bilan bir xil). */
                       hint={
-                        (selMonthData.potentialExpected ?? 0) > selMonthData.expected
+                        selMonthData.cashBase
+                          ? cashHint(selMonthData)
+                          : (selMonthData.potentialExpected ?? 0) > selMonthData.expected
                           ? `hisob bo'yicha ${formatMoney(selMonthData.potentialExpected ?? 0)}`
                           // Hisoblangan bazada: tushgan pul bo'yicha hozir chiqadigan qism (o'qituvchi ham ko'radi).
                           : selMonthData.chargedBase && selMonthData.collectedExpected != null
@@ -1389,6 +1414,7 @@ export function TeacherDetailPage() {
                       label="Berildi"
                       value={formatMoney(selMonthData.paid)}
                       valueClass="text-emerald-600"
+                      hint="avans va oylik"
                     />
                     <MonthTile
                       label="Qoldi"
@@ -2018,23 +2044,56 @@ function TotalTile({
   )
 }
 
+/** "40% → " — ustoz ulushi foizi (summa ÷ baza). Guruhlarda foiz har xil bo'lsa (butun son chiqmasa) yozilmaydi. */
+function pctText(part?: number, base?: number): string {
+  if (!part || !base) return ''
+  const pct = (part / base) * 100
+  return Math.abs(pct - Math.round(pct)) < 0.01 ? `${Math.round(pct)}% → ` : ''
+}
+
+/**
+ * «Tushgan pul» tarkibi: «shu oy uchun 400 000 · o'tgan oylar qarzi 200 000 · avans 300 000». «Shu oy uchun» qismi
+ * yuqoridagi «Tushum bo'ldi» bilan bog'lanadi (u shu oy UCHUN to'langanni sanaydi). Faqat qarz yoki avans bo'lsa chiqadi.
+ */
+function cashBreakdown(m: MonthSalary): string | undefined {
+  const late = m.cashLate ?? 0
+  const adv = m.cashAdvance ?? 0
+  if (!late && !adv) return undefined
+  const parts = [`shu oy uchun ${formatMoney((m.salaryCash ?? 0) - late - adv)}`]
+  if (late) parts.push(`o'tgan oylar qarzi ${formatMoney(late)}`)
+  if (adv) parts.push(`avans ${formatMoney(adv)}`)
+  return parts.join(' · ')
+}
+
+/** «Hisoblandi» izohi tushgan pul bazasida: 1 136 000 + 44 000 (ushlanma bo'lsa — ayrilgani ham). */
+function cashHint(m: MonthSalary): string {
+  const gross = (m.cashSalary ?? 0) + (m.discountSalary ?? 0)
+  const parts = `${formatMoney(m.cashSalary ?? 0)} + ${formatMoney(m.discountSalary ?? 0)}`
+  const diff = Math.round(gross - m.expected)
+  return diff > 0 ? `${parts} − ushlanma ${formatMoney(diff)}` : diff < 0 ? `${parts} + o'rinbosarlik` : parts
+}
+
 function MonthTile({
   label,
   value,
   valueClass = 'text-slate-700',
   hint,
   hintClass = 'text-slate-400',
+  detail,
 }: {
   label: string
   value: string
   valueClass?: string
   hint?: string
   hintClass?: string
+  /** Qiymat ostidagi qo'shimcha (kulrang) satr — masalan «Tushgan pul» tarkibi. */
+  detail?: string
 }) {
   return (
     <div className="rounded-xl border border-slate-100 px-3 py-2.5 text-center">
       <p className="text-xs text-slate-400">{label}</p>
       <p className={cn('mt-0.5 font-mono font-semibold', valueClass)}>{value}</p>
+      {detail && <p className="mt-0.5 text-[11px] leading-tight text-slate-500">{detail}</p>}
       {hint && <p className={cn('mt-0.5 text-[11px] leading-tight', hintClass)}>{hint}</p>}
     </div>
   )
@@ -2162,7 +2221,7 @@ function GroupSalaryEditor({
   return (
     <Card
       title="Per-guruh maosh"
-      sub="«Umumiy» — o'qituvchining umumiy foizi; kerak bo'lsa guruh uchun boshqa foiz yoki qat'iy summa. Foiz hisoblangan oylikdan (chegirmasiz). O'qituvchi oyligi = guruhlar yig'indisi. Yopilgan guruhlar ham qoladi — o'tgan oylar hisobi ularga bog'liq."
+      sub="«Umumiy» — o'qituvchining umumiy foizi; kerak bo'lsa guruh uchun boshqa foiz yoki qat'iy summa. Foiz shu oyda tushgan puldan + markaz ko'targan chegirma (oktabr 2026 dan; ungacha — hisoblangan oylikdan). O'qituvchi oyligi = guruhlar yig'indisi. Yopilgan guruhlar ham qoladi — o'tgan oylar hisobi ularga bog'liq."
     >
       <div className="space-y-2">
         {rows.map((r) => {

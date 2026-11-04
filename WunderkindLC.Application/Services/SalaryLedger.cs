@@ -39,6 +39,57 @@ public static class SalaryLedger
         chargedFrom is { Length: >= 7 }
         && string.CompareOrdinal(month.Length >= 7 ? month[..7] : month, chargedFrom[..7]) >= 0;
 
+    /// <summary>
+    /// Shu oy uchun FOIZ BAZASI «MAOSHGA TUSHGAN PUL»mi (<see cref="CenterMeta.SalaryCashBaseFrom"/>, "yyyy-MM";
+    /// bo'sh = hech qachon). Hisoblangan bazadan USTUN.
+    /// <para>Egasining qarori (2026-11-04): "ustozlar doim tushirgan pulidan oylik oladi". Baza = shu oyda (to'lov
+    /// SANASI bo'yicha) tushgan o'quv to'lovi − vozvrat + shu oy hisoblaridagi chegirma (chegirmani markaz ko'taradi;
+    /// «ustoz qoplaydi» belgisi bo'lsa — <see cref="DiscountCover"/> ushlanmasi). Kech to'langan qarz PUL TUSHGAN oyning
+    /// maoshiga kiradi (o'tgan, berilgan oy maoshi o'zgarmaydi).</para>
+    /// </summary>
+    public static bool UsesCashBase(string month, string? cashFrom) =>
+        cashFrom is { Length: >= 7 }
+        && string.CompareOrdinal(month.Length >= 7 ? month[..7] : month, cashFrom[..7]) >= 0;
+
+    /// <summary>
+    /// To'lov (yoki vozvrat) «maoshga tushgan pul» bazasida QAYSI OYGA kiradi — SOF qoida. <c>null</c> — kirmaydi.
+    /// <list type="bullet">
+    /// <item>Oy tegi <paramref name="cashFrom"/> dan OLDINGI oyga (masalan sentabr qarzi oktabrda to'landi) — <c>null</c>:
+    /// u oylarning maoshi hisoblangan/yig'ilgan bazada allaqachon to'liq hisoblangan, ikki marta kirmasin.</item>
+    /// <item>Aks holda — to'lov SANASI oyi; sana <paramref name="cashFrom"/> dan oldin bo'lsa (masalan sentabrda oktabr uchun
+    /// avans) — <paramref name="cashFrom"/> oyi (u pul eski bazada ham hisoblanmagan, yo'qolmasin).</item>
+    /// </list>
+    /// </summary>
+    public static string? CashMonthOf(string? date, string? forMonth, string? cashFrom)
+    {
+        if (cashFrom is not { Length: >= 7 } || date is not { Length: >= 7 }) return null;
+        var cf = cashFrom[..7];
+        if (forMonth is { Length: >= 7 } && string.CompareOrdinal(forMonth[..7], cf) < 0) return null;
+        var dm = date[..7];
+        return string.CompareOrdinal(dm, cf) < 0 ? cf : dm;
+    }
+
+    /// <summary>Oy bazasi turi: "cash" (maoshga tushgan pul) | "charged" (hisoblangan to'liq oylik) | "collected" (eski).</summary>
+    public static string BaseKind(string month, string? chargedFrom, string? cashFrom) =>
+        UsesCashBase(month, cashFrom) ? "cash" : UsesChargedBase(month, chargedFrom) ? "charged" : "collected";
+
+    /// <summary>
+    /// O'qituvchining (guruh, oy) dagi ULUSHI (0..1): tarix bo'yicha darslar nisbati, o'qituvchi ISHLAMAGAN (arxivda turgan)
+    /// kunlar chiqarilgan. Maosh varaqasi ham, «Maoshga tushgan pul» tafsiloti ham AYNAN shuni ishlatadi.
+    /// </summary>
+    public static decimal TeacherShare(
+        GroupOwnership own, string teacherId, IReadOnlyList<(DateOnly From, DateOnly To)> inactive, string groupId, string month)
+    {
+        var baseShare = own.Share(groupId, month, teacherId);
+        if (inactive.Count == 0 || baseShare <= 0m) return baseShare;
+        // ⚠️ Arxivda turgan kunlardagi darslar ulushi hech kimga o'tmaydi (boshqa o'qituvchining
+        // varaqasi tarix bo'yicha baribir o'zgarmaydi) — ishlamagan odamga pul yozilmasin.
+        var dates = own.LessonDates(groupId, month);
+        return dates.Count == 0
+            ? baseShare * MonthFraction(month, null, null, inactive)
+            : (decimal)dates.Count(d => own.OwnerOn(groupId, d) == teacherId && !InactiveOn(d, inactive)) / dates.Count;
+    }
+
     /// <summary>Guruhning amaldagi maosh rejimi: sozlangan bo'lsa o'zi, aks holda o'qituvchi darajasidagi.</summary>
     private static string EffMode(string groupMode, string teacherMode) =>
         groupMode is "percent" or "fixed" ? groupMode : (teacherMode == "percent" ? "percent" : "fixed");
@@ -215,16 +266,8 @@ public static class SalaryLedger
         var shareCache = new Dictionary<(string, string), decimal>();
         decimal ShareOf(string groupId, string month)
         {
-            var baseShare = own.Share(groupId, month, teacher.Id);
-            if (inactive.Count == 0 || baseShare <= 0m) return baseShare;
             if (shareCache.TryGetValue((groupId, month), out var cached)) return cached;
-            // ⚠️ Arxivda turgan kunlardagi darslar ulushi hech kimga o'tmaydi (boshqa o'qituvchining
-            // varaqasi tarix bo'yicha baribir o'zgarmaydi) — ishlamagan odamga pul yozilmasin.
-            var dates = own.LessonDates(groupId, month);
-            var share = dates.Count == 0
-                ? baseShare * MonthFraction(month, null, null, inactive)
-                : (decimal)dates.Count(d => own.OwnerOn(groupId, d) == teacher.Id && !InactiveOn(d, inactive)) / dates.Count;
-            return shareCache[(groupId, month)] = share;
+            return shareCache[(groupId, month)] = TeacherShare(own, teacher.Id, inactive, groupId, month);
         }
 
         // QAT'IY summalarning amal qilish oralig'i (audit C4): o'qituvchi ishga kirgan kundan
@@ -451,7 +494,7 @@ public static class SalaryLedger
         // (oy, guruh) → shu oyda to'lanmagan o'quvchilar (studentId → a'zoligi hozir tirikmi).
         var unpaidStudents = new Dictionary<(string month, string groupId), Dictionary<string, bool>>();
         var chargedMonths = TuitionService.MonthRange(startMonth, toMonth)
-            .Where(m => UsesChargedBase(m, bases.ChargedFrom)).ToHashSet(StringComparer.Ordinal);
+            .Where(m => bases.IsCharged(m)).ToHashSet(StringComparer.Ordinal);
         var percentGroupIds = groups.Where(g => EffMode(g.TeacherSalaryMode, teacher.SalaryMode) == "percent")
             .Select(g => g.Id).ToList();
         if (chargedMonths.Count > 0 && percentGroupIds.Count > 0)
@@ -490,6 +533,11 @@ public static class SalaryLedger
         decimal TotalCharged(string month) => Weighted(chargedPerGroup, month);
         decimal TotalSalaryBase(string month) => Weighted(salaryBasePerGroup, month);
         decimal TotalUnpaid(string month) => Weighted(unpaidPerGroup, month);
+        decimal TotalGross(string month) => bases.Gross is null ? 0m : Weighted(bases.Gross, month);
+        decimal TotalCash(string month) => bases.Cash is null ? 0m : Weighted(bases.Cash, month);
+        decimal TotalDisc(string month) => bases.Disc is null ? 0m : Weighted(bases.Disc, month);
+        decimal TotalCashLate(string month) => bases.CashLate is null ? 0m : Weighted(bases.CashLate, month);
+        decimal TotalCashAdvance(string month) => bases.CashAdvance is null ? 0m : Weighted(bases.CashAdvance, month);
 
         // Kurs nomlari (breakdown uchun).
         var courseIds = groups.Where(g => !string.IsNullOrEmpty(g.CourseId)).Select(g => g.CourseId).Distinct().ToList();
@@ -547,6 +595,9 @@ public static class SalaryLedger
             decimal monthCollected = 0m;
             decimal monthCharged = 0m, grossPotential = 0m;
             decimal monthSalaryBase = 0m;
+            // «MAOSHGA TUSHGAN PUL» tarkibi (faqat tushgan pul bazasi oylarida): pul (− vozvrat) va markaz ko'targan chegirma.
+            decimal monthCash = 0m, monthDisc = 0m, monthCashSalary = 0m, monthDiscSalary = 0m, monthCashLate = 0m, monthCashAdvance = 0m;
+            var isCash = bases.IsCash(month);
             // «HOZIR CHIQADIGAN» oylik — o'sha foiz/ushlanmalar, lekin baza HAQIQATAN TUSHGAN pul
             // (hisoblangan baza ishlatilgan oylarda o'qituvchiga ko'rsatiladi: qarzdorlar to'lasa qancha qo'shiladi).
             decimal grossCollectedSum = 0m, collectedGroupDeduction = 0m;
@@ -584,16 +635,33 @@ public static class SalaryLedger
                     // Baza oyga qarab: hisoblangan to'liq oylik (CenterMeta.SalaryChargedBaseFrom dan) yoki yig'ilgan.
                     var salaryBase = salaryBasePerGroup.GetValueOrDefault((month, g.Id), 0m) * share;
                     contribution = decimal.Round(salaryBase * pct / 100m, 2);
-                    // "Hammasi to'lansa" — hisoblangan bazada maoshning O'ZI (pul kelishiga bog'liq emas).
-                    potential = UsesChargedBase(month, bases.ChargedFrom) ? contribution : decimal.Round(chg * pct / 100m, 2);
+                    // "Hammasi to'lansa" — hisoblangan bazada maoshning O'ZI (pul kelishiga bog'liq emas); tushgan pul
+                    // bazasida — shu oyning TO'LIQ (chegirmasiz) oyligi × foiz (hamma o'z oyini shu oyda to'lasa).
+                    potential = isCash
+                        ? decimal.Round((bases.Gross?.GetValueOrDefault((month, g.Id), 0m) ?? 0m) * share * pct / 100m, 2)
+                        : bases.IsCharged(month) ? contribution : decimal.Round(chg * pct / 100m, 2);
+                    if (isCash)
+                    {
+                        var c = (bases.Cash?.GetValueOrDefault((month, g.Id), 0m) ?? 0m) * share;
+                        var dd = (bases.Disc?.GetValueOrDefault((month, g.Id), 0m) ?? 0m) * share;
+                        monthCash += c;
+                        monthCashLate += (bases.CashLate?.GetValueOrDefault((month, g.Id), 0m) ?? 0m) * share;
+                        monthCashAdvance += (bases.CashAdvance?.GetValueOrDefault((month, g.Id), 0m) ?? 0m) * share;
+                        monthDisc += dd;
+                        // Ekrandagi ikki bosqich: «tushgan pul × foiz» + «chegirma × foiz» (yig'indisi = contribution).
+                        monthCashSalary += c * pct / 100m;
+                        monthDiscSalary += dd * pct / 100m;
+                    }
                     // «Hozir chiqadigan»: tushgan pul + MARKAZ QOPLAGAN chegirma (hisoblangan bazada chegirma maoshni
                     // kamaytirmaydi — u hech qachon "qarzdordan" kelmaydi). Ilgari faqat tushgan pul olinardi va
                     // chegirma ulushi «Qarzdorlar to'lasa yana +X» bo'lib ko'rinardi (TZ 1.6, 2026-10-17).
                     // ⚠️ 2026-10-26: tushgan pul = hisoblangan − TO'LANMAGAN (FIFO, balans bo'yicha — `unpaidPerGroup`),
                     // ya'ni baza = to'liq oylik − to'lanmagan; chegirma (to'liq − sof) avtomatik "tushgan"ga kiradi.
-                    collectedContribution = UsesChargedBase(month, bases.ChargedFrom)
+                    collectedContribution = bases.IsCharged(month)
                         ? Math.Min(contribution, decimal.Round(
                             Math.Max(0m, salaryBase - unpaidPerGroup.GetValueOrDefault((month, g.Id), 0m) * share) * pct / 100m, 2))
+                        // Tushgan pul bazasida maosh ALLAQACHON tushgan puldan — «hozir chiqadigan» = maoshning o'zi.
+                        : isCash ? contribution
                         : Math.Min(contribution, decimal.Round(col * pct / 100m, 2));
                     groupPeriodCollected[g.Id] += col;
                     monthCollected += col;
@@ -678,9 +746,20 @@ public static class SalaryLedger
             else if (teacher.SalaryMode == "percent")
             {
                 baseExpected = decimal.Round(TotalSalaryBase(month) * teacher.SalaryPercent / 100m, 2);
-                basePotential = UsesChargedBase(month, bases.ChargedFrom)
+                basePotential = isCash
+                    ? decimal.Round(TotalGross(month) * teacher.SalaryPercent / 100m, 2)
+                    : bases.IsCharged(month)
                     ? baseExpected
                     : decimal.Round(TotalCharged(month) * teacher.SalaryPercent / 100m, 2);
+                if (isCash)
+                {
+                    monthCash = TotalCash(month);
+                    monthCashLate = TotalCashLate(month);
+                    monthCashAdvance = TotalCashAdvance(month);
+                    monthDisc = TotalDisc(month);
+                    monthCashSalary = monthCash * teacher.SalaryPercent / 100m;
+                    monthDiscSalary = monthDisc * teacher.SalaryPercent / 100m;
+                }
                 // ⚠️ LEGACY-FOIZ baza guruhlar ulushidan EMAS, oyning JAMI yig'ilganidan chiqadi
                 // — ya'ni sikl ichida ayrilgan ushlanma bu raqamga UMUMAN ta'sir qilmagan. Ilgari
                 // shu sabab ushlanma hisoblanib, ekranga yuborilib, lekin maoshdan AYRILMASDI.
@@ -754,7 +833,7 @@ public static class SalaryLedger
 
             // «Hozir chiqadigan» — faqat hisoblangan baza oylarida farq qiladi (yig'ilgan bazada u = expected).
             var collectedExpected = expected;
-            if (UsesChargedBase(month, bases.ChargedFrom) && (anyConfigured || teacher.SalaryMode == "percent"))
+            if (bases.IsCharged(month) && (anyConfigured || teacher.SalaryMode == "percent"))
             {
                 var baseCollected = anyConfigured
                     ? decimal.Round(grossCollectedSum, 2)
@@ -787,7 +866,7 @@ public static class SalaryLedger
                 decimal.Round(monthSubstituteDeduction, 2),
                 // Legacy-foizda baza oyning JAMI bazasidan (guruh ulushlaridan emas).
                 decimal.Round(!anyConfigured && teacher.SalaryMode == "percent" ? TotalSalaryBase(month) : monthSalaryBase, 2),
-                UsesChargedBase(month, bases.ChargedFrom),
+                bases.IsCharged(month),
                 decimal.Round(collectedExpected, 2),
                 AttendanceFines: fineApplied, AttendanceFineCount: fineInfo.Count,
                 ManualFines: manualApplied, ManualFineCount: manualInfo.Count,
@@ -795,7 +874,14 @@ public static class SalaryLedger
                 UnpaidStudents: monthDebtors.Count,
                 UnpaidStudentsLeft: monthDebtors.Count(kv => !kv.Value),
                 DiscountCover: coverApplied,
-                DiscountCoverItems: coverItems.Count > 0 ? coverItems : null));
+                DiscountCoverItems: coverItems.Count > 0 ? coverItems : null,
+                CashBase: isCash,
+                SalaryCash: isCash ? decimal.Round(monthCash, 2) : 0m,
+                SalaryDiscount: isCash ? decimal.Round(monthDisc, 2) : 0m,
+                CashSalary: isCash ? decimal.Round(monthCashSalary, 2) : 0m,
+                DiscountSalary: isCash ? decimal.Round(monthDiscSalary, 2) : 0m,
+                CashLate: isCash ? decimal.Round(monthCashLate, 2) : 0m,
+                CashAdvance: isCash ? decimal.Round(monthCashAdvance, 2) : 0m));
         }
 
         var totalExpected = months.Sum(m => m.Expected);
@@ -864,7 +950,19 @@ public static class SalaryLedger
         Dictionary<(string month, string groupId), decimal> Collected,
         Dictionary<(string month, string groupId), decimal> Charged,
         Dictionary<(string month, string groupId), decimal> SalaryBase,
-        string? ChargedFrom);
+        string? ChargedFrom,
+        string? CashFrom = null,
+        Dictionary<(string month, string groupId), decimal>? Gross = null,
+        Dictionary<(string month, string groupId), decimal>? Cash = null,
+        Dictionary<(string month, string groupId), decimal>? Disc = null,
+        Dictionary<(string month, string groupId), decimal>? CashLate = null,
+        Dictionary<(string month, string groupId), decimal>? CashAdvance = null)
+    {
+        /// <summary>Shu oy "maoshga tushgan pul" bazasidami.</summary>
+        public bool IsCash(string month) => UsesCashBase(month, CashFrom);
+        /// <summary>Shu oy HISOBLANGAN to'liq oylik bazasidami (tushgan pul bazasi undan ustun).</summary>
+        public bool IsCharged(string month) => !IsCash(month) && UsesChargedBase(month, ChargedFrom);
+    }
 
     /// <summary>
     /// (oy, guruh) → SHU OY UCHUN yig'ilgan pul — <b>o'rinbosarlik hovuzining bazasi</b>.
@@ -887,8 +985,10 @@ public static class SalaryLedger
         var charged = new Dictionary<(string month, string groupId), decimal>();
         var gross = new Dictionary<(string month, string groupId), decimal>();
         if (groupIds.Count == 0) return new PercentBases(result, charged, new(), null);
-        var chargedFrom = await db.CenterMeta.AsNoTracking()
-            .Select(m => m.SalaryChargedBaseFrom).FirstOrDefaultAsync();
+        var meta = await db.CenterMeta.AsNoTracking()
+            .Select(m => new { m.SalaryChargedBaseFrom, m.SalaryCashBaseFrom }).FirstOrDefaultAsync();
+        var chargedFrom = meta?.SalaryChargedBaseFrom;
+        var cashFrom = meta?.SalaryCashBaseFrom;
 
         void Add(string month, string groupId, decimal amount) =>
             result[(month, groupId)] = result.GetValueOrDefault((month, groupId), 0m) + amount;
@@ -902,14 +1002,14 @@ public static class SalaryLedger
         var teacherGroups = await db.Classes
             .Where(c => groupIds.Contains(c.Id))
             .Select(c => new { c.Id, c.MonthlyFee }).ToListAsync();
-        if (teacherGroups.Count == 0) return new PercentBases(result, charged, new(), chargedFrom);
+        if (teacherGroups.Count == 0) return new PercentBases(result, charged, new(), chargedFrom, cashFrom);
         var tgIds = teacherGroups.Select(g => g.Id).ToHashSet();
 
         // Shu guruhlardagi o'quvchilar.
         var studentIds = await db.StudentGroups
             .Where(sg => tgIds.Contains(sg.GroupId))
             .Select(sg => sg.StudentId).Distinct().ToListAsync();
-        if (studentIds.Count == 0) return new PercentBases(result, charged, new(), chargedFrom);
+        if (studentIds.Count == 0) return new PercentBases(result, charged, new(), chargedFrom, cashFrom);
 
         // Bu o'quvchilarning BARCHA a'zoliklari (taqsimlash maxraji uchun boshqa guruhlari ham kerak).
         var memberships = await db.StudentGroups
@@ -1003,6 +1103,13 @@ public static class SalaryLedger
             .Select(c => new { c.StudentId, c.GroupId, c.Month, c.Amount, c.Discount })
             .ToListAsync();
 
+        // CHEGIRMA (to'liq − sof) — «maoshga tushgan pul» bazasida markaz ko'taradi va bazaga QO'SHILADI (2026-11-04).
+        var disc = new Dictionary<(string month, string groupId), decimal>();
+        void AddDisc(string month, string groupId, decimal amount)
+        {
+            if (amount != 0m) disc[(month, groupId)] = disc.GetValueOrDefault((month, groupId), 0m) + amount;
+        }
+
         var untaggedChargeByStudentMonth = new Dictionary<(string, string), (decimal Eff, decimal Gross)>();
         foreach (var c in chargeRows)
         {
@@ -1015,6 +1122,7 @@ public static class SalaryLedger
                 if (!tgIds.Contains(c.GroupId)) continue;
                 if (eff > 0) AddCharge(c.Month, c.GroupId, eff);   // 100% chegirma — "potensial"ga kirmaydi
                 if (full > 0) AddGross(c.Month, c.GroupId, full);
+                if (full > 0) AddDisc(c.Month, c.GroupId, full - Math.Max(0m, eff));
             }
             else
             {
@@ -1036,6 +1144,65 @@ public static class SalaryLedger
                 if (fee <= 0) continue;
                 if (amount.Eff != 0m) AddCharge(month, m.GroupId, amount.Eff * fee / denom);
                 if (amount.Gross != 0m) AddGross(month, m.GroupId, amount.Gross * fee / denom);
+                if (amount.Gross != 0m) AddDisc(month, m.GroupId, (amount.Gross - amount.Eff) * fee / denom);
+            }
+        }
+
+        // ---------- «MAOSHGA TUSHGAN PUL» (CenterMeta.SalaryCashBaseFrom dan) ----------
+        // Shu oyda to'lov SANASI bo'yicha tushgan o'quv to'lovi − vozvrat (CashMonthOf). Guruhga taqsimot — yuqoridagi
+        // bilan AYNAN bir xil: teglangan 100% guruhga, teglanmagani to'lov OYIDA billable guruhlar narxi nisbatida.
+        var cash = new Dictionary<(string month, string groupId), decimal>();
+        // Tarkibi (faqat KO'RSATISH uchun, egasi 2026-11-04 — «Tushum bo'ldi» bilan farqi ko'rinsin): o'tgan oylar qarzi
+        // (to'lov oyi < tushgan oy) va avans (> tushgan oy). Shu oy uchun = cash − late − advance.
+        var cashLate = new Dictionary<(string month, string groupId), decimal>();
+        var cashAdvance = new Dictionary<(string month, string groupId), decimal>();
+        var cashMonths = monthList.Where(m => UsesCashBase(m, cashFrom)).ToList();
+        if (cashMonths.Count > 0)
+        {
+            var cf = cashFrom![..7];
+            var cashFromDate = $"{cashMonths[0]}-01";
+            var cashToDate = $"{cashMonths[^1]}-31";
+            // Sanasi cashFrom dan OLDIN, lekin cashFrom+ oyiga teglangan AVANS — cashFrom oyiga (davrda bo'lsa).
+            var includePre = cashMonths[0] == cf;
+            var cfStart = cf + "-01";
+            var cashTx = await db.FinanceTransactions.AsNoTracking()
+                .Where(t => t.StudentId != null && studentIds.Contains(t.StudentId)
+                            && ((t.Direction == "income" && t.Category == "tuition")
+                                || (t.Direction == "expense" && t.Category == "refund"))
+                            && ((string.Compare(t.Date, cashFromDate) >= 0 && string.Compare(t.Date, cashToDate) <= 0)
+                                || (includePre && string.Compare(t.Date, cfStart) < 0
+                                    && t.Month != null && string.Compare(t.Month, cf) >= 0)))
+                .Select(t => new { t.Id, StudentId = t.StudentId!, t.GroupId, t.Date, t.Month, t.Amount, t.Direction })
+                .ToListAsync();
+            var cashMonthSet = cashMonths.ToHashSet(StringComparer.Ordinal);
+            foreach (var t in cashTx)
+            {
+                var cm = CashMonthOf(t.Date, t.Month, cashFrom);
+                if (cm is null || !cashMonthSet.Contains(cm) || t.Amount == 0m) continue;
+                var isRefund = t.Direction == "expense";
+                var amount = isRefund ? -t.Amount : t.Amount;
+                var forMonth = t.Month is { Length: >= 7 } fm ? fm[..7] : cm;
+                var cmp = string.CompareOrdinal(forMonth, cm);
+                void AddCash(string gid, decimal part)
+                {
+                    cash[(cm, gid)] = cash.GetValueOrDefault((cm, gid), 0m) + part;
+                    if (cmp < 0) cashLate[(cm, gid)] = cashLate.GetValueOrDefault((cm, gid), 0m) + part;
+                    else if (cmp > 0) cashAdvance[(cm, gid)] = cashAdvance.GetValueOrDefault((cm, gid), 0m) + part;
+                }
+                if (!string.IsNullOrEmpty(t.GroupId))
+                {
+                    if (tgIds.Contains(t.GroupId)) AddCash(t.GroupId, amount);
+                    continue;
+                }
+                if (!membsByStudent.TryGetValue(t.StudentId, out var membs)) continue;
+                var active = membs.Where(m => BillableInMonth(m, forMonth)).ToList();
+                var denom = active.Sum(m => feeByGroup.GetValueOrDefault(m.GroupId, 0m));
+                if (denom <= 0) continue;
+                foreach (var m in active.Where(m => tgIds.Contains(m.GroupId)))
+                {
+                    var fee = feeByGroup.GetValueOrDefault(m.GroupId, 0m);
+                    if (fee > 0) AddCash(m.GroupId, amount * fee / denom);
+                }
             }
         }
 
@@ -1044,13 +1211,20 @@ public static class SalaryLedger
             result[key] = decimal.Round(result[key], 2);
         foreach (var key in charged.Keys.ToList())
             charged[key] = decimal.Round(charged[key], 2);
+        foreach (var key in cash.Keys.ToList())
+            cash[key] = decimal.Round(cash[key], 2);
+        foreach (var key in disc.Keys.ToList())
+            disc[key] = decimal.Round(disc[key], 2);
 
-        // Foiz bazasi: oyga qarab yig'ilgan yoki hisoblangan to'liq oylik.
+        // Foiz bazasi oyga qarab: maoshga tushgan pul (+ chegirma) › hisoblangan to'liq oylik › yig'ilgan.
         var salaryBase = new Dictionary<(string month, string groupId), decimal>();
-        foreach (var kv in result.Where(kv => !UsesChargedBase(kv.Key.month, chargedFrom)))
+        foreach (var kv in result.Where(kv => BaseKind(kv.Key.month, chargedFrom, cashFrom) == "collected"))
             salaryBase[kv.Key] = kv.Value;
-        foreach (var kv in gross.Where(kv => UsesChargedBase(kv.Key.month, chargedFrom)))
+        foreach (var kv in gross.Where(kv => BaseKind(kv.Key.month, chargedFrom, cashFrom) == "charged"))
             salaryBase[kv.Key] = decimal.Round(kv.Value, 2);
-        return new PercentBases(result, charged, salaryBase, chargedFrom);
+        foreach (var key in cash.Keys.Concat(disc.Keys).Where(k => UsesCashBase(k.month, cashFrom)).Distinct())
+            // Vozvrat ko'p bo'lgan oyda baza manfiy bo'lmaydi (maosh manfiy bo'lmasin).
+            salaryBase[key] = Math.Max(0m, decimal.Round(cash.GetValueOrDefault(key) + disc.GetValueOrDefault(key), 2));
+        return new PercentBases(result, charged, salaryBase, chargedFrom, cashFrom, gross, cash, disc, cashLate, cashAdvance);
     }
 }

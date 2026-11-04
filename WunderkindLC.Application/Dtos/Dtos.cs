@@ -343,7 +343,19 @@ public record MonthSalaryDto(
     /// <summary>«CHEGIRMANI USTOZ QOPLAYDI» ushlanmasi (2026-11-03, `DiscountCover`) — jurnal ushlanmasidan KEYIN, jarimalardan
     /// OLDIN <c>Expected</c> dan ayrilgan (qoldiqdan oshmaydi). <paramref name="DiscountCoverItems"/> — qaysi o'quvchi, qancha.</summary>
     decimal DiscountCover = 0,
-    List<DiscountCoverItemDto>? DiscountCoverItems = null);
+    List<DiscountCoverItemDto>? DiscountCoverItems = null,
+    /// <summary>«MAOSHGA TUSHGAN PUL» bazasi (2026-11-04, <c>CenterMeta.SalaryCashBaseFrom</c> dan): foiz SHU OYDA (to'lov
+    /// sanasi bo'yicha) tushgan pul + markaz ko'targan chegirmadan. <paramref name="SalaryCash"/> — tushgan pul (− vozvrat),
+    /// <paramref name="SalaryDiscount"/> — chegirma; yig'indisi = <paramref name="SalaryBase"/> (foizli guruhlar, ulush bilan).</summary>
+    bool CashBase = false, decimal SalaryCash = 0, decimal SalaryDiscount = 0,
+    /// <summary>Ekrandagi ikki bosqich (egasining talabi, 2026-11-04): <paramref name="CashSalary"/> = tushgan pul × foiz,
+    /// <paramref name="DiscountSalary"/> = chegirma × foiz (markaz bergan 100 000 dan 40% ustozga — 40 000). Yig'indisi —
+    /// ushlanmalardan OLDINGI maosh (o'rinbosarlik haqi/ushlanmasidan tashqari).</summary>
+    decimal CashSalary = 0, decimal DiscountSalary = 0,
+    /// <summary>«Tushgan pul» TARKIBI (faqat ko'rsatish): <paramref name="CashLate"/> — shu oyda o'tgan oylar uchun to'langan
+    /// qarz, <paramref name="CashAdvance"/> — kelgusi oylar uchun avans; shu oy uchun = SalaryCash − ikkalasi («Tushum bo'ldi»
+    /// shu oy uchun to'langan pulni oy tegi bo'yicha sanaydi, sanasidan qat'i nazar — shu sababli farq qilishi mumkin).</summary>
+    decimal CashLate = 0, decimal CashAdvance = 0);
 
 public record ManualFineItemDto(decimal Amount, string Reason);
 

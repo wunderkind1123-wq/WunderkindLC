@@ -1864,6 +1864,17 @@ export interface MonthSalary {
    *  qat'iy maoshlida × 60%. */
   discountCover?: number
   discountCoverItems?: { studentName: string; groupName: string; discount: number; ratePct: number; amount: number }[] | null
+  /** «MAOSHGA TUSHGAN PUL» bazasi (2026-11-04, `SalaryCashBaseFrom` dan): foiz SHU OYDA (to'lov sanasi bo'yicha)
+   *  tushgan pul + markaz ko'targan chegirmadan. `salaryCash + salaryDiscount = salaryBase`. */
+  cashBase?: boolean
+  salaryCash?: number
+  salaryDiscount?: number
+  /** Ekrandagi ikki bosqich: tushgan pul × foiz va chegirma × foiz (markaz bergan 100 000 dan 40% → 40 000). */
+  cashSalary?: number
+  discountSalary?: number
+  /** «Tushgan pul» tarkibi: o'tgan oylar qarzi va avans (shu oy uchun = salaryCash − ikkalasi). */
+  cashLate?: number
+  cashAdvance?: number
 }
 
 /** Maosh hisobida bitta guruhning ulushi (davr bo'yicha) */

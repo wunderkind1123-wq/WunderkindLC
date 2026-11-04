@@ -89,6 +89,8 @@ public static class McpReadOnlyGrants
             nameof(CenterMeta.JournalApplyToAdmins), nameof(CenterMeta.SalaryRequireJournal), nameof(CenterMeta.SalaryGraceDays),
             nameof(CenterMeta.JournalHideUnpaidPrevMonth), nameof(CenterMeta.JournalHideUnpaidAfterDay),
             nameof(CenterMeta.JournalUnpaidCutoffDay), nameof(CenterMeta.SalaryChargedBaseFrom),
+            // 2026-11-04: «maoshga tushgan pul» bazasi — usiz MCP teacher_salaries oktabrdan keyingi oylarni eski bazada ko'rsatardi.
+            nameof(CenterMeta.SalaryCashBaseFrom),
             // CRM upgrade (2026-10): plain numbers/flags, no secrets — attendance discipline (attendance_discipline) and
             // the rating test weight (RatingEngine.TestWeightAsync — without it the reduced model could not read the
             // weight and the composite score would silently differ from the panel's).

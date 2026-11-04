@@ -118,7 +118,9 @@ export function TeacherSalaryPage() {
             const remaining = cur ? cur.remaining : ledger.remaining
             const modeSub =
               ledger.salaryMode === 'percent'
-                ? cur?.chargedBase
+                ? cur?.cashBase
+                  ? `Tushgan puldan (${ledger.salaryPercent}%)`
+                  : cur?.chargedBase
                   ? `Hisoblangan oylikdan (${ledger.salaryPercent}%)`
                   : `Yig'ilgan to'lovga asoslangan (${ledger.salaryPercent}%)`
                 : "Qat'iy oylik"

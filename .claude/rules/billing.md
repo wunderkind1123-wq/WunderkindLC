@@ -68,6 +68,34 @@ paths:
   qarzdorlar jami summasi) KO'RSATMAYDI — faqat o'z maoshi (egasining qarori, 2026-10-26).
   Hech narsa to'lamaydi va hech qayerga yozilmaydi — o'qituvchini qarzdorlarni yopishga undash
   uchun (o'qituvchi kabineti → Maosh, admin o'qituvchi sahifasi).
+- ⚠️ **«MAOSHGA TUSHGAN PUL» — 2026-10 dan FOIZ BAZASI (2026-11-04, egasi: "ustozlar doim tushirgan pulidan oylik
+  oladi").** `CenterMeta.SalaryCashBaseFrom` (migratsiya `AddSalaryCashBase`, prod `2026-10`) `SalaryChargedBaseFrom` dan
+  USTUN: `SalaryLedger.BaseKind` = `cash` › `charged` › `collected`. Baza (oy, guruh) = shu oyda **to'lov SANASI**
+  bo'yicha tushgan o'quv to'lovi − vozvrat (`CashMonthOf`) **+ shu oy hisoblaridagi chegirma** (markaz ko'taradi —
+  egasining tanlovi «B»: oylik 500 000, chegirma 100 000, to'landi 400 000, 40% → 200 000). «Chegirmani ustoz qoplaydi»
+  (`DiscountCover`) avvalgidek alohida ushlanma — ikki marta ayrilmaydi, chunki chegirma bazaga qo'shilgan.
+  - **Kech to'lov — PUL TUSHGAN oyga** (o'tgan, berilgan oy maoshi o'zgarmaydi). Oy tegi `cashFrom` dan OLDINGI oyga
+    (sentabr qarzi oktabrda) — KIRMAYDI: u oy hisoblangan bazada to'liq hisoblangan. Sanasi `cashFrom` dan oldin, tegi
+    keyin (sentabrda oktabr avansi) — `cashFrom` oyiga. Kelgusi oy avansi — to'langan oyga.
+  - Guruhga taqsimot avvalgidek (teglangan 100%, teglanmagani to'lov OYIDA billable guruhlar narxi nisbatida); o'qituvchi
+    ulushi — `SalaryLedger.TeacherShare` (tarix bo'yicha, shu oy darslari; yopilgan guruhga keyin tushgan pul — oxirgi egasiga).
+  - Vozvrat ko'p oyda baza manfiy bo'lmaydi. «Hozir chiqadigan» = maoshning o'zi; «hammasi to'lasa» (`PotentialExpected`)
+    = to'liq oylik × foiz. Qarzdorlar sanog'i (`UnpaidStudents`) faqat HISOBLANGAN baza oylarida.
+  - O'rinbosarlik hovuzi ham shu bazadan (`CollectedForGroupsAsync` → `SalaryBase`) — nol yig'indili model buzilmaydi.
+  - `PaymentMonthRepair` (to'lov oyini tuzatish) bu oylarda maoshga TA'SIR QILMAYDI (baza sana bo'yicha).
+  - **CHEGIRMA ustozga FOIZI bilan** (egasi tasdiqladi): markaz 100 000 chegirma bergan bo'lsa ustozga 40 000 — natijada
+    ustoz chegirmasiz to'liq oylikdan (500 000 × 40%) oladigan summani oladi. To'lamagan va 100% chegirmali o'quvchining
+    chegirmasi ham qo'shiladi — ATAYIN (egasi: "markaz tizimida shunday qilingan").
+  - DTO: `MonthSalaryDto.CashBase/SalaryCash/SalaryDiscount` + ekrandagi ikki bosqich `CashSalary` (pul × foiz) va
+    `DiscountSalary` (chegirma × foiz). Ko'rinishi — FAQAT o'qituvchi sahifasi → Maosh → «MAOSH» kartochkalari:
+    **Tushgan pul · Chegirma (markaz) · Hisoblandi (1 136 000 + 44 000) · Berildi (avans va oylik) · Qoldi · Holat**.
+    ⚠️ Alohida «Maoshga tushgan pul» bloki/guruh ro'yxati va Moliya'dagi alohida jadval ATAYIN YO'Q (egasi olib tashlatdi,
+    2026-11-04). «Guruhlar tushumi → Tushum bo'ldi» — «shu oy UCHUN» to'langan (oy tegi), «Tushgan pul» — shu oy KUNLARIDA
+    tushgan; ular farq qilishi normal — farq «Tushgan pul» ostida tarkib bilan yoziladi (`CashLate`/`CashAdvance`):
+    «shu oy uchun 400 000 · o'tgan oylar qarzi 200 000 · avans 300 000» (faqat qarz yoki avans bo'lsa). O'qituvchi kabinetida guruh summalari ATAYIN yo'q (2026-10-26 qarori) — faqat
+    «Tushgan puldan (N%)» yorlig'i. Testlar: `SalaryCashBaseTests`.
+  - MCP: `CenterMeta.SalaryCashBaseFrom` `RestrictedColumns` ro'yxatida (usiz `teacher_salaries` eski bazada ko'rsatardi).
+
 - **Umumiy foiz:** o'qituvchi qo'shishda `Teacher.SalaryPercent` (Boshqaruv → Xodimlar, rol
   "O'qituvchi"). Guruh `TeacherSalaryMode = ""` bo'lsa unga ergashadi ("Umumiy"), kerak bo'lsa
   guruhda boshqa foiz/qat'iy summa (`GroupSalaryEditor`).
