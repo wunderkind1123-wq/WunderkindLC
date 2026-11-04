@@ -260,6 +260,12 @@ services:
       # Ixtiyoriy — OFF-SITE: rclone remote (masalan "r2:wunderkindlc-backups"). Bo'sh -> off-site yo'q.
       RCLONE_REMOTE: "${RCLONE_REMOTE:-}"
       RCLONE_CONFIG: "/config/rclone.conf"
+      # Ixtiyoriy — TELEGRAM OFF-SITE (2026-11-04): ALOHIDA zaxira boti (asosiy bot EMAS) har kuni SHIFRLANGAN
+      # nusxani BITTA chatga yuboradi. Ikkalasi + BACKUP_ENCRYPT_PASSPHRASE bo'lsagina ishlaydi — shifrlanmagan
+      # dump Telegram'ga HECH QACHON ketmaydi. Chat ID qo'lda (botga /start → getUpdates), avtomatik aniqlanmaydi:
+      # aks holda botga birinchi yozgan begona odam zaxiralarni olardi.
+      BACKUP_BOT_TOKEN: "${BACKUP_BOT_TOKEN:-}"
+      BACKUP_CHAT_ID: "${BACKUP_CHAT_ID:-}"
     volumes:
       - postgres-backups:/backups
       - uploads:/data/uploads:ro                # yuklangan fayllar (rasm/hujjat) — o'qish uchun
@@ -279,22 +285,45 @@ services:
       - |
         set -u
         RET="$${BACKUP_RETENTION_DAYS:-7}"; ENC="$${BACKUP_ENCRYPT_PASSPHRASE:-}"; REMOTE="$${RCLONE_REMOTE:-}"
-        # Kerakli vositalarni FAQAT sozlangan bo'lsa o'rnatamiz (shifr -> gnupg, off-site -> rclone).
-        if [ -n "$$ENC" ] || [ -n "$$REMOTE" ]; then
-          apk add --no-cache gnupg rclone >/dev/null 2>&1 || echo "[backup] OGOHLANTIRISH: vosita o'rnatilmadi (tarmoq?)"
+        TGT="$${BACKUP_BOT_TOKEN:-}"; TGC="$${BACKUP_CHAT_ID:-}"
+        # Telegram faqat SHIFR bilan: token+chat bor, lekin parol yo'q bo'lsa — yubormaymiz (ochiq dump chiqmasin).
+        TG=""; if [ -n "$$TGT" ] && [ -n "$$TGC" ] && [ -n "$$ENC" ]; then TG=1; fi
+        # Kerakli vositalarni FAQAT sozlangan bo'lsa o'rnatamiz (shifr -> gnupg, off-site -> rclone, Telegram -> curl).
+        if [ -n "$$ENC" ] || [ -n "$$REMOTE" ] || [ -n "$$TG" ]; then
+          apk add --no-cache gnupg rclone curl >/dev/null 2>&1 || echo "[backup] OGOHLANTIRISH: vosita o'rnatilmadi (tarmoq?)"
         fi
+        # Telegram: matn xabari / hujjat. Token logga TUSHMAYDI (curl -s, xato matnida faqat Telegram javobi).
+        tg_msg() { [ -n "$$TG" ] && curl -s -m 60 "https://api.telegram.org/bot$$TGT/sendMessage" -d chat_id="$$TGC" --data-urlencode text="$$1" >/dev/null 2>&1; }
+        tg_doc() {
+          [ -f "$$1" ] || return 1
+          sz=$$(stat -c %s "$$1" 2>/dev/null || echo 0)
+          # Bot API hujjat chegarasi ~50 MB: undan katta faylni yubora olmaymiz — buni OCHIQ aytamiz.
+          if [ "$$sz" -gt 49000000 ]; then
+            echo "[backup] OGOHLANTIRISH: $$(basename "$$1") $$((sz/1048576)) MB — Telegram chegarasidan katta"
+            tg_msg "⚠️ Zaxira: $$(basename "$$1") $$((sz/1048576)) MB — Telegram chegarasidan (50 MB) katta, yuborilmadi. Server lokal nusxasi bor."
+            return 1
+          fi
+          r=$$(curl -s -m 600 -F chat_id="$$TGC" -F caption="$$2" -F document=@"$$1" "https://api.telegram.org/bot$$TGT/sendDocument")
+          case "$$r" in *'"ok":true'*) echo "[backup] Telegram OK: $$(basename "$$1")";; *) echo "[backup] XATO: Telegram $$(basename "$$1"): $$(echo "$$r" | head -c 200)"; return 1;; esac
+        }
         bm=$$(printf '%02d' "$${BACKUP_MINUTE:-0}" 2>/dev/null || echo "$${BACKUP_MINUTE}")
-        echo "[backup] xizmat: har kuni $${BACKUP_HOUR:-21}:$$bm UTC | lokal saqlash $$RET kun | shifr: $$([ -n "$$ENC" ] && echo ON || echo OFF) | off-site: $$([ -n "$$REMOTE" ] && echo "$$REMOTE" || echo OFF)"
+        echo "[backup] xizmat: har kuni $${BACKUP_HOUR:-21}:$$bm UTC | lokal saqlash $$RET kun | shifr: $$([ -n "$$ENC" ] && echo ON || echo OFF) | off-site: $$([ -n "$$REMOTE" ] && echo "$$REMOTE" || echo OFF) | telegram: $$([ -n "$$TG" ] && echo ON || echo OFF)"
+        if [ -n "$$TGT" ] && [ -z "$$TG" ]; then echo "[backup] OGOHLANTIRISH: BACKUP_BOT_TOKEN bor, lekin BACKUP_CHAT_ID yoki BACKUP_ENCRYPT_PASSPHRASE yo'q — Telegram'ga YUBORILMAYDI"; fi
         last=""
         while true; do
           H=$$(date -u +%H); M=$$(date -u +%M); D=$$(date -u +%Y%m%d)
           now=$$(( 10#$$H * 60 + 10#$$M ))
           target=$$(( 10#$${BACKUP_HOUR:-21} * 60 + 10#$${BACKUP_MINUTE:-0} ))
-          if [ "$$last" != "$$D" ] && [ "$$now" -ge "$$target" ] && [ "$$now" -lt "$$(( target + 10 ))" ]; then
-            last="$$D"; ts=$$(date -u +%Y%m%d_%H%M)
+          # QO'LDA SINOV: `docker exec wunderkindlc-backup touch /backups/.run-now` — keyingi daqiqada darhol nusxa
+          # (kunlik jadvalga tegmaydi: `last` o'zgarmaydi).
+          now_run=""; if [ -f /backups/.run-now ]; then rm -f /backups/.run-now; now_run=1; fi
+          if [ -n "$$now_run" ] || { [ "$$last" != "$$D" ] && [ "$$now" -ge "$$target" ] && [ "$$now" -lt "$$(( target + 10 ))" ]; }; then
+            [ -n "$$now_run" ] || last="$$D"; ts=$$(date -u +%Y%m%d_%H%M)
             db="/backups/wunderkindlc_$${ts}.sql.gz"; files="/backups/wunderkindlc_$${ts}_files.tar.gz"
             echo "[backup] $$ts — baza dump..."
-            pg_dump | gzip > "$$db" || { echo "[backup] XATO: pg_dump"; rm -f "$$db"; }
+            # ⚠️ `set -o pipefail` yo'q (busybox sh) — pg_dump yiqilsa ham gzip 0 qaytarardi; shuning uchun
+            # dump avval faylga, keyin siqiladi: xato pg_dump'ning O'Z kodi bilan ushlanadi.
+            if pg_dump > "$${db%.gz}" && gzip -f "$${db%.gz}"; then :; else echo "[backup] XATO: pg_dump"; rm -f "$$db" "$${db%.gz}"; tg_msg "❌ Zaxira XATO ($$ts UTC): pg_dump bajarilmadi — serverni tekshiring."; fi
             echo "[backup] $$ts — fayllar (uploads + cti audio, uploads/face va uploads/messaging TASHQARIDA)..."
             # ⚠️ `uploads/face` ISTISNO: yuz bilan kirish selfilari — BIOMETRIK ma'lumot va
             # ustiga voyaga yetmaganlarniki. Bu arxiv off-site'ga/Telegram'ga chiqishi mumkin,
@@ -320,6 +349,13 @@ services:
               else
                 echo "[backup] XATO: off-site nusxa ($$REMOTE)"
               fi
+            fi
+            # Telegram off-site (faqat SHIFRLANGAN .gpg fayllar — shifr yiqilgan asl fayl yuborilmaydi).
+            if [ -n "$$TG" ]; then
+              when="$$(date -u -d @$$(( $$(date -u +%s) + 18000 )) '+%Y-%m-%d %H:%M' 2>/dev/null || echo "$$ts UTC") (Toshkent)"
+              tg_doc "$$db.gpg" "🗄 Baza zaxirasi — $$when. Shifrlangan (gpg AES-256). Ochish: gpg -d fayl.gpg > dump.sql.gz" || true
+              tg_doc "$$files.gpg" "📁 Fayllar zaxirasi — $$when. Shifrlangan (gpg AES-256)." || true
+              [ -f "$$db.gpg" ] || tg_msg "❌ Zaxira ($$when): shifrlangan baza fayli yo'q — Telegram'ga yuborilmadi, server logini tekshiring."
             fi
             find /backups -name 'wunderkindlc_*' -type f -mtime +$$RET -delete
             echo "[backup] $$ts tugadi."
