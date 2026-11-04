@@ -116,6 +116,8 @@ public static class McpReadOnlyGrants
         typeof(McpClient), typeof(McpGrant), typeof(McpAuthCode), typeof(McpToken), typeof(McpAuditEntry),
         // Student passwords (credential vault, CRM phase 6) — never readable by the AI read-only role.
         typeof(StudentCredential),
+        // CRM'dan kiritilgan, shifrlangan Instagram/Meta kalitlari (StoredSecrets) — AI roli hech qachon o'qimaydi.
+        typeof(StoredSecret),
     ];
 #pragma warning restore CS0618
 

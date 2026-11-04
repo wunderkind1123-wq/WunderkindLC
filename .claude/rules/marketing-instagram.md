@@ -361,8 +361,8 @@ ham o'qiydigan joylar uni mavjud lidlar bilan kesishtiradi.
 
 | Qiymat | Qayerda | Nega |
 |---|---|---|
-| `INSTAGRAM_APP_SECRET` | **`.env`** (`AppSecrets`) | maxfiy — baza dump'i Telegram'ga yuboriladi |
-| `INSTAGRAM_VERIFY_TOKEN` | **`.env`** (`AppSecrets`) | xuddi shunday |
+| `INSTAGRAM_APP_SECRET` | **`.env`** (`AppSecrets`) **yoki CRM'da SHIFRLANGAN** (§7.0) | maxfiy — baza dump'i Telegram'ga yuboriladi |
+| `INSTAGRAM_VERIFY_TOKEN` | xuddi shunday | xuddi shunday |
 | `IgAccount.AccessToken` | **BAZADA** | ATAYIN chekinish: token OAuth orqali ISH VAQTIDA olinadi, `.env` ga yozib bo'lmaydi |
 | `CenterMeta.InstagramAppId` va qolgan 10 sozlama | **BAZADA** (UI'dan) | maxfiy emas |
 
@@ -391,6 +391,26 @@ tashqaridan bu "Meta tasdiqlamayapti" bo'lib ko'rinadi. `EnvKeysWiringTests` shu
 ⚠️ **Meta konsolida webhook maydoni ham «Callback URL» deb ataladi** — u yerga
 `…/api/public/instagram/**webhook**` qo'yiladi. `…/callback` — bu OAuth qaytish manzili, faqat
 "Valid OAuth Redirect URIs" uchun; webhook maydoniga qo'yilsa Meta 302 oladi va tasdiqlamaydi.
+
+### 7.0. KALITLARNI CRM'DAN KIRITISH (2026-11-04, egasining talabi)
+
+Marketing → Instagram → Sozlamalar → **«Maxfiy kalitlar»** (`IgSecretsBlock`): `INSTAGRAM_APP_SECRET`,
+`INSTAGRAM_VERIFY_TOKEN`, `META_APP_SECRET`, `META_VERIFY_TOKEN` — serverga kirmasdan. Kod: `StoredSecrets` (Application),
+`InstagramController.Secrets.cs` (`GET/PUT api/admin/instagram/secrets[/{key}]`), jadval `StoredSecrets` (migratsiya
+`AddStoredSecrets`). Testlar: `StoredSecretsTests`.
+
+| Qoida | Nima |
+|---|---|
+| Saqlash | FAQAT `CredentialVault` bilan SHIFRLANGAN (AES-256-GCM, kalit `CREDENTIAL_VAULT_KEY` faqat `.env` da). Seyf kaliti yo'q — kiritish O'CHIQ (400 sabab bilan), ochiq saqlash varianti YO'Q |
+| Ustunlik | `.env` HAR DOIM USTUN (`AppSecrets.Read`: env → CRM). `.env` da kalit bor bo'lsa CRM'ga yozish 400 — "saqlandi" deb boshqa kalit ishlab turmasin |
+| Kim | YOZISH — FAQAT superadmin, HARD rol (403); o'qish (holat) — `marketing` |
+| Qiymat | HECH QACHON qaytarilmaydi — faqat `source` (`env`/`crm`/bo'sh), kim/qachon. Audit (`Instagram`, `EntityId = secrets`) — faqat kalit nomi va "kiritildi/almashtirildi/o'chirildi" |
+| Format | App Secret — AYNAN 32 hex (App ID yoki chala nusxa ushlanadi); verify token — 8–128 belgi `[A-Za-z0-9_.~-]` |
+| Ish vaqti | ishga tushganda `CrmAccountsSetup` ochib xotiraga oladi (`AppSecrets.SetStored`); saqlangach DARHOL qo'llanadi, restart kerak emas. Ochilmagan qator (seyf kaliti almashgan) — logda ogohlantirish, qayta kiritiladi |
+| Sizish | zaxiraga KIRMAYDI (`BackupService.ExcludedTables`), MCP roli o'qimaydi (`McpReadOnlyGrants.Forbidden`) |
+
+⚠️ Bu yo'l FAQAT shu to'rt kalit uchun (`StoredSecrets.Keys`). Telegram/Gemini/Azure va boshqa kalitlar avvalgidek faqat
+`.env` da — ro'yxatni kengaytirish alohida qaror.
 
 ### 7.1. AKKAUNTNI ULASHNING IKKI YO'LI
 

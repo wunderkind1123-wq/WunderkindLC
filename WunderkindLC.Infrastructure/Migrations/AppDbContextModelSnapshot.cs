@@ -8498,6 +8498,31 @@ namespace WunderkindLC.Infrastructure.Migrations
                     b.ToTable("StaffSalaries");
                 });
 
+            modelBuilder.Entity("WunderkindLC.Domain.StoredSecret", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<byte[]>("Cipher")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("UpdatedAt")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("StoredSecrets", (string)null);
+                });
+
             modelBuilder.Entity("WunderkindLC.Domain.Student", b =>
                 {
                     b.Property<string>("Id")

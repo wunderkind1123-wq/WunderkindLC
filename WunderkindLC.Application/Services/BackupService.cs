@@ -84,6 +84,8 @@ public static class BackupService
         "debtContactAlerts",
         // Topshiriqlar (HR): yuborilgan eslatmalar va kunlik ishlar jurnali — texnik (takror yubormaslik belgilari).
         "hrTaskReminders", "hrJobRuns",
+        // CRM'dan kiritilgan Instagram/Meta kalitlari — shifrlangan bo'lsa ham Telegram'ga ketmaydi (StoredSecrets).
+        "storedSecrets",
     };
 
     /// <summary>Biznes jadvallarini JSON (UTF-8 baytlar) ko'rinishida yig'adi (siqilmagan — testlar va

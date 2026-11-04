@@ -109,9 +109,15 @@ manzil berardi — Meta esa `Invalid redirect_uri` bilan rad etardi.
 
 ---
 
-## ☐ 3-qadam. `.env` ga maxfiy kalitlar (~3 daqiqa)
+## ☐ 3-qadam. Maxfiy kalitlar (~3 daqiqa)
 
-Serverdagi `.env` fayliga (loyihaning `.env.example` da namunasi bor):
+**Oson yo'l (2026-11 dan) — CRM'dan:** CRM → Marketing → Instagram → **Sozlamalar** → **«Maxfiy kalitlar»**
+bo'limida *Instagram App Secret* va *Verify token* ni kiriting → «Saqlash». Faqat tizim egasi (superadmin) kirita
+oladi; qiymat bazada shifrlangan holda saqlanadi va qayta ko'rsatilmaydi. Restart kerak emas.
+(Shart: serverdagi `.env` da `CREDENTIAL_VAULT_KEY` bo'lishi kerak — bo'lmasa bo'lim shuni aytadi.)
+
+**Yoki eski yo'l — serverdagi `.env` fayliga** (loyihaning `.env.example` da namunasi bor; `.env` dagi qiymat
+CRM'dagidan USTUN):
 
 ```
 # ---- Instagram AI agenti (Marketing bo'limi) ----

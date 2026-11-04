@@ -20,6 +20,7 @@ import {
   ChannelIcon, Icon, MarketingPage, MkCopyRow, MkError, MkLoading, MkStatusCard,
 } from './mk'
 import { NumberInput } from '@/components/ui/NumberInput'
+import { IgSecretsBlock } from './IgSecretsBlock'
 
 /** Forma holati: raqamli maydonlar bo'shatila oladi (`null`) — saqlashda tekshiriladi. */
 type SettingsForm = Omit<IgSettings, 'instagramReplyDelaySeconds' | 'instagramDailyReplyLimit'> & {
@@ -540,6 +541,9 @@ export function InstagramSettings() {
             </div>
           </div>
 
+          {/* ── MAXFIY KALITLAR — CRM'dan kiritish (2026-11-04; faqat superadmin, shifrlangan). Saqlangach holat qayta o'qiladi. */}
+          <IgSecretsBlock onChanged={load} />
+
           {/* ── DIAGNOSTIKA ──
               ⚠️ TO'LIQ QATOR: ichida o'zining `mk-status-grid` i bor (11 ta kartochka) va
               uzun «Webhook URL» qatorlari — yarim ustunda ular o'qib bo'lmas holga kelardi. */}
@@ -570,8 +574,8 @@ export function InstagramSettings() {
                 value={status.webhookSubscribed ? 'Faol' : 'Yo‘q'}
                 hint={!status.webhookSubscribed && !status.enabled ? 'Agent yoqilganda avtomatik obuna bo‘ladi' : undefined}
               />
-              <MkStatusCard label="INSTAGRAM_APP_SECRET" ok={status.appSecretSet} hint=".env fayldan o'qiladi" />
-              <MkStatusCard label="INSTAGRAM_VERIFY_TOKEN" ok={status.verifyTokenSet} hint=".env fayldan o'qiladi" />
+              <MkStatusCard label="INSTAGRAM_APP_SECRET" ok={status.appSecretSet} hint="«Maxfiy kalitlar» bo'limidan" />
+              <MkStatusCard label="INSTAGRAM_VERIFY_TOKEN" ok={status.verifyTokenSet} hint="«Maxfiy kalitlar» bo'limidan" />
               <MkStatusCard label="App ID" ok={status.appIdSet} />
               <MkStatusCard label="Gemini (AI)" ok={status.geminiConfigured} hint={status.geminiConfigured ? undefined : "AI javob bera olmaydi"} />
               <MkStatusCard
@@ -886,8 +890,8 @@ function LeadAdsBlock({
             value={status.leadgenSubscribed ? 'Faol' : "Yo‘q"}
             hint={status.leadgenSubscribed ? undefined : 'Obunasiz Meta hodisa YUBORMAYDI'}
           />
-          <MkStatusCard label={status.envKeyAppSecret} ok={status.appSecretSet} hint=".env fayldan o'qiladi" />
-          <MkStatusCard label={status.envKeyVerifyToken} ok={status.verifyTokenSet} hint=".env fayldan o'qiladi" />
+          <MkStatusCard label={status.envKeyAppSecret} ok={status.appSecretSet} hint="«Maxfiy kalitlar» bo'limidan" />
+          <MkStatusCard label={status.envKeyVerifyToken} ok={status.verifyTokenSet} hint="«Maxfiy kalitlar» bo'limidan" />
           <MkStatusCard
             label="Kelgan lidlar"
             ok={status.leadsTotal > 0}

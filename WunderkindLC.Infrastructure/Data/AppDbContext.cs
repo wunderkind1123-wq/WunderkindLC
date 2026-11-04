@@ -1110,6 +1110,7 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options)
         ConfigureCrmFinanceOps(b);
         ConfigureHrTasks(b);
         ConfigureFinanceReports(b);
+        ConfigureStoredSecrets(b);
     }
 
     partial void ConfigureCrmMessaging(ModelBuilder b);   // Phase 2
@@ -1120,6 +1121,7 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options)
     partial void ConfigureCrmFinanceOps(ModelBuilder b);  // Owner backlog 2026-10-17 (F3)
     partial void ConfigureHrTasks(ModelBuilder b);        // HR topshiriqlari (docs/SPEC-hr-tasks.md)
     partial void ConfigureFinanceReports(ModelBuilder b); // Pul oqimi 2.0 · P&L 2.0 (docs/finance-reports)
+    partial void ConfigureStoredSecrets(ModelBuilder b);  // CRM'dan kiritilgan, shifrlangan Instagram/Meta kalitlari
 
     // ==================== Saqlashdan oldingi normalizatsiya ====================
 

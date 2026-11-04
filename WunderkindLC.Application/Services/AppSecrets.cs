@@ -11,6 +11,10 @@ namespace WunderkindLC.Application.Services;
 /// va SQL kirishi orqali kalit sizib chiqmasin). Yangi kalit qo'shilganda ham shu yerga qo'shiladi,
 /// <c>CenterMeta</c>ga EMAS.</para>
 ///
+/// <para>⚠️ <b>YAGONA ISTISNO (2026-11-04):</b> Instagram/Meta kalitlarini (<see cref="StoredSecrets.Keys"/>) superadmin
+/// CRM'dan ham kirita oladi — bazaga faqat SHIFRLANGAN holda (<see cref="StoredSecrets"/>, seyf kaliti `.env` da),
+/// `.env` dagi qiymat esa baribir USTUN. Boshqa kalitlar uchun bu yo'l OCHILMAYDI.</para>
+///
 /// <para>Har bir kalit IKKI xil nom bilan o'qiladi:
 /// <list type="bullet">
 ///   <item><c>Telegram:BotToken</c> — docker-compose ichida <c>Telegram__BotToken</c> ko'rinishida
@@ -31,13 +35,53 @@ public static class AppSecrets
     /// <summary>Program.cs'da (boshqa hamma narsadan oldin) bir marta chaqiriladi.</summary>
     public static void Init(IConfiguration config) => _config = config;
 
-    /// <summary>Konfiguratsiyadan qiymat: avval "Bo'lim:Kalit", so'ng xom .env nomi (ENV_NAME).</summary>
+    /// <summary>CRM'dan kiritilgan (bazada SHIFRLANGAN) kalitlarning ochilgan qiymatlari — FAQAT xotirada.
+    /// <see cref="StoredSecrets"/> to'ldiradi (ishga tushganda va saqlangach); faqat <see cref="StoredSecrets.Keys"/>.</summary>
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> Stored = new();
+
+    /// <summary>Konfiguratsiyadan qiymat: avval "Bo'lim:Kalit", so'ng xom .env nomi (ENV_NAME), oxirida — CRM'dan
+    /// kiritilgani (faqat <see cref="StoredSecrets.Keys"/> uchun bo'ladi). ⚠️ `.env` HAR DOIM USTUN.</summary>
     private static string Read(string sectionKey, string envName)
+    {
+        var env = ReadEnv(sectionKey, envName);
+        if (env.Length > 0) return env;
+        return Stored.TryGetValue(envName, out var s) ? s : "";
+    }
+
+    /// <summary>Faqat `.env` / muhit o'zgaruvchisi (CRM qiymatisiz).</summary>
+    private static string ReadEnv(string sectionKey, string envName)
     {
         var v = _config?[sectionKey];
         if (string.IsNullOrWhiteSpace(v)) v = _config?[envName];
         return (v ?? "").Trim();
     }
+
+    /// <summary>CRM'dan kiritilgan qiymatni xotiraga qo'yadi (bo'sh — olib tashlaydi). Faqat
+    /// <see cref="StoredSecrets"/> chaqiradi — ruxsat etilmagan kalit jimgina e'tiborsiz.</summary>
+    internal static void SetStored(string envName, string? value)
+    {
+        if (!StoredSecrets.IsAllowed(envName)) return;
+        var v = (value ?? "").Trim();
+        if (v.Length == 0) Stored.TryRemove(envName, out _);
+        else Stored[envName] = v;
+    }
+
+    /// <summary>Kalit qayerdan o'qilyapti: <c>"env"</c> · <c>"crm"</c> · <c>""</c> (yo'q). Qiymat QAYTARILMAYDI.</summary>
+    public static string SourceOf(string envName)
+    {
+        if (ReadEnv(SectionKeyOf(envName), envName).Length > 0) return "env";
+        return Stored.ContainsKey(envName) ? "crm" : "";
+    }
+
+    /// <summary>`.env` nomi → docker-compose dagi "Bo'lim:Kalit" nomi (faqat CRM'dan kiritiladigan kalitlar uchun).</summary>
+    private static string SectionKeyOf(string envName) => envName switch
+    {
+        EnvKeys.InstagramAppSecret => "Instagram:AppSecret",
+        EnvKeys.InstagramVerifyToken => "Instagram:VerifyToken",
+        EnvKeys.MetaAppSecret => "Meta:AppSecret",
+        EnvKeys.MetaVerifyToken => "Meta:VerifyToken",
+        _ => envName,
+    };
 
     /* ---------- Telegram bot ---------- */
 

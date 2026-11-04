@@ -495,6 +495,40 @@ export async function getIgStatus(): Promise<IgStatus> {
   return data
 }
 
+/** CRM'dan kiritiladigan kalit holati (Instagram/Meta). ⚠️ QIYMAT kelmaydi — faqat qayerdan o'qilayotgani. */
+export interface IgSecretItem {
+  key: string
+  label: string
+  hint: string
+  isAppSecret: boolean
+  /** `env` — serverdagi .env (ustun) · `crm` — CRM'da shifrlangan · `''` — sozlanmagan. */
+  source: '' | 'env' | 'crm'
+  /** CRM'da qator bor (`.env` ustun bo'lsa ham) — o'chirish tugmasi uchun. */
+  storedInCrm: boolean
+  updatedAt: string
+  updatedBy: string
+}
+
+export interface IgSecrets {
+  items: IgSecretItem[]
+  /** Serverda `CREDENTIAL_VAULT_KEY` bor — busiz kiritish o'chiq (ochiq saqlash varianti yo'q). */
+  vaultConfigured: boolean
+  /** Faqat superadmin kirita oladi. */
+  canEdit: boolean
+  vaultEnvKey: string
+}
+
+export async function getIgSecrets(): Promise<IgSecrets> {
+  const { data } = await api.get<IgSecrets>('/admin/instagram/secrets')
+  return data
+}
+
+/** Kalitni kiritish/almashtirish; `value` bo'sh — CRM'dagisini o'chirish. Javob — yangilangan holat. */
+export async function setIgSecret(key: string, value: string): Promise<IgSecrets> {
+  const { data } = await api.put<IgSecrets>(`/admin/instagram/secrets/${encodeURIComponent(key)}`, { value })
+  return data
+}
+
 export async function getIgSettings(): Promise<IgSettings> {
   const { data } = await api.get<IgSettings>('/admin/instagram/settings')
   return data

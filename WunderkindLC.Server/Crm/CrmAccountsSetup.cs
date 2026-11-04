@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using WunderkindLC.Application.Services;
 using WunderkindLC.Application.Services.Accounts;
 using WunderkindLC.Infrastructure.Auth;
 using WunderkindLC.Infrastructure.Data;
@@ -27,6 +28,24 @@ public static class CrmAccountsSetup
         var sp = scope.ServiceProvider;
         var vault = sp.GetRequiredService<CredentialVault>();
         var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger("CrmAccounts");
+        if (vault.Configured)
+        {
+            // CRM'dan kiritilgan Instagram/Meta kalitlari (StoredSecrets) — shu seyf bilan ochilib xotiraga olinadi.
+            // ⚠️ Backfill'dan OLDIN va alohida try: biri yiqilsa ikkinchisi baribir ishlasin.
+            try
+            {
+                var (loaded, unreadable) = await StoredSecrets.LoadAsync(sp.GetRequiredService<AppDbContext>(), vault);
+                if (loaded > 0) logger.LogInformation("CRM'dan kiritilgan tizim kalitlari yuklandi: {Count} ta", loaded);
+                if (unreadable > 0)
+                    logger.LogWarning("CRM'dan kiritilgan {Count} ta kalit ochilmadi (CREDENTIAL_VAULT_KEY almashganmi?) — "
+                        + "Marketing → Instagram → Sozlamalar'da qayta kiriting", unreadable);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "CRM'dan kiritilgan tizim kalitlarini yuklab bo'lmadi");
+            }
+        }
+
         if (!vault.Configured)
         {
             // Fail-closed: nothing is stored (never plain text). The backfill retries on the next start.

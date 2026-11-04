@@ -296,7 +296,8 @@ public partial class InstagramController(
         if (AppSecrets.InstagramAppSecret.Length == 0)
             return BadRequest(new
             {
-                message = $"{AppSecrets.EnvKeys.InstagramAppSecret} sozlanmagan — uni serverdagi `.env` fayliga qo'shing.",
+                message = "Instagram App Secret kiritilmagan — shu sahifadagi «Maxfiy kalitlar» bo'limida kiriting "
+                    + $"(yoki serverdagi .env fayliga {AppSecrets.EnvKeys.InstagramAppSecret} qo'shing).",
             });
 
         var state = new IgOAuthState
