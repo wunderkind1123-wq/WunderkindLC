@@ -15,8 +15,8 @@ describe('F5 N1 — Future modullari asosiy menyuga', () => {
     ['/admin/kassa', 'Moliya'],
     ['/admin/books', "O'quv bo'limi"],
     ['/admin/app/teachers', 'Boshqaruv'],
-    ['/admin/marketing/inbox', 'Instagram marketing'],
-    ['/admin/marketing/kontent', 'Instagram marketing'],
+    ['/admin/marketing/inbox', 'Marketing'],
+    ['/admin/marketing/kontent', 'Marketing'],
     ['/admin/hisobotlar', 'Hisobotlar'],
   ])('%s → «%s»', (to, group) => {
     expect(tosOf(group)).toContain(to)

@@ -276,7 +276,7 @@ export const adminPermissions: AdminPermSection[] = [
   // Serverda o'qishda ham darvozalangan.
   {
     key: 'wiki',
-    label: 'Bilimlar bazasi',
+    label: 'Notion',
     pages: [
       { key: 'wiki.team', label: 'Xodimlar eslatmalari' },
     ],

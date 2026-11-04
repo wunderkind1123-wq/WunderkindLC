@@ -123,10 +123,8 @@ describe('edutizim menyusi', () => {
       // HR topshiriqlari paneli — LMS'dagi «HR → TOPSHIRIQLAR» (LC'da «HR» bo'limi yo'q).
       'Topshiriqlar',
       // Bilimlar bazasi (wiki) — xodimlarning shaxsiy eslatmalari (`.claude/rules/wiki.md`).
-      'Bilimlar bazasi',
-      'Sotuv va marketing',
-      // Egasining TZ'si (2026-10-17, F5 N1): Instagram marketing — o'z asosiy guruhi.
-      'Instagram marketing',
+      'Notion',
+      'Marketing',
       'Hisobotlar',
       'Sozlamalar',
       'Future',
@@ -217,7 +215,7 @@ describe('activeNavTo — qaysi menyu bandi faol', () => {
     ['/admin/crm-stats', 'Hisobotlar'],
     // edutizimda yo'q hisobotlar — 2026-10-17 dan ham asosiy "Hisobotlar" da (F5 N1). Eng ANIQ moslik g'olib:
     // `/admin/subjects/analitika` ESKI "O'quv bo'limi"ni (u yerda `/admin/subjects`) ochmaydi,
-    // `/admin/marketing/analytics` esa «Instagram marketing» ni (u yerda `/admin/marketing`).
+    // `/admin/marketing/analytics` esa «Marketing» ni (u yerda `/admin/marketing`).
     ['/admin/subjects/analitika', 'Hisobotlar'],
     ['/admin/forms/statistika', 'Hisobotlar'],
     ['/admin/marketing/analytics', 'Hisobotlar'],
@@ -236,7 +234,7 @@ describe('activeNavTo — qaysi menyu bandi faol', () => {
     ['/admin/boshqaruv/xodimlar', 'Boshqaruv'],
     ['/admin/boshqaruv/rollar', 'Boshqaruv'],
     ['/admin/teachers/attendance', 'Boshqaruv'],
-    ['/admin/marketing/inbox', 'Instagram marketing'],
+    ['/admin/marketing/inbox', 'Marketing'],
     ['/admin/kassa', 'Moliya'],
     ['/admin/books', "O'quv bo'limi"],
     ['/admin/app/teachers', 'Boshqaruv'],

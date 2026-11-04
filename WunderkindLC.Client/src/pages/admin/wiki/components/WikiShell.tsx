@@ -49,7 +49,7 @@ export function WikiShell({ title, showTabs, showTeamTab, search, sidebar, sideb
       <aside className={cn('w-full shrink-0 flex-col overflow-hidden rounded-xl bg-white lg:flex lg:w-[290px]', hasPage ? 'hidden' : 'flex')}>
         <div className="space-y-2 border-b border-slate-100 p-3">
           <div className="flex items-center gap-2 text-[15px] font-semibold text-slate-800">
-            <BookOpen size={18} className="text-brand-600" /> {title ?? 'Bilimlar bazasi'}
+            <BookOpen size={18} className="text-brand-600" /> {title ?? 'Notion'}
           </div>
           {/* Bitta tab ham ko'rsatiladi — oddiy xodim tepada «Eslatmalarim» ni ko'rsin (egasining talabi). */}
           {tabs.length > 0 && (

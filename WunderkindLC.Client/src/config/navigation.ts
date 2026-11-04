@@ -16,7 +16,6 @@ import {
   IconChartPie,
   IconSettings,
   IconSparkles,
-  IconBrandInstagram,
 } from '@tabler/icons-react'
 import type { Role } from '@/types'
 import { navReports, reportPerms } from './reports'
@@ -289,30 +288,39 @@ export const navByRole: Record<Role, NavItem[]> = {
     },
     // BILIMLAR BAZASI (wiki) — shaxsiy eslatmalar: «Eslatmalarim» | «Xodimlar». Chapda daraxt, o'ngda muharrir.
     // Ruxsatsiz: «Eslatmalarim» har bir xodimga ochiq (egasining talabi, 2026-10-27).
-    { label: 'Bilimlar bazasi', to: '/admin/bilimlar', icon: BookOpen },
+    // Egasining talabi (2026-11-04): «Bilimlar bazasi» menyuda «Notion» deb ataladi (manzil va ruxsat o'zgarmadi).
+    { label: 'Notion', to: '/admin/bilimlar', icon: BookOpen },
     {
-      label: 'Sotuv va marketing',
-      to: '#sotuv',
-      icon: IconSpeakerphone,
-      children: [
-        { label: "Xabarlar ro'yhati", to: '/admin/messages', perm: 'messages.broadcast' },
-      ],
-    },
-    {
-      // Egasining TZ'si (2026-10-17, SPEC-backlog F5 N1): Instagram marketing — o'z ASOSIY guruhi (Future'dan chiqarildi).
-      label: 'Instagram marketing',
+      // Egasining talabi (2026-11-04): «Sotuv va marketing» → «Marketing», «Instagram marketing» guruhi shu yerga
+      // birlashtirildi. Ichki guruhlar YONMA-YON ustun (Moliya kabi) — «Boshqaruv paneli»/«Sozlamalar» qaysi
+      // kanalniki ekani sarlavhadan ko'rinsin.
+      label: 'Marketing',
       to: '#marketing',
-      icon: IconBrandInstagram,
+      icon: IconSpeakerphone,
+      columns: true,
       children: [
-        { label: 'Boshqaruv paneli', to: '/admin/marketing', end: true, perm: 'marketing.dashboard' },
-        { label: 'Inbox', to: '/admin/marketing/inbox', perm: 'marketing.inbox' },
-        { label: 'Javob qoidalari', to: '/admin/marketing/rules', perm: 'marketing.rules' },
-        { label: 'FAQ tugmalari', to: '/admin/marketing/faq', perm: 'marketing.rules' },
-        { label: 'Bilim bazasi', to: '/admin/marketing/knowledge', perm: 'marketing.knowledge' },
-        { label: 'Reklama lidlari', to: '/admin/marketing/reklama-lidlari', perm: 'marketing.leadads' },
-        { label: 'Reklama statistikasi', to: '/admin/marketing/reklama-statistikasi', perm: 'marketing.adsstats' },
-        { label: 'Kontent', to: '/admin/marketing/kontent', perm: 'marketing.content' },
-        { label: 'Sozlamalar', to: '/admin/marketing/settings', perm: 'marketing.settings' },
+        {
+          label: 'Telegram',
+          to: '#marketing-telegram',
+          children: [
+            { label: "Xabarlar ro'yxati", to: '/admin/messages', perm: 'messages.broadcast' },
+          ],
+        },
+        {
+          label: 'Instagram',
+          to: '#marketing-instagram',
+          children: [
+            { label: 'Boshqaruv paneli', to: '/admin/marketing', end: true, perm: 'marketing.dashboard' },
+            { label: 'Inbox', to: '/admin/marketing/inbox', perm: 'marketing.inbox' },
+            { label: 'Javob qoidalari', to: '/admin/marketing/rules', perm: 'marketing.rules' },
+            { label: 'FAQ tugmalari', to: '/admin/marketing/faq', perm: 'marketing.rules' },
+            { label: 'Bilim bazasi', to: '/admin/marketing/knowledge', perm: 'marketing.knowledge' },
+            { label: 'Reklama lidlari', to: '/admin/marketing/reklama-lidlari', perm: 'marketing.leadads' },
+            { label: 'Reklama statistikasi', to: '/admin/marketing/reklama-statistikasi', perm: 'marketing.adsstats' },
+            { label: 'Kontent', to: '/admin/marketing/kontent', perm: 'marketing.content' },
+            { label: 'Sozlamalar', to: '/admin/marketing/settings', perm: 'marketing.settings' },
+          ],
+        },
       ],
     },
     {
