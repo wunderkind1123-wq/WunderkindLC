@@ -107,8 +107,9 @@ export function FinanceReportsPage() {
 
   return (
     <div className="space-y-2.5">
+      {/* Sarlavha — `FinanceReportsHubPage` da (bu komponent endi uning «Umumiy» tabi). */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-[18px] font-semibold text-black">Moliya hisobotlari</h1>
+        <p className="text-[15px] font-semibold text-black">Davr bo'yicha</p>
         <div className="flex items-center gap-2">
           <FilterInput type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-[150px]" />
           <span className="text-[#6b7280]">—</span>

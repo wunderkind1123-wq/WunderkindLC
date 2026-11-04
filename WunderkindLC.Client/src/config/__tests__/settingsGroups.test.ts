@@ -27,7 +27,7 @@ describe('sozlamalar katalogi — edutizim tuzilishi', () => {
       'Umumiy sozlamalar',
       'Moliya',
       "O'quv",
-      'Sotuv va marketing',
+      'Marketing',
       'Ilova sozlamalari',
     ])
   })

@@ -4,7 +4,7 @@
  * YAGONA MANBA: yon menyudagi "Sozlamalar" guruhi (`navigation.ts`) ham, har bir guruh sahifasi
  * (`SettingsGroupPage`: chapda bo'limlar kartasi, o'ngda kontent) ham SHU ro'yxatdan quriladi.
  *
- * edutizim: Umumiy sozlamalar · Moliya · O'quv · Sotuv va marketing · Ilova sozlamalari ·
+ * edutizim: Umumiy sozlamalar · Moliya · O'quv · Marketing · Ilova sozlamalari ·
  * Gamifikatsiya. Bizda FAQAT BOR sozlamalar joylashtirilgan; edutizimda bo'lib bizda yo'q
  * bo'limlar (Obuna, Bayram kunlari, Ommaviy oferta, Gamifikatsiya, Yon panel modullari...)
  * ATAYIN ko'rsatilmaydi — soxta "bo'sh" sahifa qilinmaydi.
@@ -234,7 +234,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
   },
   {
     key: 'sotuv',
-    label: 'Sotuv va marketing',
+    label: 'Marketing',
     to: '/admin/sozlamalar/sotuv',
     items: [
       { key: 'kanallar', label: 'Xabar kanallari', icon: IconMessages, kind: 'panel', panel: 'channels', perm: 'settings.channels' },

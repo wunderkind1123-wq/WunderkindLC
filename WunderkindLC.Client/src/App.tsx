@@ -17,10 +17,9 @@ const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard').then((m
 const GroupStudentsListPage = lazy(() => import('@/pages/admin/classes/GroupStudentsPage').then((m) => ({ default: m.GroupStudentsPage })))
 const TransactionTypesPage = lazy(() => import('@/pages/admin/finance/TransactionTypesPage').then((m) => ({ default: m.TransactionTypesPage })))
 const PlannedExpensePage = lazy(() => import('@/pages/admin/finance/PlannedExpensePage').then((m) => ({ default: m.PlannedExpensePage })))
-const FinanceAnalyticsPage = lazy(() => import('@/pages/admin/finance/FinanceAnalyticsPage').then((m) => ({ default: m.FinanceAnalyticsPage })))
 const PenaltyPage = lazy(() => import('@/pages/admin/finance/PenaltyPage').then((m) => ({ default: m.PenaltyPage })))
-const IncomePlanPage = lazy(() => import('@/pages/admin/finance/IncomePlanPage').then((m) => ({ default: m.IncomePlanPage })))
-const FinanceReportsPage = lazy(() => import('@/pages/admin/finance/FinanceReportsPage').then((m) => ({ default: m.FinanceReportsPage })))
+// «Moliya hisobotlari» — umumiy · kirim-chiqim · kalendar · tushum rejasi BITTA sahifada (2026-11-04).
+const FinanceReportsHubPage = lazy(() => import('@/pages/admin/finance/FinanceReportsHubPage').then((m) => ({ default: m.FinanceReportsHubPage })))
 const PnlPage = lazy(() => import('@/pages/admin/finance/PnlPage').then((m) => ({ default: m.PnlPage })))
 const CashflowPage = lazy(() => import('@/pages/admin/finance/CashflowPage').then((m) => ({ default: m.CashflowPage })))
 // Pul oqimi 2.0 · P&L 2.0 (docs/finance-reports) — eski sahifalar o'z joyida qoladi.
@@ -28,7 +27,6 @@ const CashFlow2Page = lazy(() => import('@/pages/admin/finance/v2/CashFlow2Page'
 const Pnl2Page = lazy(() => import('@/pages/admin/finance/v2/Pnl2Page').then((m) => ({ default: m.Pnl2Page })))
 const FinanceCategoriesPage = lazy(() => import('@/pages/admin/finance/v2/FinanceCategoriesPage').then((m) => ({ default: m.FinanceCategoriesPage })))
 const PlannedTemplatesPage = lazy(() => import('@/pages/admin/finance/v2/PlannedTemplatesPage').then((m) => ({ default: m.PlannedTemplatesPage })))
-const IncomeExpensePage = lazy(() => import('@/pages/admin/finance/IncomeExpensePage').then((m) => ({ default: m.IncomeExpensePage })))
 const ParentsListPage = lazy(() => import('@/pages/admin/students/lists/ParentsListPage').then((m) => ({ default: m.ParentsListPage })))
 const NewStudentsPage = lazy(() => import('@/pages/admin/students/lists/NewStudentsPage').then((m) => ({ default: m.NewStudentsPage })))
 const ActiveStudentsPage = lazy(() => import('@/pages/admin/students/lists/ActiveStudentsPage').then((m) => ({ default: m.ActiveStudentsPage })))
@@ -401,21 +399,21 @@ export default function App() {
             <Route path="parents" element={<RequirePerm perm="app.parents"><ParentsPage /></RequirePerm>} />
             <Route path="app/teachers" element={<RequirePerm perm="app.teachers"><TeacherAppPage /></RequirePerm>} />
             <Route path="kassa" element={<RequirePerm perm="kassa"><KassaPage /></RequirePerm>} />
-            {/* Moliya → «Kirim chiqim» (edutizim `/analytics/finance`): toifalar aylanasi.
-                Ruxsat — moliya sahifasi bilan BIR XIL kalit. */}
             <Route path="moliya/tranzaksiya-turi" element={<RequirePerm perm="finance.main"><TransactionTypesPage /></RequirePerm>} />
             <Route path="moliya/rejalashtirilgan-xarajatlar" element={<RequirePerm perm="finance.main"><PlannedExpensePage /></RequirePerm>} />
-            <Route path="moliya/analitika" element={<RequirePerm perm="finance.main"><FinanceAnalyticsPage /></RequirePerm>} />
+            <Route path="moliya/analitika" element={<Navigate to="/admin/moliya/hisobotlar?tab=kalendar" replace />} />
             <Route path="moliya/jarima" element={<RequirePerm perm="finance.main"><PenaltyPage /></RequirePerm>} />
-            <Route path="moliya/tushum-rejasi" element={<RequirePerm perm="finance.main"><IncomePlanPage /></RequirePerm>} />
-            <Route path="moliya/hisobotlar" element={<RequirePerm perm="finance.main"><FinanceReportsPage /></RequirePerm>} />
+            {/* «Moliya hisobotlari» — 4 sahifa bitta sahifada, tablar bilan (egasining talabi, 2026-11-04). Eski manzillar
+                (kirim-chiqim, analitika, tushum-rejasi) shu sahifaning tabiga yo'naltiriladi — xatcho'plar buzilmasin. */}
+            <Route path="moliya/tushum-rejasi" element={<Navigate to="/admin/moliya/hisobotlar?tab=tushum-rejasi" replace />} />
+            <Route path="moliya/hisobotlar" element={<RequirePerm perm="finance.main"><FinanceReportsHubPage /></RequirePerm>} />
             <Route path="moliya/pnl" element={<RequirePerm perm="finance.main"><PnlPage /></RequirePerm>} />
             <Route path="moliya/pul-oqimi" element={<RequirePerm perm="finance.main"><CashflowPage /></RequirePerm>} />
             <Route path="moliya/pnl-2" element={<RequirePerm perm="finance.pnl" anyOf={['finance.main']}><Pnl2Page /></RequirePerm>} />
             <Route path="moliya/pul-oqimi-2" element={<RequirePerm perm="finance.cashflow" anyOf={['finance.main']}><CashFlow2Page /></RequirePerm>} />
             <Route path="moliya/hisobot-toifalari" element={<RequirePerm perm="finance.main"><FinanceCategoriesPage /></RequirePerm>} />
             <Route path="moliya/rejali-xarajat-shablonlari" element={<RequirePerm perm="finance.main"><PlannedTemplatesPage /></RequirePerm>} />
-            <Route path="moliya/kirim-chiqim" element={<RequirePerm perm="finance.main"><IncomeExpensePage /></RequirePerm>} />
+            <Route path="moliya/kirim-chiqim" element={<Navigate to="/admin/moliya/hisobotlar?tab=kirim-chiqim" replace />} />
             <Route path="finance" element={<RequirePerm perm="finance.main"><FinancePage /></RequirePerm>} />
             {/* Bitta kassir qabul qilgan to'lovlar — alohida sahifa (Moliya → Kassirlar qatoridan). */}
             <Route path="finance/cashiers/:key" element={<RequirePerm perm="finance.main"><CashierPaymentsPage /></RequirePerm>} />

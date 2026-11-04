@@ -64,7 +64,7 @@ export function ExecutiveDashboardPage() {
       {!data ? (error ? null : <Loader />) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Tile to="/admin/moliya/kirim-chiqim">
+            <Tile to="/admin/moliya/hisobotlar?tab=kirim-chiqim">
               <StatCard label="O'quv tushumi (oy)" value={formatMoney(data.thisMonth.tuition)} icon={HandCoins}
                 delta={deltaPct(data.thisMonth.tuition, data.prevMonth.tuition)} hint="vozvrat ayrilgan" />
             </Tile>
@@ -121,7 +121,7 @@ export function ExecutiveDashboardPage() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Panel title="O'quv tushumi (6 oy)" to="/admin/moliya/kirim-chiqim">
+            <Panel title="O'quv tushumi (6 oy)" to="/admin/moliya/hisobotlar?tab=kirim-chiqim">
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={data.trend.map((t) => ({ name: short(t.month), v: t.tuition }))}>
                   <CartesianGrid vertical={false} stroke="#eef2f7" />

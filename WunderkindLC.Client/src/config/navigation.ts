@@ -55,7 +55,8 @@ export const mainReportRoutes = new Set([
  * qidiradi, shuning uchun bizda ham ikki joyda. Boshqa takrorlar TAQIQLANGAN (test qulflaydi).
  */
 export const edutizimDuplicateRoutes = new Set([
-  '/admin/moliya/kirim-chiqim',
+  // 2026-11-04 dan «Kirim chiqim» — «Moliya hisobotlari» sahifasining tabi; ikki joyda endi shu sahifa turadi.
+  '/admin/moliya/hisobotlar',
   '/admin/teacher-reports',
   // edutizimda "Shartnoma" IKKI bo'limda: O'quv bo'limi (`/course/contracts`) va Moliya
   // (`/finance/contract`). Bizda ikkalasi ham BITTA shartnomalar sahifasi.
@@ -208,9 +209,8 @@ export const navByRole: Record<Role, NavItem[]> = {
           label: 'Hisobotlar',
           to: '#moliya-hisobotlar',
           children: [
-            { label: 'Kirim chiqim', to: '/admin/moliya/kirim-chiqim', perm: 'finance.main' },
-            { label: 'Tushum rejasi', to: '/admin/moliya/tushum-rejasi', perm: 'finance.main' },
-            { label: 'Moliya analitikasi', to: '/admin/moliya/analitika', perm: 'finance.main' },
+            // Egasining talabi (2026-11-04): «Kirim chiqim», «Tushum rejasi», «Moliya analitikasi» va «Moliya hisobotlari»
+            // — BITTA sahifa, tablar bilan (`FinanceReportsHubPage`); eski manzillar tablarga yo'naltiriladi.
             { label: 'Moliya hisobotlari', to: '/admin/moliya/hisobotlar', perm: 'finance.main' },
             { label: "Moliya hisobotlari (P&L)", to: '/admin/moliya/pnl', perm: 'finance.main' },
             { label: 'Pul oqimi', to: '/admin/moliya/pul-oqimi', perm: 'finance.main' },
@@ -331,7 +331,7 @@ export const navByRole: Record<Role, NavItem[]> = {
         // Hisobotlar hub'i — 2026-10-17 dan (egasining TZ'si, F5 N1) ASOSIY guruhda (ilgari Future → Hisobotlar).
         { label: 'Barcha hisobotlar', to: '/admin/hisobotlar', end: true, permAny: reportPerms },
         { label: 'Sotuv voronkasi', to: '/admin/crm-stats', perm: 'leads.stats' },
-        { label: 'Kirim chiqim', to: '/admin/moliya/kirim-chiqim', perm: 'finance.main' },
+        { label: 'Moliya hisobotlari', to: '/admin/moliya/hisobotlar', perm: 'finance.main' },
         { label: 'Xonalar analitikasi', to: '/admin/rooms/utilization', perm: 'classes.rooms' },
         { label: 'Xodimlar reytingi', to: '/admin/teacher-reports', perm: 'teacherReports' },
         { label: "Yo'qotilgan lidlar", to: '/admin/hisobotlar/yoqotilgan-lidlar', perm: 'leads.stats' },
