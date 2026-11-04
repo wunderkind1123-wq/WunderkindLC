@@ -1,0 +1,6 @@
+# /etc/cron.d/wunderkind-tg-backup — kunlik to'liq zaxira → Telegram (bitta shifrlangan fayl).
+# O'rnatish: cp infra/backup/wunderkind-tg-backup.cron /etc/cron.d/wunderkind-tg-backup && chmod 644 /etc/cron.d/wunderkind-tg-backup
+# Vaqt UTC: 21:30 = 02:30 Toshkent (konteynerlardagi lokal pg_dump 02:00 da — ulardan keyin).
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+30 21 * * * root bash /root/WunderkindLC/infra/backup/telegram-bundle.sh >> /var/log/wunderkind-tg-backup.log 2>&1
