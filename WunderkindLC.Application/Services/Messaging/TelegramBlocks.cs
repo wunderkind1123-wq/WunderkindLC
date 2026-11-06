@@ -64,7 +64,7 @@ public static class MessageAckService
     {
         inline_keyboard = new object[][]
         {
-            new object[] { new { text = ButtonText, callback_data = CallbackPrefix + deliveryId } },
+            new object[] { new { text = ButtonText, callback_data = TelegramBranchRouting.TagOwn(CallbackPrefix + deliveryId) } },
         },
     };
 

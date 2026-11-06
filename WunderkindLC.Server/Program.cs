@@ -393,7 +393,12 @@ builder.Services.AddHttpClient("telegram", c => c.Timeout = TimeSpan.FromSeconds
 builder.Services.AddSingleton<TelegramService>();
 // Kitob sotuvi (bot orqali buyurtma) oqimi — TelegramBotService shu servisga yo'naltiradi.
 builder.Services.AddSingleton<BookShopBotService>();
-builder.Services.AddHostedService<TelegramBotService>();
+builder.Services.AddHttpClient(WunderkindLC.Application.Services.Messaging.TelegramBranchRouter.HttpClientName,
+    c => c.Timeout = TimeSpan.FromSeconds(20));
+builder.Services.AddSingleton<WunderkindLC.Application.Services.Messaging.TelegramBranchRouter>();
+// Singleton as well: the internal endpoint hands forwarded updates to this same instance (one bot, several branches).
+builder.Services.AddSingleton<TelegramBotService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<TelegramBotService>());
 // KARYERA (Wunderkind Career) — ALOHIDA bot (.env: CAREER_BOT_TOKEN) + `/vakansiya` Mini App.
 // Token bo'sh bo'lsa bot jim kutadi, qolgan hamma narsa odatdagidek ishlaydi.
 builder.Services.AddSingleton<CareerTelegramService>();

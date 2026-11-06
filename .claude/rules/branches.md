@@ -31,18 +31,26 @@ boshqa filialga o'tadi. Kod bitta (multi-tenant YO'Q) — har filial shu image'n
   Baza faqat filialning ichki tarmog'ida.
 - Har filialning O'Z `JWT_KEY`, `CREDENTIAL_VAULT_KEY`, Postgres paroli (skript serverda yaratadi, chiqarmaydi). Sessiya
   filiallar orasida O'TMAYDI — superadmin har filialda alohida kiradi (seed: asosiy `.env` dagi OWNER_LOGIN/OWNER_PASSWORD).
-- Filialda Telegram bot, MCP, kamera, turniket O'CHIQ (tokenlar berilmagan): BITTA bot tokenini ikki nusxaga BERMANG (409).
-- **BITTA BOT, Panel kirishida FILIAL TANLOVI (2026-11-06, egasining qarori):** bot Panel'i doim `BRANCH_LINKS` dagi BIRINCHI
-  filialni («uy», `TelegramBotService.PanelUrl`) ochadi, loginlar esa har filial bazasida — shuning uchun filial o'qituvchisi
-  «Login yoki parol noto'g'ri» olardi. Endi `LoginPage` da `MiniAppBranchPicker` (FAQAT Mini App ichida, oddiy brauzerda yo'q;
-  ro'yxat — anonim `GET api/public/branch-links`). Mantiq sof — `lib/miniAppBranch.ts` + test.
-  ⚠️ Tanlov FAQAT uy origin'ida saqlanadi (`localStorage`): keyingi Panel'da uy o'zi o'sha filial login'iga o'tkazadi, u yerda
-  sessiya bo'lsa — darhol portal. Boshqa filialdan tanlash uy orqali o'tadi (`/login?filial=<url>`); manzil faqat server
-  ro'yxatidan olinadi (open redirect yo'q). Boshqa origin'ga o'tganda Telegram parametrlari hash'da uzatiladi (`launchHash`).
-  ⚠️ `BRANCH_LINKS` da uy BIRINCHI turishi shart (`new-branch.sh` shunday yozadi).
-  ⚠️ Bu faqat KIRISH: filial token olmagani uchun uning xabarlari/eslatmalari va chat ulanishi hali YO'Q (`link-status` →
-  `configured: false`, banner chiqmaydi). Xabarlar kerak bo'lsa — alohida ish: bitta tokenli polling'siz yuborish yetmaydi,
-  javoblar (`callback_query`, `web_app_data`) faqat uy nusxasiga keladi va u filial bazasini bilmaydi.
+- Filialda MCP, kamera, turniket O'CHIQ (tokenlar berilmagan). Telegram bot — BITTA, hamma filial uchun (pastda).
+- **BITTA BOT, HAMMA FILIAL (2026-11-06, egasining qarori):**
+  - Token umumiy, lekin `getUpdates` FAQAT asosiy nusxada: filialda `Telegram__PollingDisabled: "1"` (ikkinchi poller = 409).
+    Filial xabarni O'ZI to'g'ridan yuboradi; kelganini asosiy nusxa `TelegramBranchRouter` bilan uzatadi
+    (`POST api/internal/telegram/update`, ichki Docker tarmog'i, maxfiy kalit; nginx bu yo'lni tashqariga bermaydi).
+  - Kimga: teg (`@yakkatut|hrack:…`) → o'sha filial. Tegsizda: asosiy nusxada ulangan chat → shu yerda; aks holda
+    `GET api/internal/telegram/knows` bilan chatni taniydigan filial (1 daq kesh); hech kim tanimasa → asosiy nusxa darvozasi.
+    Qoidalar sof — `TelegramBranchRouting`, testlar — `TelegramBranchRoutingTests`. Baza/migratsiya YO'Q, chat↔filial ro'yxati ham YO'Q.
+  - ⚠️ Teg kerak joylar: mustaqil keladigan tugmalar (`HrTaskAck`, `MessageAckService`) va `link-token`: bir odam ikki filialda
+    bo'lishi mumkin. Yangi shunday tugma qo'shsangiz — `TagOwn`. Suhbat ichidagi tugmalarga shart emas.
+  - ⚠️ Ikki filialda ulangan odam oddiy matn/tugma bilan ASOSIY nusxada gaplashadi (u yerdan kod oladi); filial xabarlari va
+    ularning tugmalari baribir ishlaydi.
+  - Panel: filial xabari/klaviaturasi o'z saytini ochadi (`PanelUrl` ← `App:Host`). Hali ulanmagan odam uchun umumiy tugma
+    asosiy manzilni ochadi va login sahifasida filial tanlovi chiqadi: `MiniAppBranchPicker` (FAQAT Mini App ichida; ro'yxat —
+    anonim `GET api/public/branch-links`; mantiq — `lib/miniAppBranch.ts`). Tanlov uy origin'ida eslab qolinadi; boshqa filialdan
+    tanlash uy orqali o'tadi (`/login?filial=<url>`), manzil faqat server ro'yxatidan (open redirect yo'q); Telegram parametrlari
+    hash'da uzatiladi (`launchHash`). ⚠️ `BRANCH_LINKS` da uy BIRINCHI (`new-branch.sh` shunday yozadi).
+  - Sozlash — `new-branch.sh` (`.env` ga qo'lda yozilmaydi): `TELEGRAM_BRANCH_KEY` (asosiysi `main`), `TELEGRAM_BRANCH_ROUTES`
+    (faqat asosiyda), `TELEGRAM_ROUTER_SECRET`, token. Mavjud filialga ham qayta ishga tushirsa bo'ladi.
+  - Hali YO'Q: lid kartalari guruhlari (guruh yangilanishlari faqat asosiy nusxada) — filial lidi guruhga bormaydi.
 - Cloudflare: DNS `A <slug>` → server IP (PROXIED) va Origin Rule «nginx 8443» ifodasiga `http.host eq "<host>"` qo'shiladi —
   aks holda trafik 443 dagi xray'ga tushadi.
 - `Branch` jadvali («Boshqaruv → Filiallar») — faqat ma'lumotnoma (nom, manzil, xarita), almashtirgichga ta'sir qilmaydi.

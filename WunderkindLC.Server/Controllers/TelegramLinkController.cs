@@ -68,7 +68,7 @@ public class TelegramLinkController(
         if (string.IsNullOrEmpty(uid)) return Unauthorized();
         try
         {
-            return Ok(new { data = tokens.Issue(uid, User.FindFirst(ClaimTypes.Role)?.Value ?? "") });
+            return Ok(new { data = TelegramBranchRouting.TagOwn(tokens.Issue(uid, User.FindFirst(ClaimTypes.Role)?.Value ?? "")) });
         }
         catch (InvalidOperationException ex)
         {

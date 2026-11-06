@@ -29,7 +29,8 @@ public class TelegramBotService(
     IServiceProvider sp, TelegramService telegram,
     BookShopBotService bookShop,
     ILogger<TelegramBotService> logger,
-    AutoMessageService? autoMsg = null) : BackgroundService
+    AutoMessageService? autoMsg = null,
+    Messaging.TelegramBranchRouter? branchRouter = null) : BackgroundService
 {
     /// <summary>ESKI «📝 Testni ishlash» tugmasi matni — bot orqali onlayn test 2026-10 da olib tashlandi,
     /// lekin foydalanuvchilarga ilgari yuborilgan klaviaturalarda tugma hali turibdi. Bosilsa — tushuntirish
@@ -58,7 +59,10 @@ public class TelegramBotService(
     /// bo'lsa login sahifasiga, kirgandan keyin yana o'z portaliga. Rol bo'yicha alohida tugma/manzil QO'SHMANG.</para>
     /// </summary>
     public const string PanelButtonText = "📱 Panel";
-    public const string PanelUrl = WebAppUrl;
+    /// <para>A branch (polling off) opens its OWN site: the login lives in its own database. The home instance keeps
+    /// the fixed address, where the Mini App login page offers the branch picker (.claude/rules/branches.md).</para>
+    public static string PanelUrl => Messaging.TelegramBranchRouting.PanelUrl(
+        WebAppUrl, AppSecrets.TelegramPollingDisabled, AppSecrets.AppHost);
 
     /// <summary>Obuna tekshiruvi keshi: chatId → shu vaqtgacha qayta so'ramaymiz. Har tugma bosishda
     /// Telegram API'ga murojaat qilmaslik uchun (obuna holati tez-tez o'zgarmaydi).</summary>
@@ -67,6 +71,13 @@ public class TelegramBotService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // A branch shares the token and only sends; updates reach it from the home instance (TelegramBranchRouter).
+        if (AppSecrets.TelegramPollingDisabled)
+        {
+            logger.LogInformation("Telegram: polling o'chiq, xabarlar asosiy nusxadan keladi (filial).");
+            return;
+        }
+
         long offset = 0;
         var announced = false;
         while (!stoppingToken.IsCancellationRequested)
@@ -98,7 +109,7 @@ public class TelegramBotService(
                 {
                     if (upd.TryGetProperty("update_id", out var idEl))
                         offset = idEl.GetInt64() + 1;
-                    await HandleUpdateAsync(upd, stoppingToken);
+                    await DispatchAsync(upd, stoppingToken);
                 }
             }
             // ⚠️ Cancellation comes in TWO kinds (same fix as CareerBotService/TeacherBotService):
@@ -200,6 +211,30 @@ public class TelegramBotService(
         }
         return ok;
     }
+
+    /// <summary>Home instance: hands the update to the branch that owns it, otherwise handles it here.</summary>
+    private async Task DispatchAsync(JsonElement upd, CancellationToken ct)
+    {
+        if (branchRouter is null || !branchRouter.Enabled)
+        {
+            await HandleUpdateAsync(upd, ct);
+            return;
+        }
+        var route = await branchRouter.RouteAsync(upd, IsLinkedChatAsync, ct);
+        if (route.Handled) return;
+        if (route.Failure is { } failed)
+        {
+            if (failed.CallbackId.Length > 0)
+                await telegram.AnswerCallbackAsync(failed.CallbackId, Messaging.TelegramBranchRouter.BranchDownText, ct);
+            else
+                await telegram.SendMessageAsync(failed.ChatId, Messaging.TelegramBranchRouter.BranchDownText, null, ct);
+            return;
+        }
+        await HandleUpdateAsync(route.Local, ct);
+    }
+
+    /// <summary>Branch instance: an update the home instance forwarded (<c>api/internal/telegram/update</c>).</summary>
+    public Task HandleForwardedUpdateAsync(JsonElement upd, CancellationToken ct) => HandleUpdateAsync(upd, ct);
 
     private async Task HandleUpdateAsync(JsonElement upd, CancellationToken ct)
     {
@@ -700,7 +735,7 @@ public class TelegramBotService(
 
     /// <summary>O'qituvchi va o'quvchi/ota-ona login xabari ostidagi tugma — panel shu yerning o'zida (Mini App)
     /// ochiladi; qaysi portal ekanini rol hal qiladi (<see cref="PanelUrl"/>).</summary>
-    public static readonly object PanelInline = new
+    public static object PanelInline => new
     {
         inline_keyboard = new object[][]
         {

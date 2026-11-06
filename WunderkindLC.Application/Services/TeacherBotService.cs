@@ -24,7 +24,7 @@ public class TeacherBotService(TeacherTelegramService bot, ILogger<TeacherBotSer
     public const string OpenButtonText = TelegramBotService.PanelButtonText;
 
     /// <summary>Panel manzili — asosiy botdagi bilan AYNAN bir xil (ikki joyda ayrilib ketmasin).</summary>
-    public const string PanelUrl = TelegramBotService.PanelUrl;
+    public static string PanelUrl => TelegramBotService.PanelUrl;
 
     /// <summary>
     /// Pastdagi doimiy klaviatura: BITTA qator, BITTA tugma — Mini App (<c>web_app</c>).

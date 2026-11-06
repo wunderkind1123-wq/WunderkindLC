@@ -88,6 +88,22 @@ public static class AppSecrets
     /// <summary>BotFather tokeni. Bo'sh — bot ishlamaydi (ilova baribir ishlaydi).</summary>
     public static string TelegramBotToken => Read("Telegram:BotToken", EnvKeys.TelegramBotToken);
 
+    /// <summary>One bot for all branches (.claude/rules/branches.md): this instance's short name; empty = no routing.</summary>
+    public static string TelegramBranchKey => Read("Telegram:BranchKey", EnvKeys.TelegramBranchKey);
+
+    /// <summary>Home instance only: where each branch app is reachable, <c>"yakkatut|http://app_yakkatut:8080"</c>.</summary>
+    public static string TelegramBranchRoutes => Read("Telegram:BranchRoutes", EnvKeys.TelegramBranchRoutes);
+
+    /// <summary>Shared by home and branches; authorises forwarded updates. Empty = internal endpoints are closed.</summary>
+    public static string TelegramRouterSecret => Read("Telegram:RouterSecret", EnvKeys.TelegramRouterSecret);
+
+    /// <summary>True on a branch: it holds the same token but never calls getUpdates (a second poller gets 409).</summary>
+    public static bool TelegramPollingDisabled =>
+        Read("Telegram:PollingDisabled", "TELEGRAM_POLLING_DISABLED") is "1" or "true";
+
+    /// <summary>This instance's public host (not a secret, read here because the bot's static keyboards need it).</summary>
+    public static string AppHost => Read("App:Host", "APP_HOST");
+
     /* ---------- Karyera boti (Wunderkind Career — ALOHIDA bot) ---------- */
 
     /// <summary>Ishga qabul (vakansiya) botining BotFather tokeni. Asosiy botdan MUSTAQIL:
@@ -238,6 +254,9 @@ public static class AppSecrets
     public static class EnvKeys
     {
         public const string TelegramBotToken = "TELEGRAM_BOT_TOKEN";
+        public const string TelegramBranchKey = "TELEGRAM_BRANCH_KEY";
+        public const string TelegramBranchRoutes = "TELEGRAM_BRANCH_ROUTES";
+        public const string TelegramRouterSecret = "TELEGRAM_ROUTER_SECRET";
         public const string CareerBotToken = "CAREER_BOT_TOKEN";
         public const string TeacherBotToken = "TEACHER_BOT_TOKEN";
         public const string FcmServiceAccountJson = "FCM_SERVICE_ACCOUNT_JSON";

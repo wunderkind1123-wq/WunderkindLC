@@ -27,7 +27,7 @@ public static class HrTaskAck
     /// <summary>Task message keyboard: «Qabul qildim» + (optional) the «📋 Topshiriqlarim» Mini App button.</summary>
     public static object Keyboard(string taskId, string? openUrl)
     {
-        var rows = new List<object[]> { new object[] { new { text = ButtonText, callback_data = CallbackPrefix + taskId } } };
+        var rows = new List<object[]> { new object[] { new { text = ButtonText, callback_data = TelegramBranchRouting.TagOwn(CallbackPrefix + taskId) } } };
         if (!string.IsNullOrWhiteSpace(openUrl))
             rows.Add([new { text = TelegramHrSender.OpenButtonText, web_app = new { url = openUrl } }]);
         return new { inline_keyboard = rows };

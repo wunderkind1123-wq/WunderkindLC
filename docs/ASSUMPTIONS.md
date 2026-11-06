@@ -639,3 +639,5 @@
 - [2026-10-21] HR tasks scheduler and IMPORT_MODE (prod still =1 since the 2026-09-18 import) → the scheduler runs regardless → ImportMode's own contract stops only tuition accrual and parent reminders; HR tasks never touch imported student/finance data, and gating them left the module dead (no people sync, no generation, no Telegram).
 - [2026-11-06] Single bot with several branches: where does the branch picker show? → login page, only inside the Mini App, choice remembered on the home origin → a normal browser already sits on its branch's own address; owner chose one bot over one bot per branch
 - [2026-11-06] Branch list before login needs an endpoint: gate? → anonymous GET, names and public URLs only → the picker runs before any session exists
+- [2026-11-06] Who answers a chat linked in two branches? → home for plain messages; tagged buttons still reach their own branch → no chat↔branch table or migration, and such people are rare
+- [2026-11-06] Branch is down when its update arrives? → user gets a short notice, update is not retried → a timed-out forward may already have run, retrying could double-process

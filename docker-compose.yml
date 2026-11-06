@@ -87,6 +87,10 @@ services:
       # Telegram bot (BotToken — MAXFIY):
       Telegram__BotToken: "${TELEGRAM_BOT_TOKEN:-}"
       Telegram__BotUsername: "${TELEGRAM_BOT_USERNAME:-}"
+      # Bitta bot — hamma filial (.claude/rules/branches.md). new-branch.sh to'ldiradi; bo'sh = yo'naltirish o'chiq.
+      Telegram__BranchKey: "${TELEGRAM_BRANCH_KEY:-}"
+      Telegram__BranchRoutes: "${TELEGRAM_BRANCH_ROUTES:-}"
+      Telegram__RouterSecret: "${TELEGRAM_ROUTER_SECRET:-}"
       Telegram__BotName: "${TELEGRAM_BOT_NAME:-}"
       Telegram__Channel: "${TELEGRAM_CHANNEL:-}"
       Telegram__AdminChatId: "${TELEGRAM_ADMIN_CHAT_ID:-}"

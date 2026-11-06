@@ -14,6 +14,7 @@ SLUG="${1:-}"; HOST="${2:-}"; NAME="${3:-}"; MAIN_NAME="${4:-Asosiy}"
 MAIN_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 ROOT="${WLC_BRANCH_ROOT:-/root/wlc-branches}"   # sinov uchun almashtirsa bo'ladi
 [[ "$SLUG" =~ ^[a-z0-9]{2,20}$ ]] || { echo "slug: 2-20 ta kichik lotin harf/raqam"; exit 1; }
+[[ "$SLUG" != "main" ]] || { echo "slug: 'main' asosiy nusxa uchun band"; exit 1; }
 [[ "$HOST" =~ ^[a-z0-9.-]+\.[a-z]{2,}$ ]] || { echo "host noto'g'ri: $HOST"; exit 1; }
 [[ -n "$NAME" && "$NAME" != *"|"* && "$NAME" != *";"* ]] || { echo "nom kerak (| va ; belgisiz)"; exit 1; }
 MAIN_ENV="$MAIN_DIR/.env"
@@ -61,6 +62,21 @@ setval BRANCH_LINKS "$LINKS" "$MAIN_ENV"
 for envf in "$ROOT"/*/.env; do setval BRANCH_LINKS "$LINKS" "$envf"; done
 echo "• BRANCH_LINKS: $LINKS"
 
+# ---- 2.5. Bitta bot: filial SHU tokenni ishlatadi, lekin polling QILMAYDI; yangilanishlarni asosiy nusxa yo'naltiradi ----
+SECRET="$(val TELEGRAM_ROUTER_SECRET "$MAIN_ENV")"
+if [[ -z "$SECRET" ]]; then SECRET="$(openssl rand -hex 32)"; setval TELEGRAM_ROUTER_SECRET "$SECRET" "$MAIN_ENV"; fi
+setval TELEGRAM_BRANCH_KEY main "$MAIN_ENV"
+ROUTES="$(val TELEGRAM_BRANCH_ROUTES "$MAIN_ENV")"
+ROUTE="$SLUG|http://app_$SLUG:8080"
+if [[ "$ROUTES" != *"$ROUTE"* ]]; then ROUTES="${ROUTES:+$ROUTES;}$ROUTE"; fi
+setval TELEGRAM_BRANCH_ROUTES "$ROUTES" "$MAIN_ENV"
+setval TELEGRAM_BOT_TOKEN "$(val TELEGRAM_BOT_TOKEN "$MAIN_ENV")" "$DIR/.env"
+setval TELEGRAM_BOT_USERNAME "$(val TELEGRAM_BOT_USERNAME "$MAIN_ENV")" "$DIR/.env"
+setval TELEGRAM_ROUTER_SECRET "$SECRET" "$DIR/.env"
+setval TELEGRAM_BRANCH_KEY "$SLUG" "$DIR/.env"
+chmod 600 "$DIR/.env"
+echo "• bot: filial yo'naltirishga qo'shildi ($SLUG)"
+
 # ---- 3. Compose (servis nomlari filialga xos — umumiy tarmoqda `app`/`postgres` nomlari bilan to'qnashmasin) ----
 cat > "$DIR/docker-compose.yml" <<EOF
 name: wlc-$SLUG
@@ -99,6 +115,12 @@ services:
       Gemini__ApiKey: "\${GEMINI_API_KEY:-}"
       GEMINI_MODEL: "\${GEMINI_MODEL:-gemini-3.1-flash-lite}"
       Branches__Links: "\${BRANCH_LINKS:-}"
+      # Bitta bot: token umumiy, polling FAQAT asosiy nusxada (ikkinchi getUpdates = 409).
+      Telegram__BotToken: "\${TELEGRAM_BOT_TOKEN:-}"
+      Telegram__BotUsername: "\${TELEGRAM_BOT_USERNAME:-}"
+      Telegram__PollingDisabled: "1"
+      Telegram__BranchKey: "\${TELEGRAM_BRANCH_KEY:-}"
+      Telegram__RouterSecret: "\${TELEGRAM_ROUTER_SECRET:-}"
       Seed__OwnerLogin: "\${OWNER_LOGIN:-admin}"
       Seed__OwnerPassword: "\${OWNER_PASSWORD}"
       DOTNET_SYSTEM_NET_SOCKETS_INLINE_OPERATIONS: "true"
