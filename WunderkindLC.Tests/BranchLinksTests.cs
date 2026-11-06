@@ -29,6 +29,25 @@ public class BranchLinksTests
     public void Buzuq_yoki_https_bolmagan_qiymat_tashlanadi(string? raw) =>
         Assert.Empty(BranchLinks.Parse(raw, "lc.wunderkindedu.uz"));
 
+    /// <summary>Test project does not reference the Server project, so the gate is checked on the source text
+    /// (same approach as <see cref="WikiControllerGateTests"/>).</summary>
+    [Fact]
+    public void Ochiq_royxat_faqat_bitta_GET_va_admin_royxati_superadminda_qoladi()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "WunderkindLC.slnx"))) dir = dir.Parent;
+        Assert.NotNull(dir);
+        var controllers = Path.Combine(dir!.FullName, "WunderkindLC.Server", "Controllers");
+
+        var open = File.ReadAllText(Path.Combine(controllers, "PublicBranchLinksController.cs"));
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(open, @"\[Http\w+"));
+        Assert.Contains("[HttpGet]", open);
+
+        var admin = File.ReadAllText(Path.Combine(controllers, "BranchLinksController.cs"));
+        Assert.Contains("[Authorize(Roles = \"superadmin\")]", admin);
+        Assert.DoesNotContain("AllowAnonymous", admin);
+    }
+
     [Fact]
     public void Takror_manzil_bir_marta() =>
         Assert.Single(BranchLinks.Parse("A|https://a.uz;B|https://a.uz", "a.uz"));

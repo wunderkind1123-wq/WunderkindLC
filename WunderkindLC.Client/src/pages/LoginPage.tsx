@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { MiniAppBranchPicker } from '@/components/auth/MiniAppBranchPicker'
 import { useAuth } from '@/context/auth-context'
 import { homeFor } from '@/config/navigation'
 import { getPublicBrand, type PublicBrand } from '@/api/services/settings'
@@ -101,6 +102,8 @@ export function LoginPage() {
             <p className="mt-1 text-sm text-slate-400">Tizimga kirish</p>
           </div>
         </div>
+
+        <MiniAppBranchPicker />
 
         <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 text-sm font-medium">
           {(

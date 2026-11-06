@@ -32,6 +32,17 @@ boshqa filialga o'tadi. Kod bitta (multi-tenant YO'Q) — har filial shu image'n
 - Har filialning O'Z `JWT_KEY`, `CREDENTIAL_VAULT_KEY`, Postgres paroli (skript serverda yaratadi, chiqarmaydi). Sessiya
   filiallar orasida O'TMAYDI — superadmin har filialda alohida kiradi (seed: asosiy `.env` dagi OWNER_LOGIN/OWNER_PASSWORD).
 - Filialda Telegram bot, MCP, kamera, turniket O'CHIQ (tokenlar berilmagan): BITTA bot tokenini ikki nusxaga BERMANG (409).
+- **BITTA BOT, Panel kirishida FILIAL TANLOVI (2026-11-06, egasining qarori):** bot Panel'i doim `BRANCH_LINKS` dagi BIRINCHI
+  filialni («uy», `TelegramBotService.PanelUrl`) ochadi, loginlar esa har filial bazasida — shuning uchun filial o'qituvchisi
+  «Login yoki parol noto'g'ri» olardi. Endi `LoginPage` da `MiniAppBranchPicker` (FAQAT Mini App ichida, oddiy brauzerda yo'q;
+  ro'yxat — anonim `GET api/public/branch-links`). Mantiq sof — `lib/miniAppBranch.ts` + test.
+  ⚠️ Tanlov FAQAT uy origin'ida saqlanadi (`localStorage`): keyingi Panel'da uy o'zi o'sha filial login'iga o'tkazadi, u yerda
+  sessiya bo'lsa — darhol portal. Boshqa filialdan tanlash uy orqali o'tadi (`/login?filial=<url>`); manzil faqat server
+  ro'yxatidan olinadi (open redirect yo'q). Boshqa origin'ga o'tganda Telegram parametrlari hash'da uzatiladi (`launchHash`).
+  ⚠️ `BRANCH_LINKS` da uy BIRINCHI turishi shart (`new-branch.sh` shunday yozadi).
+  ⚠️ Bu faqat KIRISH: filial token olmagani uchun uning xabarlari/eslatmalari va chat ulanishi hali YO'Q (`link-status` →
+  `configured: false`, banner chiqmaydi). Xabarlar kerak bo'lsa — alohida ish: bitta tokenli polling'siz yuborish yetmaydi,
+  javoblar (`callback_query`, `web_app_data`) faqat uy nusxasiga keladi va u filial bazasini bilmaydi.
 - Cloudflare: DNS `A <slug>` → server IP (PROXIED) va Origin Rule «nginx 8443» ifodasiga `http.host eq "<host>"` qo'shiladi —
   aks holda trafik 443 dagi xray'ga tushadi.
 - `Branch` jadvali («Boshqaruv → Filiallar») — faqat ma'lumotnoma (nom, manzil, xarita), almashtirgichga ta'sir qilmaydi.
