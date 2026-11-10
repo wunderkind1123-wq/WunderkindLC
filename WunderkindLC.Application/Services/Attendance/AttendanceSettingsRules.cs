@@ -12,7 +12,10 @@ public record AttendanceSettingsDto(
     decimal FineAmount,
     int AbsentNoticeDelayMinutes,
     string AbsentNoticeApproval,
-    List<string>? Warnings = null);
+    List<string>? Warnings = null,
+    // 2026-11-10: jarima rejimi — `lesson` (har dars) | `daily` (kuniga bitta, `DailyDeadline` gacha). Eski mijoz yubormasa — joriy qoladi.
+    string? FineMode = null,
+    string? DailyDeadline = null);
 
 /// <summary>
 /// Pure validation / parsing of the attendance settings (<see cref="CenterMeta"/> columns, SPEC P3.2).
@@ -25,6 +28,9 @@ public static class AttendanceSettingsRules
     public const int MaxReminders = 3;
     public const decimal MaxFineAmount = 10_000_000m;
     public const int MaxNoticeDelay = 180;
+
+    public const string ModeLesson = "lesson";
+    public const string ModeDaily = "daily";
 
     public const string ApprovalAuto = "auto";
     public const string ApprovalManual = "manual";
@@ -63,8 +69,12 @@ public static class AttendanceSettingsRules
             return "Jarima summasi 0 dan 10 000 000 so'mgacha bo'lishi kerak";
         if (s.FineAmount != decimal.Truncate(s.FineAmount))
             return "Jarima summasi butun son bo'lishi kerak";
+        if (s.FineMode is not null && s.FineMode is not (ModeLesson or ModeDaily))
+            return "Jarima rejimi noto'g'ri";
+        if (s.DailyDeadline is not null && ScheduleRules.ParseTime(s.DailyDeadline) is null)
+            return "Kunlik muddat HH:MM ko'rinishida bo'lsin (masalan 19:30)";
         if (s.FineEnabled && s.FineAmount <= 0)
-            return "Jarima yoqilgan — bir dars uchun jarima summasini kiriting";
+            return s.FineMode == ModeDaily ? "Jarima yoqilgan — kunlik jarima summasini kiriting" : "Jarima yoqilgan — bir dars uchun jarima summasini kiriting";
         if (s.AbsentNoticeDelayMinutes is < 0 or > MaxNoticeDelay)
             return $"«Kelmadi» xabari kechikishi 0..{MaxNoticeDelay} daqiqa bo'lishi kerak";
         if (!Approvals.Contains(s.AbsentNoticeApproval ?? ""))
@@ -84,7 +94,9 @@ public static class AttendanceSettingsRules
             m.AttendanceFineEnabled,
             m.AttendanceFineAmount,
             m.AbsentNoticeDelayMinutes,
-            Approvals.Contains(m.AbsentNoticeApproval) ? m.AbsentNoticeApproval : ApprovalLateOnly);
+            Approvals.Contains(m.AbsentNoticeApproval) ? m.AbsentNoticeApproval : ApprovalLateOnly,
+            FineMode: m.AttendanceFineMode == ModeDaily ? ModeDaily : ModeLesson,
+            DailyDeadline: ScheduleRules.ParseTime(m.AttendanceDailyDeadline) is null ? "19:30" : m.AttendanceDailyDeadline);
     }
 
     /// <summary>
@@ -104,6 +116,15 @@ public static class AttendanceSettingsRules
         m.AttendanceFineAmount = s.FineAmount;
         m.AbsentNoticeDelayMinutes = s.AbsentNoticeDelayMinutes;
         m.AbsentNoticeApproval = s.AbsentNoticeApproval;
+        if (s.FineMode is not null) m.AttendanceFineMode = s.FineMode;
+        if (s.DailyDeadline is not null) m.AttendanceDailyDeadline = NormalizeTime(s.DailyDeadline);
+    }
+
+    /// <summary>"9:5" / "19:30" → "09:05" / "19:30" (faqat tekshirilgan qiymat uchun).</summary>
+    public static string NormalizeTime(string hm)
+    {
+        var min = ScheduleRules.ParseTime(hm) ?? 0;
+        return $"{min / 60:00}:{min % 60:00}";
     }
 
     /// <summary>
@@ -128,5 +149,7 @@ public static class AttendanceSettingsRules
         [nameof(CenterMeta.AbsentNoticeApproval)] = "«Kelmadi» xabarini tasdiqlash",
         [nameof(CenterMeta.AttendanceDisciplineSince)] = "Davomat intizomi yoqilgan vaqt",
         [nameof(CenterMeta.AttendanceFineSince)] = "Jarima yoqilgan vaqt",
+        [nameof(CenterMeta.AttendanceFineMode)] = "Jarima rejimi (lesson — har dars, daily — kuniga bitta)",
+        [nameof(CenterMeta.AttendanceDailyDeadline)] = "Kunlik davomat muddati",
     };
 }

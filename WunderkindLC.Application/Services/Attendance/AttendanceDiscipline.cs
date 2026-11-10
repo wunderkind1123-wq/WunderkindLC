@@ -109,6 +109,45 @@ public static class AttendanceDiscipline
         return null;
     }
 
+    // ============================== KUNLIK REJIM (2026-11-10) ==============================
+
+    public const string KindLesson = "lesson";
+    public const string KindDaily = "daily";
+
+    /// <summary>O'qituvchining shu kungi bitta darsi (kunlik qaror uchun).</summary>
+    public sealed record DailyLesson(string GroupId, string GroupName, string StartTime, DateTime? TakenAt);
+
+    /// <summary>
+    /// KUNLIK JARIMA (egasi: «o'qituvchi 19:30 gacha davomat qilmasa — 50 000; bir nechta guruh bo'lsa ham BITTA»):
+    /// muddat (<paramref name="date"/> + <paramref name="deadlineHm"/>) o'tgan, jarima yoqilgan, summa &gt; 0 va jarima
+    /// yoqilgandan KEYINGI muddat bo'lsa — davomati muddatgacha olinmagan darslar (bo'sh — jarima yo'q).
+    /// Muddatdan KEYIN boshlanadigan dars hisobga olinmaydi (unda davomat muddatgacha olinishi mumkin emas).
+    /// Kech olingan davomat (muddatdan keyin) jarimadan qutqarmaydi — qoida «muddatgacha».
+    /// </summary>
+    public static IReadOnlyList<DailyLesson> DailyMissed(
+        string date, string deadlineHm, IEnumerable<DailyLesson> lessons, DateTime now, AttendanceSettingsDto s,
+        DateTime? disciplineSince = null, DateTime? fineSince = null)
+    {
+        if (!s.FineEnabled || s.FineAmount <= 0) return [];
+        if (StartOf(date, deadlineHm) is not { } deadline || now < deadline) return [];
+        if (disciplineSince is { } ds && deadline < ds) return [];
+        if (fineSince is { } fs && deadline < fs) return [];
+        return lessons
+            .Where(l => StartOf(date, l.StartTime) is { } start && start < deadline)
+            .Where(l => l.TakenAt is null || l.TakenAt > deadline)
+            .OrderBy(l => ScheduleRules.ParseTime(l.StartTime))
+            .ThenBy(l => l.GroupName, StringComparer.CurrentCulture)
+            .ToList();
+    }
+
+    /// <summary>Kunlik jarima xabari (o'qituvchiga).</summary>
+    public static string DailyFineText(string date, IReadOnlyList<string> groupNames, string deadlineHm, decimal amount) =>
+        $"❗️ {Dmy(date)} — davomat {deadlineHm} gacha olinmadi: {string.Join(", ", groupNames)}. "
+        + $"{AuditService.Money(amount)} so'm jarima yozildi (kuniga bitta). E'tirozingiz bo'lsa, administratorga murojaat qiling.";
+
+    /// <summary>Kunlik jarima xabari bir martaligi (o'qituvchi + kun).</summary>
+    public static string DailyFineKey(string teacherId, string date) => $"disc:dfine:{teacherId}:{date}";
+
     /// <summary>LessonReminderMark keys (per group, per day) — at most once even across restarts.</summary>
     public static string ReminderKey(string groupId, string date, int minute) => $"disc:rem:{groupId}:{date}:{minute}";
     public static string FineKey(string groupId, string date) => $"disc:fine:{groupId}:{date}";

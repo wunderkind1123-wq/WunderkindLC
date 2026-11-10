@@ -18,6 +18,8 @@ export interface AttendanceFine {
   waivedByName: string | null
   waivedAt: string | null
   waiveReason: string | null
+  /** 2026-11-10: `daily` — o'qituvchiga kunlik jarima (`groupName` = davomat olinmagan guruhlar ro'yxati), `lesson` — bitta dars. */
+  kind?: 'lesson' | 'daily'
 }
 
 export interface AttendanceFineList {

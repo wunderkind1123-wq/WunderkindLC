@@ -40,9 +40,9 @@ public class AttendanceFinesController(AppDbContext db, AuditService audit) : Co
         if (f.Status != AttendanceDiscipline.FineActive)
             return Conflict(new { message = "Jarima allaqachon bekor qilingan" });
 
-        var (teacherName, groupName) = await NamesAsync(f.TeacherId, f.GroupId);
+        var (teacherName, groupName) = await NamesAsync(f);
         Apply(f, req.Reason!.Trim());
-        audit.Record(AttendanceFineAudit.EntityType, AttendanceFineAudit.EntityId(f.GroupId, f.Id), "update",
+        audit.Record(AttendanceFineAudit.EntityType, AttendanceFineAudit.EntityIdOf(f), "update",
             $"Davomat jarimasi bekor qilindi: {teacherName}, {groupName}, {AttendanceDiscipline.Dmy(f.LessonDate)} "
             + $"({AuditService.Money(f.Amount)} so'm) — sabab: {f.WaiveReason}",
             teacherId: f.TeacherId);
@@ -59,13 +59,13 @@ public class AttendanceFinesController(AppDbContext db, AuditService audit) : Co
         if (f.Status != AttendanceDiscipline.FineWaived)
             return Conflict(new { message = "Jarima bekor qilinmagan" });
 
-        var (teacherName, groupName) = await NamesAsync(f.TeacherId, f.GroupId);
+        var (teacherName, groupName) = await NamesAsync(f);
         f.Status = AttendanceDiscipline.FineActive;
         f.WaivedAt = null;
         f.WaivedById = null;
         f.WaivedByName = null;
         f.WaiveReason = null;
-        audit.Record(AttendanceFineAudit.EntityType, AttendanceFineAudit.EntityId(f.GroupId, f.Id), "update",
+        audit.Record(AttendanceFineAudit.EntityType, AttendanceFineAudit.EntityIdOf(f), "update",
             $"Davomat jarimasi tiklandi: {teacherName}, {groupName}, {AttendanceDiscipline.Dmy(f.LessonDate)} "
             + $"({AuditService.Money(f.Amount)} so'm)",
             teacherId: f.TeacherId);
@@ -87,9 +87,9 @@ public class AttendanceFinesController(AppDbContext db, AuditService audit) : Co
             .ToListAsync();
         foreach (var f in rows)
         {
-            var (teacherName, groupName) = await NamesAsync(f.TeacherId, f.GroupId);
+            var (teacherName, groupName) = await NamesAsync(f);
             Apply(f, reason);
-            audit.Record(AttendanceFineAudit.EntityType, AttendanceFineAudit.EntityId(f.GroupId, f.Id), "update",
+            audit.Record(AttendanceFineAudit.EntityType, AttendanceFineAudit.EntityIdOf(f), "update",
                 $"Davomat jarimasi kun bo'yicha bekor qilindi ({AttendanceDiscipline.Dmy(f.LessonDate)}): {teacherName}, "
                 + $"{groupName} ({AuditService.Money(f.Amount)} so'm) — sabab: {reason}",
                 teacherId: f.TeacherId);
@@ -107,7 +107,10 @@ public class AttendanceFinesController(AppDbContext db, AuditService audit) : Co
         f.WaiveReason = reason;
     }
 
-    private async Task<(string Teacher, string Group)> NamesAsync(string teacherId, string groupId) =>
-        ((await db.Teachers.AsNoTracking().Where(t => t.Id == teacherId).Select(t => t.FullName).FirstOrDefaultAsync()) ?? "",
-         (await db.Classes.AsNoTracking().Where(g => g.Id == groupId).Select(g => g.Name).FirstOrDefaultAsync()) ?? "");
+    /// <summary>O'qituvchi va guruh nomi; KUNLIK jarimada guruh o'rniga davomat olinmagan guruhlar ro'yxati (2026-11-10).</summary>
+    private async Task<(string Teacher, string Group)> NamesAsync(TeacherAttendanceFine f) =>
+        ((await db.Teachers.AsNoTracking().Where(t => t.Id == f.TeacherId).Select(t => t.FullName).FirstOrDefaultAsync()) ?? "",
+         f.Kind == AttendanceDiscipline.KindDaily
+             ? f.MissedGroups ?? ""
+             : (await db.Classes.AsNoTracking().Where(g => g.Id == f.GroupId).Select(g => g.Name).FirstOrDefaultAsync()) ?? "");
 }

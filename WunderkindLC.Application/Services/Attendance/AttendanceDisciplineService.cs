@@ -75,6 +75,9 @@ public sealed class AttendanceDisciplineService(
         var meta = await db.CenterMeta.AsNoTracking().FirstOrDefaultAsync(ct);
         if (meta is null || !meta.AttendanceDisciplineEnabled) return new RunResult(0, 0, 0);
         var settings = AttendanceSettingsRules.FromMeta(meta);
+        // 2026-11-10: KUNLIK rejim — har dars uchun jarima YOZILMAYDI, o'rniga kuniga bitta (RunDailyAsync).
+        var daily = settings.FineMode == AttendanceSettingsRules.ModeDaily;
+        var deadlineHm = settings.DailyDeadline ?? "19:30";
 
         var today = DateOnly.FromDateTime(now);
         int reminders = 0, fines = 0, escalations = 0;
@@ -103,13 +106,13 @@ public sealed class AttendanceDisciplineService(
                     if (!await LessonAttendanceReminderService.TryMarkAsync(
                             db, AttendanceDiscipline.ReminderKey(g.Id, todayStr, m), todayStr, ct)) continue;
                     var text = AttendanceDiscipline.ReminderText(g.Name, courseName, l.StartTime, d.Deadline!.Value,
-                        settings.FineEnabled, settings.FineAmount);
+                        settings.FineEnabled && !daily, settings.FineAmount);
                     await SendTeacherAsync(db, send, names, teacherId, "Davomat eslatmasi", text, ct);
                     reminders++;
                 }
 
                 TeacherAttendanceFine? fine = null;
-                if (d.FineDue && teacherId.Length > 0)
+                if (d.FineDue && !daily && teacherId.Length > 0)
                 {
                     fine = await TryCreateFineAsync(db, audit, g, teacherId, todayStr, l.StartTime, d.Deadline!.Value,
                         settings.FineAmount, takenAt, now, names, ct, log);
@@ -152,7 +155,7 @@ public sealed class AttendanceDisciplineService(
         var yesterday = today.AddDays(-1);
         var yStr = yesterday.ToString("yyyy-MM-dd");
         var yLessons = await LessonsAsync(db, yesterday, ct);
-        if (yLessons.Count > 0 && settings.FineEnabled && settings.FineAmount > 0)
+        if (!daily && yLessons.Count > 0 && settings.FineEnabled && settings.FineAmount > 0)
         {
             var taken = await AttendanceTaking.FirstMarksAsync(db, yStr, yLessons.Select(l => l.Lesson.Group.Id).ToList(), ct);
             var names = await NamesAsync(db, yLessons, ct);
@@ -170,11 +173,110 @@ public sealed class AttendanceDisciplineService(
             }
         }
 
+        // ---- KUNLIK JARIMA: bugun (muddat o'tgach, xabar bilan) va kecha (to'xtab qolishda o'tkazilgani, xabarsiz) ----
+        if (daily && settings.FineEnabled && settings.FineAmount > 0)
+        {
+            fines += await RunDailyAsync(db, audit, send, today, todayLessons, deadlineHm, settings, meta, now, notify: true, ct, log);
+            fines += await RunDailyAsync(db, audit, send, yesterday, yLessons, deadlineHm, settings, meta, now, notify: false, ct, log);
+        }
+
         return new RunResult(reminders, fines, escalations);
     }
 
     private static Task<bool> LessonReminderTryMark(IAppDbContext db, string key, string date, CancellationToken ct) =>
         LessonAttendanceReminderService.TryMarkAsync(db, key, date, ct);
+
+    /// <summary>
+    /// KUNLIK JARIMA (2026-11-10, egasi): <paramref name="day"/> muddatidan (<paramref name="deadlineHm"/>) keyin — har
+    /// o'qituvchi (darsni O'TGAN — o'rinbosar bo'lsa u) uchun shu kungi darslaridan birortasining davomati muddatgacha
+    /// olinmagan bo'lsa BITTA jarima (unikal: o'qituvchi + kun). Muddat o'tib, kun TO'LIQ qayta ishlangach kun belgisi
+    /// qo'yiladi — keyingi daqiqalarda bu kun uchun baza qayta so'ralmaydi (natija muddatdan keyin o'zgarmaydi).
+    /// </summary>
+    private static async Task<int> RunDailyAsync(
+        IAppDbContext db, AuditService audit, Func<long, string, CancellationToken, Task>? send, DateOnly day,
+        List<(AttendanceWatch.DayLesson Lesson, int Expected)> lessons, string deadlineHm, AttendanceSettingsDto settings,
+        CenterMeta meta, DateTime now, bool notify, CancellationToken ct, ILogger? log)
+    {
+        var date = day.ToString("yyyy-MM-dd");
+        if (AttendanceDiscipline.StartOf(date, deadlineHm) is not { } deadline || now < deadline) return 0;
+        var dayKey = $"disc:dday:{date}:{deadlineHm}";
+        if (await db.LessonReminderMarks.AsNoTracking().AnyAsync(m => m.Key == dayKey, ct)) return 0;
+
+        var created = 0;
+        var failed = false;
+        if (lessons.Count > 0)
+        {
+            var taken = await AttendanceTaking.FirstMarksAsync(db, date, lessons.Select(l => l.Lesson.Group.Id).ToList(), ct);
+            var names = await NamesAsync(db, lessons, ct);
+            var byTeacher = lessons
+                .Select(x => (Teacher: LessonAttendanceReminderService.RecipientTeacherId(x.Lesson), x.Lesson))
+                .Where(x => x.Teacher.Length > 0)
+                .GroupBy(x => x.Teacher, StringComparer.Ordinal);
+            foreach (var g in byTeacher)
+            {
+                var missed = AttendanceDiscipline.DailyMissed(date, deadlineHm,
+                    g.Select(x => new AttendanceDiscipline.DailyLesson(x.Lesson.Group.Id, x.Lesson.Group.Name, x.Lesson.StartTime,
+                        taken.TryGetValue(x.Lesson.Group.Id, out var t) ? t : null)),
+                    now, settings, meta.AttendanceDisciplineSince, meta.AttendanceFineSince);
+                if (missed.Count == 0) continue;
+                if (!names.Teachers.TryGetValue(g.Key, out var teacher)) continue;   // arxivlangan/topilmagan — jarima yo'q
+                if (await db.TeacherAttendanceFines.AsNoTracking().AnyAsync(f =>
+                        f.TeacherId == g.Key && f.LessonDate == date && f.Kind == AttendanceDiscipline.KindDaily, ct))
+                    continue;
+
+                var groupNames = missed.Select(m => m.GroupName).ToList();
+                var fine = new TeacherAttendanceFine
+                {
+                    TeacherId = g.Key,
+                    GroupId = "",
+                    LessonDate = date,
+                    Month = date[..7],
+                    LessonStart = missed[0].StartTime,
+                    Deadline = deadline,
+                    Amount = settings.FineAmount,
+                    Status = AttendanceDiscipline.FineActive,
+                    Kind = AttendanceDiscipline.KindDaily,
+                    MissedGroups = Trim(string.Join(", ", groupNames), 1000),
+                    CreatedAt = now,
+                };
+                db.TeacherAttendanceFines.Add(fine);
+                audit.Record(AttendanceFineAudit.EntityType, AttendanceFineAudit.EntityId("daily", fine.Id), "create",
+                    $"Kunlik davomat jarimasi yozildi: {teacher.FullName}, {AttendanceDiscipline.Dmy(date)} — davomat {deadlineHm} gacha "
+                    + $"olinmadi ({fine.MissedGroups}), {AuditService.Money(fine.Amount)} so'm",
+                    teacherId: g.Key);
+                try
+                {
+                    await db.SaveChangesAsync(ct);
+                    created++;
+                }
+                catch (DbUpdateException ex)
+                {
+                    db.TeacherAttendanceFines.Entry(fine).State = EntityState.Detached;
+                    var auditId = AttendanceFineAudit.EntityId("daily", fine.Id);
+                    foreach (var a in db.AuditLogs.Local.Where(a => a.EntityId == auditId).ToList())
+                        db.AuditLogs.Entry(a).State = EntityState.Detached;
+                    var raced = await db.TeacherAttendanceFines.AsNoTracking().AnyAsync(f =>
+                        f.TeacherId == g.Key && f.LessonDate == date && f.Kind == AttendanceDiscipline.KindDaily, ct);
+                    if (!raced)
+                    {
+                        failed = true;   // kun belgisi qo'yilmaydi — keyingi daqiqada qayta urinadi
+                        log?.LogWarning(ex, "Kunlik davomat jarimasi yozilmadi: o'qituvchi {Teacher}, sana {Date}", g.Key, date);
+                    }
+                    continue;
+                }
+
+                if (notify && await LessonReminderTryMark(db, AttendanceDiscipline.DailyFineKey(g.Key, date), date, ct))
+                {
+                    await SendTeacherAsync(db, send, names, g.Key, "Davomat jarimasi",
+                        AttendanceDiscipline.DailyFineText(date, groupNames, deadlineHm, fine.Amount), ct);
+                }
+            }
+        }
+        if (!failed) await LessonReminderTryMark(db, dayKey, date, ct);
+        return created;
+    }
+
+    private static string Trim(string s, int max) => s.Length <= max ? s : s[..(max - 1)] + "…";
 
     /// <summary>Kundagi darslar — boshlanish vaqti bor, kursi bor (jurnalsiz guruhda davomat olib bo'lmaydi) va
     /// o'sha kuni KUTILGAN (arxivlanmagan) o'quvchisi bor guruhlar; guruh bo'yicha eng erta dars.</summary>
@@ -332,4 +434,8 @@ public static class AttendanceFineAudit
 
     /// <summary><c>"{groupId}:{fineId}"</c> — guruh sahifasining «Tarix» tabida ham ko'rinadi (Membership naqshi).</summary>
     public static string EntityId(string groupId, string fineId) => $"{groupId}:{fineId}";
+
+    /// <summary>Kunlik jarimada guruh yo'q — <c>"daily:{fineId}"</c> (o'qituvchi tarixida `teacherId` bilan ko'rinadi).</summary>
+    public static string EntityIdOf(TeacherAttendanceFine f) =>
+        EntityId(f.Kind == AttendanceDiscipline.KindDaily ? AttendanceDiscipline.KindDaily : f.GroupId, f.Id);
 }

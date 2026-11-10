@@ -137,8 +137,34 @@ export function AttendanceFinesTab() {
         emptyHint="Davomat o'z vaqtida olinmagan dars bo'lsa jarima shu yerda paydo bo'ladi (Sozlamalar → O'quv → «Davomat intizomi»)."
         columns={[
           { key: 'teacher', header: "O'qituvchi", render: (f) => f.teacherName || '—' },
-          { key: 'group', header: 'Guruh', render: (f) => f.groupName || '—' },
-          { key: 'date', header: 'Dars', render: (f) => <span className="whitespace-nowrap">{dmy(f.lessonDate)} · {f.lessonStart}</span> },
+          {
+            key: 'group',
+            header: 'Guruh',
+            // 2026-11-10: kunlik jarima — guruh o'rnida davomat olinmagan guruhlar ro'yxati.
+            render: (f) =>
+              f.kind === 'daily' ? (
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  <span
+                    className="rounded bg-rose-50 px-1.5 py-px text-[11px] font-semibold text-rose-700"
+                    title="Kuniga bitta jarima — shu guruhlarda davomat muddatgacha olinmagan"
+                  >
+                    Kunlik
+                  </span>
+                  <span>{f.groupName || '—'}</span>
+                </span>
+              ) : (
+                f.groupName || '—'
+              ),
+          },
+          {
+            key: 'date',
+            header: 'Dars',
+            render: (f) => (
+              <span className="whitespace-nowrap">
+                {dmy(f.lessonDate)} · {f.kind === 'daily' ? `muddat ${f.deadline.slice(11, 16)}` : f.lessonStart}
+              </span>
+            ),
+          },
           { key: 'deadline', header: 'Muddat', render: (f) => hm(f.deadline) },
           {
             key: 'taken',

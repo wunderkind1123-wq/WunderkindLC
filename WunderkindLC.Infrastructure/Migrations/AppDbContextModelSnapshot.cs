@@ -1400,6 +1400,13 @@ namespace WunderkindLC.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("AttendanceDailyDeadline")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)")
+                        .HasDefaultValue("19:30");
+
                     b.Property<int>("AttendanceDeadlineMinutes")
                         .HasColumnType("integer");
 
@@ -1418,6 +1425,13 @@ namespace WunderkindLC.Infrastructure.Migrations
 
                     b.Property<bool>("AttendanceFineEnabled")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("AttendanceFineMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasDefaultValue("lesson");
 
                     b.Property<DateTime?>("AttendanceFineSince")
                         .HasColumnType("timestamp without time zone");
@@ -9808,6 +9822,13 @@ namespace WunderkindLC.Infrastructure.Migrations
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)");
 
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasDefaultValue("lesson");
+
                     b.Property<string>("LessonDate")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -9817,6 +9838,10 @@ namespace WunderkindLC.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(5)
                         .HasColumnType("character varying(5)");
+
+                    b.Property<string>("MissedGroups")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<string>("Month")
                         .IsRequired()
@@ -9853,7 +9878,13 @@ namespace WunderkindLC.Infrastructure.Migrations
                     b.HasIndex("LessonDate");
 
                     b.HasIndex("GroupId", "LessonDate")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"Kind\" = 'lesson'");
+
+                    b.HasIndex("TeacherId", "LessonDate")
+                        .IsUnique()
+                        .HasDatabaseName("IX_TeacherAttendanceFines_TeacherId_LessonDate_Daily")
+                        .HasFilter("\"Kind\" = 'daily'");
 
                     b.HasIndex("TeacherId", "Month");
 

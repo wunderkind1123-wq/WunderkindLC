@@ -8,6 +8,7 @@ import {
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Loader } from '@/components/ui/Loader'
+import { Time24Input } from '@/components/ui/Input'
 import { MoneyInput, NumberInput } from '@/components/ui/NumberInput'
 import { apiErrorMessage, cn } from '@/lib/utils'
 import { SettingToggle } from './SettingToggle'
@@ -20,6 +21,9 @@ interface Form {
   escalateEnabled: boolean
   fineEnabled: boolean
   fineAmount: number | null
+  /** 2026-11-10: `daily` — kuniga bitta jarima (`dailyDeadline` gacha), `lesson` — har dars uchun. */
+  fineMode: 'lesson' | 'daily'
+  dailyDeadline: string
 }
 
 const inputCls =
@@ -52,6 +56,8 @@ export function AttendanceDisciplineModal({ open, onClose }: { open: boolean; on
           escalateEnabled: s.escalateEnabled,
           fineEnabled: s.fineEnabled,
           fineAmount: s.fineAmount,
+          fineMode: s.fineMode === 'daily' ? 'daily' : 'lesson',
+          dailyDeadline: s.dailyDeadline || '19:30',
         })
       })
       .catch((err) => {
@@ -66,6 +72,10 @@ export function AttendanceDisciplineModal({ open, onClose }: { open: boolean; on
 
   const save = async () => {
     if (!form || !loaded) return
+    if (form.fineEnabled && form.fineMode === 'daily' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(form.dailyDeadline)) {
+      setError("Kunlik muddatni HH:MM ko'rinishida kiriting (masalan 19:30)")
+      return
+    }
     if (form.deadlineMinutes === null) {
       setError('Davomat muddatini kiriting')
       return
@@ -86,6 +96,8 @@ export function AttendanceDisciplineModal({ open, onClose }: { open: boolean; on
         escalateEnabled: form.escalateEnabled,
         fineEnabled: form.fineEnabled,
         fineAmount: form.fineAmount ?? 0,
+        fineMode: form.fineMode,
+        dailyDeadline: form.dailyDeadline,
       })
       setLoaded(saved)
       // Ogohlantirish bo'lsa (masalan ikki marta eslatma) oyna OCHIQ qoladi — admin uni ko'rsin.
@@ -170,14 +182,44 @@ export function AttendanceDisciplineModal({ open, onClose }: { open: boolean; on
             />
 
             {form.fineEnabled && (
-              <div className="flex flex-wrap items-center gap-3 rounded-lg bg-slate-50 px-3 py-2.5">
-                <span className="text-sm text-slate-600">Bir dars uchun jarima (so'm)</span>
-                <MoneyInput
-                  as="input"
-                  value={form.fineAmount}
-                  onChange={(v) => set({ fineAmount: v })}
-                  className={cn(inputCls, 'w-36')}
-                />
+              <div className="space-y-3 rounded-lg bg-slate-50 px-3 py-2.5">
+                {/* 2026-11-10 (egasi): kunlik rejim — «19:30 gacha davomat qilmasa 50 000, bir nechta guruh bo'lsa ham bitta». */}
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    ['daily', 'Kuniga bitta jarima', 'Belgilangan vaqtgacha shu kungi biror guruhda davomat olinmasa — o‘qituvchiga bitta jarima'],
+                    ['lesson', 'Har dars uchun', 'Dars boshlangandan keyin muddatgacha olinmasa — har guruh uchun alohida jarima'],
+                  ] as const).map(([mode, title, hint]) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => set({ fineMode: mode })}
+                      className={cn(
+                        'flex-1 rounded-lg px-3 py-2 text-left ring-1 transition',
+                        form.fineMode === mode ? 'bg-white ring-brand-400' : 'bg-transparent ring-slate-200 hover:bg-white',
+                      )}
+                    >
+                      <span className={cn('block text-sm font-semibold', form.fineMode === mode ? 'text-brand-700' : 'text-slate-700')}>{title}</span>
+                      <span className="block text-xs text-slate-500">{hint}</span>
+                    </button>
+                  ))}
+                </div>
+                {form.fineMode === 'daily' && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-sm text-slate-600">Davomat muddati (har kuni)</span>
+                    <Time24Input value={form.dailyDeadline} onChange={(v) => set({ dailyDeadline: v })} />
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-sm text-slate-600">
+                    {form.fineMode === 'daily' ? "Kunlik jarima (so'm)" : "Bir dars uchun jarima (so'm)"}
+                  </span>
+                  <MoneyInput
+                    as="input"
+                    value={form.fineAmount}
+                    onChange={(v) => set({ fineAmount: v })}
+                    className={cn(inputCls, 'w-36')}
+                  />
+                </div>
               </div>
             )}
 

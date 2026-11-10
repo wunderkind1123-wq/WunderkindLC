@@ -19,6 +19,8 @@ public partial class AppDbContext
         b.Entity<LessonNote>().HasIndex(x => new { x.ClassId, x.Date });
 
         b.Entity<CenterMeta>().Property(x => x.AttendanceReminderMinutes).HasMaxLength(32);
+        b.Entity<CenterMeta>().Property(x => x.AttendanceFineMode).HasMaxLength(8).HasDefaultValue("lesson");
+        b.Entity<CenterMeta>().Property(x => x.AttendanceDailyDeadline).HasMaxLength(5).HasDefaultValue("19:30");
         b.Entity<CenterMeta>().Property(x => x.AttendanceFineAmount).HasPrecision(18, 2);
         b.Entity<CenterMeta>().Property(x => x.AbsentNoticeApproval).HasMaxLength(16);
         b.Entity<CenterMeta>().Property(x => x.AbsenceStreakReasonId).HasMaxLength(200);
@@ -51,8 +53,13 @@ public partial class AppDbContext
         f.Property(x => x.WaivedById).HasMaxLength(200);
         f.Property(x => x.WaivedByName).HasMaxLength(200);
         f.Property(x => x.WaiveReason).HasMaxLength(300);
-        // At most one fine per group per day — the background job relies on it (restart/race safe).
-        f.HasIndex(x => new { x.GroupId, x.LessonDate }).IsUnique();
+        f.Property(x => x.Kind).HasMaxLength(8).HasDefaultValue("lesson");
+        f.Property(x => x.MissedGroups).HasMaxLength(1000);
+        // At most one fine per group per day (lesson mode) / per TEACHER per day (daily mode, 2026-11-10) — the background
+        // job relies on it (restart/race safe). Filtered, so the two kinds never collide.
+        f.HasIndex(x => new { x.GroupId, x.LessonDate }).IsUnique().HasFilter("\"Kind\" = 'lesson'");
+        f.HasIndex(x => new { x.TeacherId, x.LessonDate }).IsUnique().HasFilter("\"Kind\" = 'daily'")
+            .HasDatabaseName("IX_TeacherAttendanceFines_TeacherId_LessonDate_Daily");
         f.HasIndex(x => new { x.TeacherId, x.Month });
         f.HasIndex(x => x.LessonDate);
 

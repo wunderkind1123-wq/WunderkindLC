@@ -14,6 +14,10 @@ export interface AttendanceSettings {
   fineEnabled: boolean
   /** Bir dars uchun jarima (so'm). */
   fineAmount: number
+  /** 2026-11-10: `daily` — kuniga bitta jarima (`dailyDeadline` gacha, masalan 19:30), `lesson` — har dars uchun. */
+  fineMode?: 'lesson' | 'daily'
+  /** Kunlik rejim muddati "HH:mm". */
+  dailyDeadline?: string
   /** «Kelmadi» xabari dars tugagandan keyin necha daqiqada (0..180). */
   absentNoticeDelayMinutes: number
   absentNoticeApproval: AbsentNoticeApproval

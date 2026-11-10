@@ -8,7 +8,9 @@ namespace WunderkindLC.Application.Services;
 public record AttendanceFineDto(
     string Id, string TeacherId, string TeacherName, string GroupId, string GroupName,
     string LessonDate, string LessonStart, string Deadline, decimal Amount, string Status,
-    string? AttendanceTakenAt, string? WaivedByName, string? WaivedAt, string? WaiveReason);
+    string? AttendanceTakenAt, string? WaivedByName, string? WaivedAt, string? WaiveReason,
+    // 2026-11-10: `lesson` | `daily` (kunlik — GroupName = davomat olinmagan guruhlar ro'yxati).
+    string Kind = "lesson");
 
 /// <summary>List + totals (active fines only).</summary>
 public record AttendanceFineListDto(List<AttendanceFineDto> Rows, decimal TotalActive, int CountActive);
@@ -43,7 +45,8 @@ public static class AttendanceFineQueries
         var groups = await db.Classes.AsNoTracking().Where(g => groupIds.Contains(g.Id))
             .Select(g => new { g.Id, g.Name }).ToDictionaryAsync(g => g.Id, g => g.Name, ct);
 
-        var dtos = rows.Select(f => ToDto(f, teachers.GetValueOrDefault(f.TeacherId, ""), groups.GetValueOrDefault(f.GroupId, "")))
+        var dtos = rows.Select(f => ToDto(f, teachers.GetValueOrDefault(f.TeacherId, ""),
+                f.Kind == AttendanceDiscipline.KindDaily ? f.MissedGroups ?? "" : groups.GetValueOrDefault(f.GroupId, "")))
             .ToList();
         var active = rows.Where(f => f.Status == AttendanceDiscipline.FineActive).ToList();
         return new AttendanceFineListDto(dtos, active.Sum(f => f.Amount), active.Count);
@@ -53,5 +56,6 @@ public static class AttendanceFineQueries
         f.Id, f.TeacherId, teacherName, f.GroupId, groupName,
         f.LessonDate, f.LessonStart, f.Deadline.ToString("yyyy-MM-ddTHH:mm:ss"), f.Amount, f.Status,
         f.AttendanceTakenAt?.ToString("yyyy-MM-ddTHH:mm:ss"), f.WaivedByName,
-        f.WaivedAt?.ToString("yyyy-MM-ddTHH:mm:ss"), f.WaiveReason);
+        f.WaivedAt?.ToString("yyyy-MM-ddTHH:mm:ss"), f.WaiveReason,
+        f.Kind == AttendanceDiscipline.KindDaily ? AttendanceDiscipline.KindDaily : AttendanceDiscipline.KindLesson);
 }

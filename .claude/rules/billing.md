@@ -1204,3 +1204,27 @@ tanlovi yo'q edi — to'lov reestrda ochiq turgan oyga (standart — JORIY) yozi
   Oyi yo'q eski XODIM maosh chiqimlari — faqat «to'langan»da, to'lov kuni bo'yicha (o'qituvchinikilar varaqada allaqachon bor).
 - ⚠️ Pul oqimi, Kirim-chiqim, Kassalar — AVVALGIDEK to'lov KUNI bo'yicha (pul kassadan qachon chiqqan).
 - Testlar: `PnlSalaryMonthTests`.
+
+### KUNLIK DAVOMAT JARIMASI (2026-11-10, migratsiya `AddDailyAttendanceFines`)
+
+Egasi: «o'qituvchi har kuni 19:30 gacha davomat qilmasa — avtomatik 50 000 so'm jarima; bir kunda bir nechta guruh davomati
+qilinmasa ham BITTA jarima; Jarimalar bo'limida ko'rinsin». «Davomat intizomi» sozlamasida jarima REJIMI:
+`CenterMeta.AttendanceFineMode` = `lesson` (avvalgidek — har dars, dars boshi + muddat) | **`daily`**, muddat —
+`AttendanceDailyDeadline` ("HH:mm", standart 19:30), summa — `AttendanceFineAmount`.
+
+- **Qoida (`AttendanceDiscipline.DailyMissed`, sof):** kun muddati o'tgach, o'qituvchining (darsni O'TGAN — o'rinbosar bo'lsa u)
+  shu kungi darslaridan davomati muddatgacha olinmaganlari (birinchi belgi > muddat yoki yo'q). Muddatdan KEYIN boshlanadigan
+  dars hisobga olinmaydi; kech olingan davomat qutqarmaydi; jarima/intizom yoqilgan vaqtdan oldingi muddat — jarima yo'q.
+  Kutilgan o'quvchisi yo'q / kursi yo'q / boshlanish vaqti yo'q guruh — `lesson` rejimidagi bilan bir xil (`LessonsAsync`).
+- **Yozuv:** `TeacherAttendanceFine` `Kind = daily`, `GroupId = ""`, `MissedGroups` (nomlar SNAPSHOT), `Deadline` = kun + muddat.
+  Unikal: `(TeacherId, LessonDate)` WHERE `Kind='daily'`; `lesson` uchun `(GroupId, LessonDate)` WHERE `Kind='lesson'`.
+  Har biriga audit (`TeacherAttendanceFine`, `EntityId = "daily:{id}"`, `teacherId`). O'qituvchiga bitta xabar (qo'ng'iroqcha +
+  Telegram; `disc:dfine:{teacher}:{date}`). Kun to'liq qayta ishlangach `disc:dday:{date}:{HH:mm}` belgisi — keyingi daqiqalarda
+  baza qayta so'ralmaydi; xato bo'lsa belgi qo'yilmaydi (qayta urinadi). Server o'chiq bo'lsa kechagi kun ham (xabarsiz) yoziladi.
+- `daily` rejimida HAR DARS jarimasi YOZILMAYDI (eslatma va administratorga xabar — avvalgidek sozlamaga ko'ra; eslatma matnida
+  jarima summasi aytilmaydi).
+- **Maosh:** `SalaryLedger` jarimalarni o'qituvchi + OY bo'yicha oladi — kunlik jarima ham avtomatik ushlanadi (qoldiqdan oshmaydi).
+- **Ko'rinish:** Moliya → Jarima → «Davomat jarimalari» — «Kunlik» belgisi, «Guruh» ustunida olinmagan guruhlar, «Dars» ustunida
+  «muddat 19:30»; bekor qilish/tiklash/kun bo'yicha bekor qilish — avvalgidek. O'qituvchi portali → Maosh ham shu ro'yxat.
+- Sozlama: Sozlamalar → O'quv → «Davomat intizomi» → «Jarima yozilsin» → «Kuniga bitta jarima» + vaqt + summa.
+- Testlar: `DailyAttendanceFineTests`.

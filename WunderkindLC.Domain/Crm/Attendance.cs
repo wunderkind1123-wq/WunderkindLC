@@ -70,6 +70,16 @@ public partial class CenterMeta
     /// Fines are NOT retroactive: a lesson whose deadline is before this moment is never fined.
     /// </summary>
     public DateTime? AttendanceFineSince { get; set; }
+
+    /// <summary>
+    /// Jarima rejimi (2026-11-10): <c>lesson</c> — har dars uchun (dars boshi + <see cref="AttendanceDeadlineMinutes"/>);
+    /// <c>daily</c> — KUNLIK: <see cref="AttendanceDailyDeadline"/> gacha shu kungi biror guruhda davomat olinmasa o'qituvchiga
+    /// kuniga BITTA jarima (egasi: «19:30 gacha davomat qilmasa — 50 000, bir nechta guruh bo'lsa ham bitta»).
+    /// </summary>
+    public string AttendanceFineMode { get; set; } = "lesson";
+
+    /// <summary>Kunlik rejim muddati, "HH:mm" (markaz vaqti). Shu vaqtdan KEYIN boshlanadigan darslar hisobga olinmaydi.</summary>
+    public string AttendanceDailyDeadline { get; set; } = "19:30";
 }
 
 /// <summary>
@@ -102,6 +112,13 @@ public class TeacherAttendanceFine
     public string? WaivedById { get; set; }
     public string? WaivedByName { get; set; }
     public string? WaiveReason { get; set; }
+
+    /// <summary><c>lesson</c> — bitta dars (GroupId bilan); <c>daily</c> — o'qituvchiga kunlik jarima (GroupId bo'sh,
+    /// <see cref="MissedGroups"/> — davomat olinmagan guruhlar nomlari, SNAPSHOT).</summary>
+    public string Kind { get; set; } = "lesson";
+
+    /// <summary>Kunlik jarimada: davomat muddatgacha olinmagan guruhlar ("A, B").</summary>
+    public string? MissedGroups { get; set; }
 }
 
 /// <summary>
