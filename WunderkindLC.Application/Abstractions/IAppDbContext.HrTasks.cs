@@ -21,4 +21,5 @@ public partial interface IAppDbContext
     DbSet<HrTrialTask> HrTrialTasks { get; }
     /// <summary>LC: lid (sotuv) topshiriqlari ↔ lidlar (`HrLeadTask`).</summary>
     DbSet<HrLeadTask> HrLeadTasks { get; }
+    DbSet<HrServiceTask> HrServiceTasks { get; }
 }

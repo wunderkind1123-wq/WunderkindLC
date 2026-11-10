@@ -18,18 +18,19 @@ public sealed partial class HrTasksService
     public async Task<int> RunTrialTasksAsync(DateTimeOffset now, CancellationToken ct = default)
     {
         now = now.ToUniversalTime();
-        var tz = (await GetOrCreateSettingsAsync(ct)).Zone;
+        var settings = await GetOrCreateSettingsAsync(ct);
+        var tz = settings.Zone;
         var local = HrValues.Local(now, tz);
         var today = DateOnly.FromDateTime(local);
         var changed = await AutoCloseTrialTasksAsync(today, now, ct);
         if (TimeOnly.FromDateTime(local) >= HrTrialRules.SendAt)
             foreach (var kind in HrTrialTaskKinds.All)
-                changed += await EnsureTrialListsAsync(kind, today, local, now, tz, ct);
+                changed += await EnsureTrialListsAsync(kind, today, local, now, tz, settings.TrialTaskEmployeeId, ct);
         return changed;
     }
 
     private async Task<int> EnsureTrialListsAsync(
-        string kind, DateOnly today, DateTime local, DateTimeOffset now, TimeZoneInfo tz, CancellationToken ct)
+        string kind, DateOnly today, DateTime local, DateTimeOffset now, TimeZoneInfo tz, string? fixedEmployeeId, CancellationToken ct)
     {
         var day = HrTrialRules.LessonDay(kind, today);
         var prefix = day.ToString("yyyy-MM-dd");
@@ -50,6 +51,8 @@ public sealed partial class HrTasksService
         var employeeByUser = employees.Where(e => !e.UserId.StartsWith("deleted:"))
             .GroupBy(e => e.UserId).ToDictionary(g => g.Key, g => g.First().Id);
         var directors = employees.Where(e => e.HrRole == HrRoles.Director).Select(e => e.Id).ToList();
+        // LC (egasi, 2026-11-10): sozlamada xodim tanlangan bo'lsa — HAMMA ro'yxat faqat unga (faol bo'lsa).
+        var fixedTo = fixedEmployeeId is { Length: > 0 } fid && employees.Any(e => e.Id == fid) ? fid : null;
         var bookedBy = (await db.LeadEvents.AsNoTracking()
                 .Where(e => leadIds.Contains(e.LeadId) && e.Type == "trial" && e.ActorUserId != null && e.ActorUserId != "")
                 .Select(e => new { e.LeadId, e.ActorUserId, e.CreatedAt })
@@ -61,7 +64,7 @@ public sealed partial class HrTasksService
         foreach (var trial in eligible)
         {
             var lead = leads[trial.LeadId];
-            var to = HrTrialRules.Recipients(lead.AssigneeUserId, bookedBy.GetValueOrDefault(trial.LeadId),
+            var to = fixedTo is not null ? [fixedTo] : HrTrialRules.Recipients(lead.AssigneeUserId, bookedBy.GetValueOrDefault(trial.LeadId),
                 u => employeeByUser.GetValueOrDefault(u), directors);
             if (to.Count == 0)
                 logger.LogWarning("HR sinov: {Lead} lidi uchun topshiriq oluvchi topilmadi (mas'ul, yozgan va direktor yo'q)", trial.LeadId);

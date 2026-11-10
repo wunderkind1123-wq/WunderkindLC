@@ -823,6 +823,10 @@ export interface HrSettings {
   /** LC: kunduzgi «hali bajarilmagan» ro'yxat (sukut 16:00) — eski javobda bo'lmasligi mumkin. */
   afternoonListEnabled?: boolean
   afternoonTime?: HrTimeString
+  /** LC (2026-11-10): sinov darsi ro'yxatlari FAQAT shu xodimga (`hr_employees.id`); bo'sh — lid mas'uli. */
+  trialTaskEmployeeId?: string | null
+  /** LC (2026-11-10): «Service» (Bog'lanish kerak) kunlik topshirig'i shu xodimga; bo'sh — yaratilmaydi. */
+  serviceTaskEmployeeId?: string | null
   generationTime: HrTimeString
   closeOverdueTime: HrTimeString
 

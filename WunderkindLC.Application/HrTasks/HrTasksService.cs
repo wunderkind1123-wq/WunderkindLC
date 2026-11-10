@@ -120,15 +120,28 @@ public sealed partial class HrTasksService(
         // LC: kunduzgi ro'yxat (§11) — eski klient maydonni yubormasa joriy qiymat qoladi
         if (input.AfternoonListEnabled is { } afternoonOn) s.AfternoonListEnabled = afternoonOn;
         if (ParseTime(input.AfternoonTime, "afternoonTime") is { } afternoonAt) s.AfternoonTime = afternoonAt;
+        // LC (2026-11-10): sinov darsi / «Service» topshiriqlari kimga — faqat FAOL HR xodimi.
+        if (input.TrialTaskEmployeeId is { } trialTo) s.TrialTaskEmployeeId = await FixedRecipientAsync(trialTo, "Sinov darsi", ct);
+        if (input.ServiceTaskEmployeeId is { } serviceTo) s.ServiceTaskEmployeeId = await FixedRecipientAsync(serviceTo, "Service", ct);
         s.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
         return ToDto(s);
     }
 
+    /// <summary>"" → null (olib tashlash); aks holda faol HR xodimi bo'lishi shart (400 sabab bilan).</summary>
+    private async Task<string?> FixedRecipientAsync(string employeeId, string label, CancellationToken ct)
+    {
+        var id = employeeId.Trim();
+        if (id.Length == 0) return null;
+        if (!await db.HrEmployees.AsNoTracking().AnyAsync(e => e.Id == id && e.IsActive, ct))
+            throw HrErrors.Validation($"{label} topshiriqlari uchun tanlangan xodim topilmadi yoki faol emas");
+        return id;
+    }
+
     private static HrSettingsDto ToDto(HrSettings s) => new(
         s.Timezone, Hm(s.DigestTime), [.. s.DigestWeekdays.Select(x => (int)x)], s.MorningListEnabled,
         Hm(s.MorningTime), Hm(s.GenerationTime), Hm(s.CloseOverdueTime), s.ReminderEnabled,
-        [.. s.ReminderOffsets.Select(x => (int)x)], s.RemindEndOfDay, s.UpdatedAt, s.AfternoonListEnabled, Hm(s.AfternoonTime));
+        [.. s.ReminderOffsets.Select(x => (int)x)], s.RemindEndOfDay, s.UpdatedAt, s.AfternoonListEnabled, Hm(s.AfternoonTime), s.TrialTaskEmployeeId, s.ServiceTaskEmployeeId);
 
     // =====================================================================
     //  Scope

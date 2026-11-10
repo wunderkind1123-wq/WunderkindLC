@@ -258,3 +258,19 @@ o'qituvchi portali avvalgidek «Kun bo'yicha»). Sof qoida — `myBoard.ts` (`my
 «Tasdiqlanmagan» kartasi, «Tasdiq» filtri, tafsilotdagi tasdiq qatori, lid sahifasidagi «qabul qildi» — yo'q.
 Eski xabarlardagi `hrack:` tugmasi zararsiz ishlayveradi (`HrTaskAck`), eski `AcceptedAt` qiymatlari tegilmaydi.
 §5 dagi «✅ Qabul qildim» tavsifi — TARIX.
+
+## 14. AVTOMATIK TOPSHIRIQLAR OLUVCHISI — sinov darsi va «Service» (LC, 2026-11-10)
+
+Egasi: «sinov darsiga kelmaganlar faqat Dilfuza Rahimovaga topshiriq bo'lib yozilsin; servis uchun faqat Munojatga».
+Ikkalasi ham «Topshiriqlar → Sozlamalar» → «Avtomatik topshiriqlar kimga» (`HrSettings.TrialTaskEmployeeId`,
+`ServiceTaskEmployeeId`, migratsiya `AddHrServiceTasks`; faqat FAOL HR xodimi, `""` — olib tashlash, `null` — tegilmaydi).
+
+- **Sinov darsi (§8):** tanlangan bo'lsa — IKKALA ro'yxat (ertangi va kechagi) FAQAT shu xodimga; lid mas'uli/yozgan/direktor
+  zanjiri ishlatilmaydi. Tanlangan xodim nofaol bo'lib qolsa — eski zanjirga qaytadi.
+- **«Service» kunlik topshirig'i** (`HrTasksService.Service.cs`, jadval `hr_service_tasks`, unikal xodim + kun): har kuni 09:00 dan
+  keyin (rejalashtiruvchi har 5 daq) «Bog'lanish kerak» navbatidagi BUGUNGI ish — `new` + qayta qo'ng'iroq sanasi bugun/o'tgan
+  (`callback`) — BITTA ro'yxat (ism · telefon (ota-ona, bo'lmasa o'quvchi) · sabab · kechikkan sana; ko'pi bilan 60 qator).
+  «Berdi: Tizim (Service)», `ProofRequired = false`, muddat 20:00. Navbatda ish bo'lmasa — yaratilmaydi. Ertasi kuni yangi
+  ro'yxat yaratilganda kechagi OCHIQ ro'yxat bekor qilinadi («yangi ro'yxat bilan almashtirildi»). Ro'yxatdagi HAMMA talab
+  yopilsa (done/failed/o'chirilgan) — topshiriq O'ZI bajariladi (oyna 14 kun). Kun ichida yangi tushgan talab — ertangi ro'yxatda.
+- Testlar: `HrServiceAndFixedTrialTests`.

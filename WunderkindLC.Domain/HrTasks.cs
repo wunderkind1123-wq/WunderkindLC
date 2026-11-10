@@ -790,6 +790,10 @@ public class HrSettings
     /// <summary>LC: kunduzgi «bajarilmaganlar» ro'yxati (§11).</summary>
     public bool AfternoonListEnabled { get; set; } = true;
     public TimeOnly AfternoonTime { get; set; } = new(16, 0);
+    /// <summary>LC (egasi, 2026-11-10): sinov darsi ro'yxatlari FAQAT shu xodimga (`hr_employees.id`); bo'sh — lid mas'uli → yozgan → direktor (§8).</summary>
+    public string? TrialTaskEmployeeId { get; set; }
+    /// <summary>LC (egasi, 2026-11-10): «Service» (Bog'lanish kerak) kunlik topshirig'i shu xodimga; bo'sh — yaratilmaydi (§14).</summary>
+    public string? ServiceTaskEmployeeId { get; set; }
     public TimeOnly GenerationTime { get; set; } = new(0, 10);
     public TimeOnly CloseOverdueTime { get; set; } = new(23, 50);
     public bool ReminderEnabled { get; set; } = true;

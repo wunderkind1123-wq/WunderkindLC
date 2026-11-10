@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Lock } from 'lucide-react'
-import { getSettings, hrErrorMessage, hrErrorStatus, updateSettings } from '@/api/services/hrTasks'
+import { getEmployees, getSettings, hrErrorMessage, hrErrorStatus, updateSettings } from '@/api/services/hrTasks'
 import type { HrSettings, HrSettingsPayload } from '@/types/hrTasks'
 import {
   HR_DEFAULT_REMINDER_OFFSETS,
+  HR_MAX_PAGE_SIZE,
   HR_MAX_REMINDER_OFFSETS,
   HR_REMINDER_OFFSET_CHOICES,
   HR_REMINDER_OFFSET_MAX,
@@ -31,6 +32,9 @@ interface FormValues {
   morningTime: string
   afternoonListEnabled: boolean
   afternoonTime: string
+  /** LC (2026-11-10): sinov darsi ro'yxatlari / «Service» kunlik topshirig'i kimga ('' — yo'q). */
+  trialTaskEmployeeId: string
+  serviceTaskEmployeeId: string
   reminderEnabled: boolean
   reminderOffsets: number[]
   remindEndOfDay: boolean
@@ -46,6 +50,8 @@ function toForm(s: HrSettings): FormValues {
     morningTime: toTime(s.morningTime),
     afternoonListEnabled: s.afternoonListEnabled ?? true,
     afternoonTime: toTime(s.afternoonTime) || '16:00',
+    trialTaskEmployeeId: s.trialTaskEmployeeId ?? '',
+    serviceTaskEmployeeId: s.serviceTaskEmployeeId ?? '',
     reminderEnabled: s.reminderEnabled ?? true,
     reminderOffsets: [...(s.reminderOffsets ?? HR_DEFAULT_REMINDER_OFFSETS)],
     remindEndOfDay: s.remindEndOfDay ?? false,
@@ -80,6 +86,8 @@ function toPayload(v: FormValues, current: HrSettings): HrSettingsPayload {
     morningTime: v.morningTime || current.morningTime,
     afternoonListEnabled: v.afternoonListEnabled,
     afternoonTime: v.afternoonTime || current.afternoonTime || '16:00',
+    trialTaskEmployeeId: v.trialTaskEmployeeId,
+    serviceTaskEmployeeId: v.serviceTaskEmployeeId,
     generationTime: current.generationTime,
     closeOverdueTime: current.closeOverdueTime,
     reminderEnabled: v.reminderEnabled,
@@ -155,6 +163,25 @@ function SettingsForm({
 
   // Buttons smallest first; a non-standard stored value (e.g. 45) is added too.
   const offsetChoices = [...new Set([...HR_REMINDER_OFFSET_CHOICES, ...values.reminderOffsets])].sort((a, b) => a - b)
+
+  // Avtomatik topshiriqlar oluvchisi — FAOL HR xodimlari (server ham faqat faolni qabul qiladi).
+  const employees = useLoad('hr-settings-employees', () => getEmployees({ isActive: true, limit: HR_MAX_PAGE_SIZE }))
+  const employeeOptions = (selected: string) => {
+    const list = employees.data?.items ?? []
+    return (
+      <>
+        {list.map((e) => (
+          <option key={e.id} value={e.id}>
+            {e.fullName}
+          </option>
+        ))}
+        {/* Tanlangani ro'yxatda yo'q (nofaol bo'lib qolgan) — jimgina yo'qolmasin. */}
+        {selected && employees.data && !list.some((e) => e.id === selected) && (
+          <option value={selected}>(nofaol xodim)</option>
+        )}
+      </>
+    )
+  }
 
   async function save(): Promise<void> {
     setSubmitted(true)
@@ -232,6 +259,38 @@ function SettingsForm({
               <Time24Input value={values.afternoonTime} onChange={(afternoonTime) => set({ afternoonTime })} />
             </Field>
           )}
+        </section>
+
+        {/* LC (egasi, 2026-11-10): «sinov darsiga kelmaganlar — faqat Dilfuzaga; servis — faqat Munojatga». */}
+        <section className="space-y-3 rounded-xl border border-slate-200 p-3 sm:p-4">
+          <p className="font-medium text-slate-700">Avtomatik topshiriqlar kimga</p>
+          <Field
+            label="Sinov darsi ro‘yxatlari"
+            hint="«Ertaga sinovga keladiganlar» va «kecha sinovda bo‘lganlar» (09:00). Tanlanmasa — lid mas’uliga."
+          >
+            <select
+              className={inputCls}
+              value={values.trialTaskEmployeeId}
+              onChange={(e) => set({ trialTaskEmployeeId: e.target.value })}
+            >
+              <option value="">Lid mas’uli (standart)</option>
+              {employeeOptions(values.trialTaskEmployeeId)}
+            </select>
+          </Field>
+          <Field
+            label="Service (Bog‘lanish kerak) kunlik ro‘yxati"
+            hint="Har kuni 09:00 da bugun bog‘lanish kerak bo‘lgan o‘quvchilar ro‘yxati shu xodimga topshiriq bo‘lib boradi. Tanlanmasa — yaratilmaydi."
+          >
+            <select
+              className={inputCls}
+              value={values.serviceTaskEmployeeId}
+              onChange={(e) => set({ serviceTaskEmployeeId: e.target.value })}
+            >
+              <option value="">— yuborilmasin —</option>
+              {employeeOptions(values.serviceTaskEmployeeId)}
+            </select>
+          </Field>
+          {employees.error && <p className="text-xs text-red-600">Xodimlar ro‘yxatini yuklab bo‘lmadi: {employees.error}</p>}
         </section>
 
         <section className="space-y-3 rounded-xl border border-slate-200 p-3 sm:p-4">

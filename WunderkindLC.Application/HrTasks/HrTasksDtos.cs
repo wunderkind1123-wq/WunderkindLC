@@ -251,7 +251,10 @@ public sealed record HrSettingsDto(
     bool RemindEndOfDay,
     DateTimeOffset? UpdatedAt,
     bool AfternoonListEnabled = true,
-    string AfternoonTime = "16:00");
+    string AfternoonTime = "16:00",
+    // LC (2026-11-10): sinov darsi ro'yxatlari / «Service» kunlik topshirig'i kimga (`hr_employees.id`, null — yo'q).
+    string? TrialTaskEmployeeId = null,
+    string? ServiceTaskEmployeeId = null);
 
 /// <summary><c>PUT /settings</c> — the whole object (reminder fields default like the old API).</summary>
 public sealed record HrSettingsInput(
@@ -266,7 +269,10 @@ public sealed record HrSettingsInput(
     List<int>? ReminderOffsets,
     bool? RemindEndOfDay,
     bool? AfternoonListEnabled = null,
-    string? AfternoonTime = null);
+    string? AfternoonTime = null,
+    // null — tegilmaydi (eski mijoz), "" — olib tashlanadi, aks holda FAOL HR xodimi id'si.
+    string? TrialTaskEmployeeId = null,
+    string? ServiceTaskEmployeeId = null);
 
 // ---------------------------------------------------------------- reports
 

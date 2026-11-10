@@ -115,6 +115,17 @@ public sealed class HrTasksScheduler(IServiceScopeFactory scopes, ILogger<HrTask
             logger.LogError(ex, "HR: sinov darsi topshiriqlari yaratilmadi");
         }
 
+        // LC: «Service» kunlik topshirig'i — har siklda (idempotent: unikal xodim + kun, avtomatik yopish), §14.
+        try
+        {
+            using var scope = scopes.CreateScope();
+            if (await Service(scope).RunServiceTasksAsync(now, ct) is var service and > 0) result["service_tasks"] = service;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "HR: «Service» topshirig'i yaratilmadi");
+        }
+
         if (at >= settings.CloseOverdueTime
             && await GuardedAsync(HrJobs.CleanDrafts, today, now, s => s.CleanDraftsAsync(now, ct), ct) is { } cleaned)
             result["drafts_cleaned"] = cleaned;

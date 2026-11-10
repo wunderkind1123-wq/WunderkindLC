@@ -32,6 +32,8 @@ public partial class AppDbContext
     public DbSet<HrTrialTask> HrTrialTasks => Set<HrTrialTask>();
     /// <summary>LC: lid (sotuv) topshiriqlari (`HrLeadTask`).</summary>
     public DbSet<HrLeadTask> HrLeadTasks => Set<HrLeadTask>();
+    /// <summary>LC: «Service» kunlik topshirig'i (`HrServiceTask`).</summary>
+    public DbSet<HrServiceTask> HrServiceTasks => Set<HrServiceTask>();
 
     partial void ConfigureHrTasks(ModelBuilder b) =>
         HrTasksModel.Apply(b, Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite");
@@ -43,7 +45,7 @@ internal static class HrTasksModel
     [
         typeof(HrPosition), typeof(HrEmployee), typeof(HrEmployeeManager), typeof(HrTaskTemplate), typeof(HrTask),
         typeof(HrTaskProof), typeof(HrTaskProgress), typeof(HrTaskAttachment), typeof(HrTaskReminder),
-        typeof(HrSettings), typeof(HrJobRun), typeof(HrTrialTask), typeof(HrLeadTask),
+        typeof(HrSettings), typeof(HrJobRun), typeof(HrTrialTask), typeof(HrLeadTask), typeof(HrServiceTask),
     ];
 
     private static string In(string column, params string[] values) =>
@@ -265,6 +267,8 @@ internal static class HrTasksModel
             e.Property(x => x.MorningTime).HasDefaultValueSql("'07:30'").ValueGeneratedNever();
             e.Property(x => x.AfternoonListEnabled).HasDefaultValue(true).ValueGeneratedNever();
             e.Property(x => x.AfternoonTime).HasDefaultValueSql("'16:00'").ValueGeneratedNever();
+            e.Property(x => x.TrialTaskEmployeeId).HasMaxLength(36);
+            e.Property(x => x.ServiceTaskEmployeeId).HasMaxLength(36);
             e.Property(x => x.GenerationTime).HasDefaultValueSql("'00:10'").ValueGeneratedNever();
             e.Property(x => x.CloseOverdueTime).HasDefaultValueSql("'23:50'").ValueGeneratedNever();
             e.Property(x => x.ReminderEnabled).HasDefaultValue(true).ValueGeneratedNever();
@@ -317,6 +321,19 @@ internal static class HrTasksModel
             e.HasOne<HrTask>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.TaskId).IsUnique().HasDatabaseName("uq_hr_lead_task");
             e.HasIndex(x => x.LeadId);
+        });
+
+        // LC (2026-11-10): «Service» kunlik ro'yxati — bitta topshiriq kuniga bitta (xodim, kun).
+        b.Entity<HrServiceTask>(e =>
+        {
+            e.ToTable("hr_service_tasks");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Day).HasColumnType("date");
+            e.Property(x => x.RequestIds).HasMaxLength(20000);
+            e.Ignore(x => x.RequestIdList);
+            e.HasOne<HrTask>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.EmployeeId, x.Day }).IsUnique().HasDatabaseName("uq_hr_service_task");
+            e.HasIndex(x => x.TaskId);
         });
 
         ApplySnakeCaseNames(b);

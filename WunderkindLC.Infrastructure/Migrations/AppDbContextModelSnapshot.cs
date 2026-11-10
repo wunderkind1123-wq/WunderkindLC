@@ -4135,6 +4135,49 @@ namespace WunderkindLC.Infrastructure.Migrations
                     b.ToTable("hr_positions", (string)null);
                 });
 
+            modelBuilder.Entity("WunderkindLC.Domain.HrServiceTask", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date")
+                        .HasColumnName("day");
+
+                    b.Property<string>("EmployeeId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("RequestIds")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)")
+                        .HasColumnName("request_ids");
+
+                    b.Property<string>("TaskId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("task_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_service_tasks");
+
+                    b.HasIndex("TaskId")
+                        .HasDatabaseName("ix_hr_service_tasks_task_id");
+
+                    b.HasIndex("EmployeeId", "Day")
+                        .IsUnique()
+                        .HasDatabaseName("uq_hr_service_task");
+
+                    b.ToTable("hr_service_tasks", (string)null);
+                });
+
             modelBuilder.Entity("WunderkindLC.Domain.HrSettings", b =>
                 {
                     b.Property<short>("Id")
@@ -4198,12 +4241,22 @@ namespace WunderkindLC.Infrastructure.Migrations
                         .HasColumnName("reminder_offsets")
                         .HasDefaultValueSql("'{30}'");
 
+                    b.Property<string>("ServiceTaskEmployeeId")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)")
+                        .HasColumnName("service_task_employee_id");
+
                     b.Property<string>("Timezone")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasDefaultValue("Asia/Tashkent")
                         .HasColumnName("timezone");
+
+                    b.Property<string>("TrialTaskEmployeeId")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)")
+                        .HasColumnName("trial_task_employee_id");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -10848,6 +10901,16 @@ namespace WunderkindLC.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_hr_lead_tasks_hr_tasks_task_id");
+                });
+
+            modelBuilder.Entity("WunderkindLC.Domain.HrServiceTask", b =>
+                {
+                    b.HasOne("WunderkindLC.Domain.HrTask", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_service_tasks_hr_tasks_task_id");
                 });
 
             modelBuilder.Entity("WunderkindLC.Domain.HrTask", b =>
