@@ -331,7 +331,6 @@ public static class HrTasksTexts
             .Append(HrValues.Local(dueAt, tz).ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture)).Append('\n');
         sb.Append("👤 Berdi: ").Append(Escape(giverName)).Append('\n');
         if (attachmentCount > 0) sb.Append("📎 Biriktirma: ").Append(attachmentCount).Append(" ta (pastda)\n");
-        sb.Append("\nTopshiriqni ko'rganingizni «✅ Qabul qildim» bilan tasdiqlang.");
         return sb.ToString();
     }
 

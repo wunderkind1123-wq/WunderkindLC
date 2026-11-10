@@ -141,7 +141,6 @@ public sealed partial class HrTasksService
         if (reassigned)
         {
             task.EmployeeId = newEmployee;
-            task.AcceptedAt = null;   // yangi odam o'zi «Qabul qildim» bosadi
             task.UpdatedAt = Now;
         }
         var newDue = Describe(link, task, tz);

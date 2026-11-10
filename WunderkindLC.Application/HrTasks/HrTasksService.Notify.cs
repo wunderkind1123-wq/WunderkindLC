@@ -43,7 +43,8 @@ public sealed partial class HrTasksService
             var sent = 0;
             foreach (var chat in chatIds)
             {
-                if (await telegram.SendTaskAsync(chat, html, MyTasksUrl(role), task.Id, ct)) sent++;
+                // LC (2026-11-10): «✅ Qabul qildim» tugmasi YO'Q — topshiriq darhol bajariladigan; faqat «📋 Topshiriqlarim».
+                if (await telegram.SendHtmlAsync(chat, html, MyTasksUrl(role), ct)) sent++;
                 foreach (var (meta, bytes) in blobs)
                 {
                     var name = string.IsNullOrWhiteSpace(meta.OriginalName) ? Path.GetFileName(meta.FilePath) : meta.OriginalName!;

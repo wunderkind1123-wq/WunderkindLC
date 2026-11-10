@@ -249,3 +249,12 @@ o'qituvchi portali avvalgidek «Kun bo'yicha»). Sof qoida — `myBoard.ts` (`my
   YO'QOLADI, lekin bazadan O'CHMAYDI (egasining tanlovi): «Bajarilgan» tabi, KPI, hisobot va lid tarixi unga tayanadi.
 - Kartalar — o'sha `MyTaskCard` (tasdiqlash, bajarish, KPI qadam, sotuv belgisi). Sudrab muddat o'zgartirish YO'Q:
   muddatni xodim emas, topshiriq bergan o'zgartiradi (LMS qoidasi).
+
+## 13. «QABUL QILDIM / TASDIQLASH» OLIB TASHLANDI (2026-11-10, egasi)
+
+«Topshiriq qabul qildim, tasdiqladim degan narsa kerak emas — topshiriq kelganda darhol bajariladigan bo'lsin».
+`HrTask.NeedsAcceptance` → har doim `false` (JSON maydoni qoladi); bot xabari `SendHtmlAsync` (faqat «📋 Topshiriqlarim»,
+«✅ Qabul qildim» tugmasi va «tasdiqlang» qatori YO'Q); jamlanmadagi `UnacceptedCount` = 0; UI'da «Tasdiqlash» tugmasi,
+«Tasdiqlanmagan» kartasi, «Tasdiq» filtri, tafsilotdagi tasdiq qatori, lid sahifasidagi «qabul qildi» — yo'q.
+Eski xabarlardagi `hrack:` tugmasi zararsiz ishlayveradi (`HrTaskAck`), eski `AcceptedAt` qiymatlari tegilmaydi.
+§5 dagi «✅ Qabul qildim» tavsifi — TARIX.

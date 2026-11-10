@@ -120,7 +120,8 @@ public class HrLeadTasksTests
         Assert.Equal((lead.Id, task.Id), (link.LeadId, link.TaskId));
         Assert.Contains(db.LeadEvents, e => e.LeadId == lead.Id && e.Type == LeadTasks.EventCreated);
         // Telegram — to'liq xabar + «✅ Qabul qildim»
-        Assert.Contains(kit.Sender.TaskButtons, b => b.Chat == operatorP.Chat && b.TaskId == task.Id);
+        Assert.Contains(kit.Sender.Messages, m => m.Chat == operatorP.Chat);
+        Assert.Empty(kit.Sender.TaskButtons); // «✅ Qabul qildim» tugmasi YO'Q (2026-11-10)
         Assert.Equal("10:00", res.Task!.DueAt[11..16]);
         Assert.Equal("open", res.Task.Status);
     }
@@ -139,7 +140,7 @@ public class HrLeadTasksTests
         Assert.Equal(me.User.Id, db.Leads.Single().AssigneeUserId);
         Assert.Equal(me.Employee!.Id, db.HrTasks.Single().EmployeeId);
         // o'ziga qo'ygan topshiriq — Telegram xabari shart emas
-        Assert.Empty(kit.Sender.TaskButtons);
+        Assert.Empty(kit.Sender.Messages);
     }
 
     [Fact]
@@ -179,7 +180,7 @@ public class HrLeadTasksTests
         Assert.Equal(HrTaskStatuses.Done, db.HrTasks.Single(t => t.Id == first.Id).Status);
         Assert.Equal(other.Employee!.Id, db.HrTasks.Single(t => t.Id == res.Next!.Id).EmployeeId);
         Assert.Contains(db.LeadEvents, e => e.Type == LeadTasks.EventDone && e.Text.Contains("Ko'tarmadi"));
-        Assert.Contains(kit.Sender.TaskButtons, b => b.Chat == other.Chat);
+        Assert.Contains(kit.Sender.Messages, m => m.Chat == other.Chat);
     }
 
     [Fact]
@@ -263,7 +264,7 @@ public class HrLeadTasksTests
         Assert.EndsWith("T23:59:00", res.Task!.DueAt);
         Assert.True(res.Task.AllDay);
         Assert.Equal(other.User.Id, res.Task.ResponsibleUserId);
-        Assert.Contains(kit.Sender.TaskButtons, b => b.Chat == other.Chat);
+        Assert.Contains(kit.Sender.Messages, m => m.Chat == other.Chat);
 
         Assert.Equal(200, (await kit.Service().CancelLeadTaskAsync(t.Id, "kerak emas", ActorOf(me))).Status);
         Assert.Equal(400, (await kit.Service().CancelLeadTaskAsync(t.Id, null, ActorOf(me))).Status);

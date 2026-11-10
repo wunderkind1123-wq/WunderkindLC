@@ -147,7 +147,7 @@ public class HrTrialTasksTests
         var message = Assert.Single(kit.Sender.To(admin.Chat!.Value));
         Assert.Contains("Ali Valiyev", message);
         Assert.Contains("👤 Berdi: " + HrTrialRules.GiverName, message);
-        Assert.Equal((admin.Chat.Value, task.Id), Assert.Single(kit.Sender.TaskButtons));
+        Assert.Empty(kit.Sender.TaskButtons); // LC 2026-11-10: «✅ Qabul qildim» tugmasi YO'Q
 
         // qayta sikl — TAKROR yo'q (har 5 daqiqada yuguradi)
         Assert.Equal(0, await kit.Service().RunTrialTasksAsync(HrTasksKit.At(2031, 3, 10, 9, 10)));
@@ -323,7 +323,7 @@ public class HrTrialTasksTests
             new HrTaskBatchItemInput("Rasmli", "2031-03-11T10:00:00", "Izoh", null, null, null, photo.Id),
             new HrTaskBatchItemInput("Faylli", "2031-03-11T10:00:00", null, null, null, null, doc.Id),
         ]));
-        Assert.Equal(2, kit.Sender.TaskButtons.Count);
+        Assert.Empty(kit.Sender.TaskButtons);
         Assert.Equal("rasm.jpg", Assert.Single(kit.Sender.Photos).Name);
         Assert.Equal("reja.pdf", Assert.Single(kit.Sender.Documents).Name);
         Assert.Contains("📎 Biriktirma: 1 ta", kit.Sender.To(e.Chat!.Value)[0]);

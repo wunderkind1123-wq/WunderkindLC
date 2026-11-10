@@ -23,7 +23,6 @@ import {
 import { useCursorStack, useDebounced, useFlashToast, useToast } from '@/components/hr-tasks/hooks'
 import { useLoad } from '@/components/hr-tasks/useLoad'
 import {
-  HR_ACCEPTED_OPTIONS,
   HR_STATUS_OPTIONS,
   hrFormatDateTime,
   hrFormatNumber,
@@ -238,16 +237,6 @@ export function HrTasksPage() {
               {employeeOptions.map((employee) => (
                 <option key={employee.id} value={employee.id}>
                   {employee.fullName}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Tasdiq">
-            <select className={inputCls} value={acceptedRaw} onChange={(e) => update({ accepted: e.target.value || null })}>
-              <option value="">Barchasi</option>
-              {HR_ACCEPTED_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
                 </option>
               ))}
             </select>

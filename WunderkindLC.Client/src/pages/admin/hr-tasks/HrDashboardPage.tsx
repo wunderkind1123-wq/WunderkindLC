@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, BellRing, CheckCircle2, ClipboardList, Download, Repeat, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ClipboardList, Download, Repeat, XCircle } from 'lucide-react'
 import { downloadReportCsv, getEmployeeReport, getSummaryReport, getTasks, hrErrorMessage } from '@/api/services/hrTasks'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -152,16 +152,7 @@ export function HrDashboardPage() {
           loading={loadingStats}
           errored={Boolean(summary.error)}
         />
-        <StatTile
-          label="Tasdiqlanmagan"
-          value={hrFormatNumber(stats?.unacceptedCount ?? 0)}
-          hint="Xodim hali ko‘rmagan"
-          icon={<BellRing className="h-4 w-4" />}
-          tone={stats && (stats.unacceptedCount ?? 0) > 0 ? 'warning' : 'neutral'}
-          loading={loadingStats}
-          errored={Boolean(summary.error)}
-          to={tasksLink(undefined, { accepted: 'false' })}
-        />
+        {/* LC (2026-11-10): «Tasdiqlanmagan» kartasi olib tashlandi — topshiriq tasdiqsiz, darhol bajariladigan. */}
       </div>
 
       <section>

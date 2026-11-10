@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { AlertTriangle, BellRing, CheckCircle2, ExternalLink, FileText, Mic, Paperclip } from 'lucide-react'
+import { AlertTriangle, ExternalLink, FileText, Mic, Paperclip } from 'lucide-react'
 import { getTask } from '@/api/services/hrTasks'
 import type { HrTaskDetail, HrTaskProof } from '@/types/hrTasks'
 import { Button } from '@/components/ui/Button'
@@ -127,13 +127,6 @@ export function TaskDetailDrawer({
                   {hrOverdueLabel(task.dueAt)}
                 </Badge>
               )}
-              {task.acceptedAt ? (
-                <Badge tone="success">Tasdiqlandi</Badge>
-              ) : task.needsAcceptance === true ? (
-                <Badge tone="warning" dot>
-                  Tasdiq kutilmoqda
-                </Badge>
-              ) : null}
             </div>
             {task.salesKind && (
               <div className="flex flex-wrap items-center gap-2">
@@ -158,24 +151,6 @@ export function TaskDetailDrawer({
             <DetailRow label="Lavozim" value={task.positionName ?? '—'} />
             <DetailRow label="Muddat" value={hrFormatDateTime(task.dueAt)} />
             <DetailRow label="Isbot" value={proofs.length === 0 ? 'Biriktirilmagan' : `${proofs.length} ta`} />
-            <DetailRow
-              label="Tasdiq"
-              value={
-                task.acceptedAt ? (
-                  <span className="inline-flex items-center gap-1.5 text-emerald-600">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    {hrFormatDateTime(task.acceptedAt)}
-                  </span>
-                ) : task.needsAcceptance === true ? (
-                  <span className="inline-flex items-center gap-1.5 text-amber-600">
-                    <BellRing className="h-3.5 w-3.5" />
-                    Tasdiq kutilmoqda
-                  </span>
-                ) : (
-                  '—'
-                )
-              }
-            />
           </dl>
 
           {voiceUrl && (

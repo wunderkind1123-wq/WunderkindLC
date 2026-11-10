@@ -634,7 +634,6 @@ function MyTaskCard({
         </div>
       )}
 
-      {task.acceptedAt && open && <p className="mt-2 text-xs text-slate-400">Tasdiqlangan: {hrFormatDateTime(task.acceptedAt)}</p>}
     </li>
   )
 }

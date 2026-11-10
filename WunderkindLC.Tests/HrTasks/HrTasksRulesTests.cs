@@ -188,9 +188,10 @@ public class HrTasksRulesTests
     }
 
     [Fact]
-    public void Tasdiq_faqat_qolda_berilgan_ochiq_topshiriqda_kutiladi()
+    public void LC_tasdiq_bosqichi_YOQ__topshiriq_darhol_bajariladigan()
     {
-        Assert.True(Task().NeedsAcceptance);
+        // 2026-11-10 (egasi): «Qabul qildim / tasdiqlash» olib tashlandi — hech bir topshiriq tasdiq kutmaydi.
+        Assert.False(Task().NeedsAcceptance);
         Assert.False(Task(source: HrTaskSources.Template).NeedsAcceptance);
         Assert.False(Task(source: HrTaskSources.Self).NeedsAcceptance);
         var t = Task();
@@ -323,7 +324,7 @@ public class HrTasksRulesTests
         // LC: one task in full (LMS's title-only text was replaced, hr-tasks.md §5)
         Assert.Equal(
             "🆕 <b>Sizga yangi topshiriq</b>\n\n<b>Hisobot &lt;b&gt;</b>\n\nIzoh &amp; reja\n\n⏰ Muddat: 14.09.2026 18:00\n"
-            + "👤 Berdi: Direktor\n📎 Biriktirma: 2 ta (pastda)\n\nTopshiriqni ko'rganingizni «✅ Qabul qildim» bilan tasdiqlang.",
+            + "👤 Berdi: Direktor\n📎 Biriktirma: 2 ta (pastda)\n", // LC 2026-11-10: «Qabul qildim» so'rovi yo'q
             HrTasksTexts.AssignedFull("Hisobot <b>", " Izoh & reja ", HrTasksKit.At(2026, 9, 14, 18), HrTasksKit.Tz, "Direktor", 2));
         var long_ = HrTasksTexts.AssignedFull("T", new string('x', 10_000), HrTasksKit.At(2026, 9, 14, 18), HrTasksKit.Tz, "D", 0);
         Assert.True(long_.Length <= HrTasksTexts.TelegramMaxLen);

@@ -338,7 +338,7 @@ public class HrTasksApiTests
         var task = await kit.Service().CreateTaskAsync(panel, new HrTaskCreateInput(e.Employee!.Id, "Hisobot tayyorlash", "Oylik", due.ToString("o"), null, null, null, null));
         var id = task.Id;
         Assert.Equal("director", task.Source);
-        Assert.True(task.NeedsAcceptance);
+        Assert.False(task.NeedsAcceptance); // LC 2026-11-10: tasdiq bosqichi yo'q
         Assert.Equal("keep_open", task.OverduePolicy);
 
         // it is in its day's list, not overdue
@@ -560,7 +560,7 @@ public class HrTasksApiTests
         Assert.StartsWith("🆕 <b>Sizga yangi topshiriq</b>\n\n<b>Shartnoma &lt;tayyorlash&gt;</b>\n\nOta-ona &amp; o'quvchi bilan\n", message);
         Assert.Contains("⏰ Muddat: 10.03.2031 18:00", message);
         Assert.Contains("👤 Berdi: " + admin.User.FullName, message);
-        Assert.Equal((chat, created.Id), Assert.Single(kit.Sender.TaskButtons));
+        Assert.Empty(kit.Sender.TaskButtons); // LC 2026-11-10: «✅ Qabul qildim» tugmasi YO'Q
         // LC: the message opens the staff member's own tasks in the panel
         Assert.Equal(TelegramBotService.PanelUrl + HrTasksService.MyTasksPanelPath, kit.Sender.Messages.Single().Url);
 
@@ -581,7 +581,7 @@ public class HrTasksApiTests
         Assert.Equal(4, kit.Sender.To(chat).Count);
         Assert.Contains("<b>Bir</b>", kit.Sender.To(chat)[2]);
         Assert.Contains("<b>Ikki</b>", kit.Sender.To(chat)[3]);
-        Assert.Equal(3, kit.Sender.TaskButtons.Count);
+        Assert.Empty(kit.Sender.TaskButtons);
 
         // a LARGE batch → ONE summary message per employee (LMS)
         await kit.Service().CreateTaskBatchAsync(panel, new HrTaskBatchInput([e.Employee.Id],

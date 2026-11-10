@@ -597,8 +597,11 @@ public class HrTask
     public bool IsFinal => HrTaskStatuses.IsFinal(Status);
     public bool IsOverdue(DateTimeOffset now) => IsOpen && DueAt < now;
 
-    /// <summary>A hand-given task (source=director), not yet acknowledged, still open.</summary>
-    public bool NeedsAcceptance => Source == HrTaskSources.Director && AcceptedAt is null && IsOpen;
+    /// <summary>
+    /// LC (egasi, 2026-11-10): «Qabul qildim / tasdiqlash» bosqichi OLIB TASHLANDI — berilgan topshiriq darhol
+    /// «bajariladigan». Har doim <c>false</c>; maydon JSON kontraktida (LMS) qoladi. Eski <c>AcceptedAt</c> qiymatlari tegilmaydi.
+    /// </summary>
+    public bool NeedsAcceptance => false;
 
     /// <summary>"Bajardim": proof = at least one file OR a non-empty comment. False if already done.</summary>
     public bool Complete(DateTimeOffset now, string? comment, int proofCount)

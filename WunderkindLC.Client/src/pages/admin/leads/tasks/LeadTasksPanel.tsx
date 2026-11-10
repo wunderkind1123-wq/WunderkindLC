@@ -201,10 +201,6 @@ function LeadTaskItem({
         <span className="ml-auto text-[11.5px] text-[#757575]">
           {task.createdByName}
           {task.responsibleName ? ` → ${task.responsibleName}` : ''}
-          {/* Xodim Telegram'da «✅ Qabul qildim» bosganmi — menejer «ko'rdimi?» deb so'rab yurmasin. */}
-          <span className={cn('ml-1.5 font-medium', task.accepted ? 'text-emerald-700' : 'text-[#9e9e9e]')}>
-            {task.accepted ? '✓ qabul qildi' : 'qabul qilinmagan'}
-          </span>
         </span>
       </div>
 

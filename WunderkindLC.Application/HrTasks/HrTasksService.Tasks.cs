@@ -533,7 +533,7 @@ public sealed partial class HrTasksService
             rows.Count(r => r.Source == HrTaskSources.Self),
             rows.Select(r => r.EmployeeId).Distinct().Count(),
             Percent(done, total),
-            rows.Count(r => r.Source == HrTaskSources.Director && r.AcceptedAt == null && HrTaskStatuses.IsActionable(r.Status)));
+            0); // LC: «tasdiqlanmagan» yo'q — qabul qilish bosqichi olib tashlandi (2026-11-10)
     }
 
     /// <summary>Per employee (active ones, or anyone with tasks in the period); KPI = sums over numeric tasks.</summary>
