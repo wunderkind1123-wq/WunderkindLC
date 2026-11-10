@@ -408,14 +408,22 @@ public static partial class PnlEngine
         var salaryTx = expenseTx.Where(t => t.Entry.Treatment is FinanceCategoryRules.Salary or FinanceCategoryRules.SalaryAdvance).ToList();
         if (d.Payroll.TryGetValue(month, out var pr))
         {
+            // 2026-11-10 (egasi: «oktabr oyligi noyabrda berilsa — oktabr xarajatida»): maosh xarajati ham, «to'langan» ham
+            // «QAYSI OY UCHUN» (FinanceTransaction.Month — reestrdagi Paid) bo'yicha, to'lov KUNI bo'yicha EMAS. Xarajat =
+            // har kishi uchun max(hisoblangan, shu oy uchun to'langan): oylik kiritilmagan xodimga berilgan pul ham yo'qolmasin.
+            // Oyi yo'q eski XODIM maosh chiqimlari — avvalgidek to'lov kuni bo'yicha (shu oy oynasida). O'qituvchida ular
+            // maosh varaqasida (SalaryLedger: oyi yo'q to'lov sanasi bo'yicha) — reestrning Paid ichida, qayta qo'shilmaydi.
+            var sUntagged = salaryTx.Where(t => string.IsNullOrEmpty(t.Month) && t.TeacherId is null).Sum(t => t.Amount);
             var tAcc = pr.Teachers.Sum(r => r.Accrued);
             var sAcc = pr.Staff.Sum(r => r.Accrued);
-            var tPaid = salaryTx.Where(t => t.TeacherId is not null).Sum(t => t.Amount);
-            var sPaid = salaryTx.Where(t => t.TeacherId is null).Sum(t => t.Amount);
-            if (tAcc != 0 || tPaid != 0)
-                lines.Add(new ExpenseLineDto("payroll:teachers", "O'qituvchilar maoshi", null, PayrollGroup, tAcc, tAcc, tPaid, false, true, true, []));
-            if (sAcc != 0 || sPaid != 0)
-                lines.Add(new ExpenseLineDto("payroll:staff", "Xodimlar maoshi", null, PayrollGroup, sAcc, sAcc, sPaid, false, true, true, []));
+            var tCur = pr.Teachers.Sum(r => Math.Max(r.Accrued, r.Paid));
+            var sCur = pr.Staff.Sum(r => Math.Max(r.Accrued, r.Paid)); // eski (oyi yo'q) to'lov — faqat «to'langan»da (avvalgidek)
+            var tPaid = pr.Teachers.Sum(r => r.Paid);
+            var sPaid = pr.Staff.Sum(r => r.Paid) + sUntagged;
+            if (tCur != 0 || tPaid != 0)
+                lines.Add(new ExpenseLineDto("payroll:teachers", "O'qituvchilar maoshi", null, PayrollGroup, tAcc, tCur, tPaid, false, true, true, []));
+            if (sCur != 0 || sPaid != 0)
+                lines.Add(new ExpenseLineDto("payroll:staff", "Xodimlar maoshi", null, PayrollGroup, sAcc, sCur, sPaid, false, true, true, []));
         }
         else if (salaryTx.Count > 0)
         {

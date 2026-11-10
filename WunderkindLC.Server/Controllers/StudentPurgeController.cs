@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using WunderkindLC.Infrastructure.Auth;
 using WunderkindLC.Infrastructure.Data;
 using WunderkindLC.Domain;
@@ -25,14 +26,11 @@ public class StudentPurgeController(AppDbContext db, AuditService audit, ILogger
 {
     /// <summary>Admin/superadmin yoki <c>students.list:delete</c> (meros bilan <c>students</c>,
     /// <c>students:delete</c>, <c>students.list</c> ham) berilgan xodim.</summary>
-    private bool MayPurge =>
-        User.IsInRole(Roles.Admin) || User.IsInRole(Roles.SuperAdmin) ||
-        (User.IsInRole(Roles.Staff) && PermissionRules.CanWrite(
-            User.Claims.Where(c => c.Type == AdminPermAttribute.ClaimType).Select(c => c.Value),
-            "students.list", "DELETE"));
+    // 2026-11-10 (egasi): FAQAT superadmin va direktor (admin ROLI) — `students.list:delete` ruxsatli xodim ham EMAS
+    // (ilgari — 2026-09-30 qarori — ruxsat berilgan istalgan xodim). Qoida — `LeadDeleteRights`.
+    private bool MayPurge => LeadDeleteRights.CanDelete(User);
 
-    private ObjectResult Forbidden() =>
-        StatusCode(403, new { message = "O'quvchini o'chirish uchun «O'quvchilar ro'yxati» bo'limida «O'chirish» ruxsati kerak" });
+    private ObjectResult Forbidden() => StatusCode(403, new { message = LeadDeleteRights.Denied });
 
     /// <summary>Nimalar o'chishini oldindan ko'rsatadi (tasdiqlash oynasi uchun).</summary>
     [HttpGet("{id}/purge-preview")]
@@ -51,6 +49,10 @@ public class StudentPurgeController(AppDbContext db, AuditService audit, ILogger
     public async Task<IActionResult> Purge(string id, [FromServices] IWebHostEnvironment env, CancellationToken ct)
     {
         if (!MayPurge) return Forbidden();
+        // Faqat ARXIVDAGI o'quvchi (avval arxivlash) — egasi, 2026-11-10.
+        var archived = await db.Students.AsNoTracking().Where(s => s.Id == id).Select(s => (bool?)s.IsArchived).FirstOrDefaultAsync(ct);
+        if (archived is null) return NotFound(new { message = "O'quvchi topilmadi" });
+        if (archived == false) return BadRequest(new { message = LeadDeleteRights.StudentNotArchived });
 
         StudentPurge.Result? result;
         try

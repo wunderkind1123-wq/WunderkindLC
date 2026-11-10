@@ -290,12 +290,11 @@ public class StudentPurgeTests
     {
         var src = ServerSource(Path.Combine("WunderkindLC.Server", "Controllers", "StudentPurgeController.cs"));
 
-        // Kalit — «O'quvchilar ro'yxati» ning «O'chirish» amali (Rollar matritsasidan beriladi).
+        // 2026-11-10 (egasi): FAQAT superadmin va direktor (HARD rol, `LeadDeleteRights`) — ruxsat kaliti YETMAYDI.
         var gate = src[src.IndexOf("private bool MayPurge =>", StringComparison.Ordinal)..];
         gate = gate[..gate.IndexOf(';')];
-        Assert.Contains("PermissionRules.CanWrite(", gate);
-        Assert.Contains("\"students.list\", \"DELETE\"", gate);
-        Assert.Contains("User.IsInRole(Roles.Staff)", gate);
+        Assert.Contains("LeadDeleteRights.CanDelete(User)", gate);
+        Assert.DoesNotContain("PermissionRules", gate);
 
         var i = src.IndexOf(signature, StringComparison.Ordinal);
         Assert.True(i > 0, $"{signature} topilmadi");
@@ -305,18 +304,17 @@ public class StudentPurgeTests
     }
 
     [Fact]
-    public void Ruxsat_qoidasi__faqat_OCHIRISH_amali_yetadi()
+    public void Ruxsat_qoidasi__faqat_superadmin_va_direktor__xodimga_kalit_YETMAYDI()
     {
-        // Controller AYNAN shu chaqiriqni ishlatadi — qaysi token o'tishi shu yerda qulflanadi.
-        static bool May(params string[] claims) => PermissionRules.CanWrite(claims, "students.list", "DELETE");
-
-        Assert.True(May("students.list:delete"));
-        Assert.True(May("students.list"));
-        Assert.True(May("students"));
-        Assert.True(May("students:delete"));
-        Assert.False(May("students.list:edit", "students.list:create"));
-        Assert.False(May("students.turnstile"));   // boshqa sahifa — yuqoriga yozish meros EMAS
-        Assert.False(May());
+        static System.Security.Claims.ClaimsPrincipal U(string role, params string[] perms)
+        {
+            var claims = new List<System.Security.Claims.Claim> { new(System.Security.Claims.ClaimTypes.Role, role) };
+            claims.AddRange(perms.Select(p => new System.Security.Claims.Claim("perm", p)));
+            return new(new System.Security.Claims.ClaimsIdentity(claims, "test"));
+        }
+        Assert.True(LeadDeleteRights.CanDelete(U(Roles.SuperAdmin)));
+        Assert.True(LeadDeleteRights.CanDelete(U(Roles.Admin)));
+        Assert.False(LeadDeleteRights.CanDelete(U(Roles.Staff, "students.list:delete", "students")));
     }
 
     [Fact]
@@ -331,12 +329,14 @@ public class StudentPurgeTests
     }
 
     [Fact]
-    public void Klientda_tugma_OCHIRISH_ruxsati_bilan_korinadi()
+    public void Klientda_tugma_faqat_superadmin_direktor_va_arxivdagi_oquvchida()
     {
         var src = ServerSource(Path.Combine(
             "WunderkindLC.Client", "src", "pages", "admin", "students", "StudentDetailPage.tsx"));
 
-        Assert.Contains("const canPurge = can('students.list', 'delete')", src);
+        // 2026-11-10: faqat superadmin/direktor va faqat ARXIVDAGI o'quvchi.
+        Assert.Contains("const canPurge = user?.role === 'superadmin' || user?.role === 'admin'", src);
+        Assert.Contains("canPurge && data.isArchived", src);
     }
 
     [Theory]

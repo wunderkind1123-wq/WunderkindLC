@@ -182,9 +182,9 @@ export function StudentDetailPage() {
   // "Bog'lanish kerak" — ALOHIDA ruxsat (`contacts`), o'quvchi tahririga bog'liq emas.
   const canContact = can('contacts', 'create')
   const [contactOpen, setContactOpen] = useState(false)
-  // «Butunlay o'chirish» (dublikat/xato kiritilgan) — «O'quvchilar ro'yxati» → «O'chirish» ruxsati:
-  // admin/superadmin va Rollar'da shu ruxsat berilgan xodim (server: `StudentPurgeController.MayPurge`).
-  const canPurge = can('students.list', 'delete')
+  // «Butunlay o'chirish» — 2026-11-10 (egasi): FAQAT superadmin va direktor (admin ROLI) va FAQAT arxivdagi o'quvchi
+  // (avval arxivlash). Server: `StudentPurgeController` / `LeadDeleteRights`. Xodimlarda — faqat arxivlash.
+  const canPurge = user?.role === 'superadmin' || user?.role === 'admin'
   const [purgeOpen, setPurgeOpen] = useState(false)
   /** «Balansni tuzatish» (FAQAT superadmin — server ham tekshiradi). */
   const [balanceAdjustOpen, setBalanceAdjustOpen] = useState(false)
@@ -932,7 +932,7 @@ export function StudentDetailPage() {
                 ...(user?.role === 'superadmin'
                   ? [{ label: 'Balansni tuzatish', icon: Wallet, onClick: () => setBalanceAdjustOpen(true) }]
                   : []),
-                ...(canPurge
+                ...(canPurge && data.isArchived
                   ? [{ label: "Butunlay o'chirish", icon: Trash2, danger: true, onClick: () => setPurgeOpen(true) }]
                   : []),
               ]}

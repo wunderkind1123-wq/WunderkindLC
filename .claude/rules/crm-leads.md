@@ -353,9 +353,9 @@ Jadval ostidagi izoh: «yo'qotilgan N tasi — «Arxiv»» havolasi bilan.
 
 - Lid sahifasidagi «⋮» menyusida «Yo'qotilgan deb belgilash» o'rnida qizil **«Arxivlash»** — amal AYNAN o'sha
   (`PATCH {id}/lost`, sabab MAJBURIY, `LeadLostModal` sarlavhasi «Lidni arxivlash»). Lid bazada qoladi → §5.5 arxiv.
-- **Butunlay o'chirish — FAQAT superadmin** (`LeadDeleteRights.CanDelete`, HARD rol; 2026-11-10 dan direktor = `admin` ham
-  EMAS — egasi: «xodimlardan o'chirishni olib tashla, faqat arxivlash qolsin»): ruxsat kaliti (`leads`, `leads.list:delete`)
-  YETMAYDI — 403 sabab matni bilan. Ikkala yo'l: `DELETE api/admin/leads/{id}`
+- **Butunlay o'chirish — superadmin va direktor (`admin` ROLI), FAQAT ARXIVLANGAN (yo'qotilgan) liddan** (`LeadDeleteRights`,
+  HARD rol; egasi 2026-11-10: «o'chirish superadmin va direktorda, undan oldin arxivlash; qolgan xodimlarda faqat arxivlash»).
+  Ruxsat kaliti (`leads`, `leads.list:delete`) YETMAYDI — 403; faol lid — 400 «Avval arxivlang». Ikkala yo'l: `DELETE api/admin/leads/{id}`
   va `DELETE api/admin/archive/{id}` (lid surati / `lead_history`). Klientda ham yashirilgan (lid menyusi, Sozlamalar →
   Arxiv'dagi savat tugmasi). Testlar: `LeadDeleteRightsTests`.
 

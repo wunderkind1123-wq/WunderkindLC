@@ -28,9 +28,9 @@ const TABS: { key: string; label: string }[] = [
 ]
 
 export function ArchivePage() {
-  // Lid suratini BUTUNLAY o'chirish — FAQAT superadmin (2026-11-10); server `LeadDeleteRights` bilan bir xil.
+  // Lid va o'quvchi suratini BUTUNLAY o'chirish — FAQAT superadmin va direktor (2026-11-10); server `LeadDeleteRights` bilan bir xil.
   const role = useAuth().user?.role
-  const canPurgeLead = role === 'superadmin'
+  const canPurgeLead = role === 'superadmin' || role === 'admin'
   const [active, setActive] = useState('lead')
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [rows, setRows] = useState<ArchivedRecord[]>([])
@@ -196,7 +196,7 @@ export function ArchivePage() {
                   >
                     <RotateCcw className="h-4 w-4" /> Tiklash
                   </Button>
-                  {(r.type !== 'lead' || canPurgeLead) && (
+                  {((r.type !== 'lead' && r.type !== 'student') || canPurgeLead) && (
                     <button
                       type="button"
                       title="Butunlay o'chirish"

@@ -20,10 +20,10 @@ public class LeadDeleteRightsTests
 
     [Theory]
     [InlineData(Roles.SuperAdmin, true)]
-    [InlineData(Roles.Admin, false)] // 2026-11-10: direktor ham faqat arxivlaydi
+    [InlineData(Roles.Admin, true)] // 2026-11-10 (kechqurun): direktor ham o'chiradi — faqat arxivlangan yozuvni
     [InlineData(Roles.Staff, false)]
     [InlineData(Roles.Teacher, false)]
-    public void Faqat_superadmin(string role, bool expected) =>
+    public void Faqat_superadmin_va_direktor(string role, bool expected) =>
         Assert.Equal(expected, LeadDeleteRights.CanDelete(User(role)));
 
     [Fact]
@@ -41,5 +41,14 @@ public class LeadDeleteRightsTests
         var archive = File.ReadAllText(Path.Combine(root, "WunderkindLC.Server", "Controllers", "ArchiveController.cs"));
         Assert.Contains("LeadDeleteRights.CanDelete(User)", leads);
         Assert.Contains("LeadDeleteRights.CanDelete(User)", archive);
+
+        // 2026-11-10 (egasi): o'chirish FAQAT ARXIVLANGANDAN KEYIN — lid ham, o'quvchi ham (ikkala o'quvchi yo'li).
+        Assert.Contains("if (!LeadLoss.IsLost(lead)) return BadRequest(new { message = LeadDeleteRights.LeadNotArchived });", leads);
+        var students = File.ReadAllText(Path.Combine(root, "WunderkindLC.Server", "Controllers", "StudentsController.cs"));
+        Assert.Contains("if (!LeadDeleteRights.CanDelete(User)) return StatusCode(403", students);
+        Assert.Contains("if (!student.IsArchived) return BadRequest(new { message = LeadDeleteRights.StudentNotArchived });", students);
+        var purge = File.ReadAllText(Path.Combine(root, "WunderkindLC.Server", "Controllers", "StudentPurgeController.cs"));
+        Assert.Contains("LeadDeleteRights.StudentNotArchived", purge);
+        Assert.Contains("or \"student\" && !LeadDeleteRights.CanDelete(User)", archive);
     }
 }

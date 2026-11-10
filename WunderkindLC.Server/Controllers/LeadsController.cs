@@ -442,6 +442,8 @@ public class LeadsController(
             return StatusCode(403, new { message = LeadDeleteRights.Denied });
         var lead = await db.Leads.FindAsync(id);
         if (lead is null) return NotFound();
+        // 2026-11-10 (egasi): o'chirish FAQAT arxivlangan (yo'qotilgan) liddan — avval «Arxivlash».
+        if (!LeadLoss.IsLost(lead)) return BadRequest(new { message = LeadDeleteRights.LeadNotArchived });
 
         var reason = string.IsNullOrWhiteSpace(reasonId) ? ""
             : (await db.ActionReasons.Where(r => r.Id == reasonId).Select(r => r.Label).FirstOrDefaultAsync() ?? "");

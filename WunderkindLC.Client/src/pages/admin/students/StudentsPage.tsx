@@ -1232,7 +1232,8 @@ export function StudentsPage() {
                 )}
               </>
             )}
-            {can('students.list', 'delete') && (
+            {/* Arxivlash — server bilan bir xil ruxsat (POST → «Qo'shish»); 2026-11-10: xodimlarda faqat arxivlash. */}
+            {can('students.list', 'create') && (
               <Button
                 variant="secondary"
                 onClick={() => setArchiveReasonModal(true)}
@@ -1454,7 +1455,7 @@ export function StudentsPage() {
                                 }}
                               />
                             )}
-                            {can('students.list', 'delete') && (
+                            {can('students.list', 'create') && (
                               <IconBtn icon={Archive} title="Arxivga ko'chirish" onClick={() => handleArchive(s)} />
                             )}
                             <IconBtn
@@ -1469,7 +1470,8 @@ export function StudentsPage() {
                             {can('students.list', 'edit') && (
                               <IconBtn icon={RotateCcw} title="Arxivdan qaytarish" onClick={() => handleRestore(s)} />
                             )}
-                            {can('students.list', 'delete') && (
+                            {/* Butunlay o'chirish — FAQAT superadmin va direktor (2026-11-10, server `LeadDeleteRights`). */}
+                            {(user?.role === 'superadmin' || user?.role === 'admin') && (
                               <IconBtn
                                 icon={Trash2}
                                 title="Butunlay o'chirish"

@@ -32,7 +32,13 @@ qatorlar uni tushuntirsa qoladi, avans suratdagidan oshmaydi — to'lovlar qolib
 "tekin avans" chiqmasin), `ClassName` bo'shatiladi (guruhsiz billing yorliqqa qarab qayta ishlamasin),
 o'chgan login akkauntiga bog'lanish uziladi. Javobda — "guruhsiz tiklandi, guruhga qo'shing".
 
-## 2. RUXSAT — «O'quvchilar ro'yxati va profili» → «O'chirish» (`students.list:delete`)
+## 2. RUXSAT — FAQAT superadmin va direktor, FAQAT ARXIVDAGI o'quvchi (2026-11-10)
+
+⚠️ **2026-11-10 dan (egasi): «o'chirish superadmin va direktorda, undan oldin arxivlash; menejer, sotuv menejeri va qolgan
+hamma xodimlarda — faqat arxivlash».** Ikkala yo'l ham (`DELETE {id}` arxiv tabi, `DELETE {id}/purge` profil) va «Sozlamalar → Arxiv»dagi
+o'quvchi surati — `LeadDeleteRights.CanDelete` (superadmin | admin ROLI, HARD) + o'quvchi `IsArchived` (aks holda 400 «Avval
+arxivlang»). `students.list:delete` ruxsatli xodim ham o'chira OLMAYDI. Arxivlash tugmasi — server bilan bir xil ruxsat
+(`students.list:create`, POST). Quyidagi 2026-09-30 qoidasi — TARIX.
 
 Foydalanuvchi qarori (2026-09-30): "faqat superadminda bo'lmasin, role berilgan istalgan odamda
 bo'lsin". Ya'ni admin/superadmin va **Rollar** matritsasida shu katak belgilangan har qanday xodim

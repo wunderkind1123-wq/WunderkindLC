@@ -1192,3 +1192,15 @@ XODIMLARI (administrator, operator, menejer, direktor…); o'qituvchilarda o'z m
   oynasi (ro'yxat sababi bilan, qo'shish, o'chirish, jami), «Xodimlar hisoboti (Excel)» — oy bo'yicha CSV (bonus/jarima sabablari bilan).
   Xodim O'Z oyligini ko'rmaydi (egasining tanlovi — faqat Moliya).
 - Zaxira: `staffSalaryAdjustments`. Testlar: `StaffSalaryAdjustmentTests`.
+
+### MAOSH — «QAYSI OY UCHUN» P&L va to'lov oynasida (2026-11-10, egasi)
+
+Shikoyat: «oktabr oyligini noyabrda kiritdim — noyabr chiqimi bo'lib qoldi». Sabab: reestrdagi «To'lash» oynasida oy
+tanlovi yo'q edi — to'lov reestrda ochiq turgan oyga (standart — JORIY) yozilardi.
+- **«To'lash» oynasi:** «Qaysi oy uchun (maosh oyi)» tanlovi (oxirgi 6 oy, standart — reestr oyi); oy almashsa o'sha oyning
+  reestr qatori qayta olinadi (hisoblangan/berilgan/qoldiq, summa = qoldiq). «Sana» — pul berilgan kun (alohida).
+- **P&L (`PnlEngine`, «Ish haqi»):** xarajat = har kishi uchun `max(hisoblangan, shu oy UCHUN to'langan)` (oylik kiritilmagan
+  xodimga berilgan pul ham yo'qolmaydi); «To'langan» — reestrning `Paid` i (oy tegi bo'yicha), to'lov KUNI bo'yicha EMAS.
+  Oyi yo'q eski XODIM maosh chiqimlari — faqat «to'langan»da, to'lov kuni bo'yicha (o'qituvchinikilar varaqada allaqachon bor).
+- ⚠️ Pul oqimi, Kirim-chiqim, Kassalar — AVVALGIDEK to'lov KUNI bo'yicha (pul kassadan qachon chiqqan).
+- Testlar: `PnlSalaryMonthTests`.

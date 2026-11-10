@@ -64,3 +64,32 @@ public class StaffSalaryAdjustmentTests
     public void Hisoblangan_hech_qachon_manfiy_emas() =>
         Assert.Equal((7_600_000m, 0m), (PayrollRegister.Total(7_000_000m, 800_000m, 200_000m), PayrollRegister.Total(100m, 0m, 500m)));
 }
+
+/// <summary>
+/// 2026-11-10 (egasi): «oktabr oyligi noyabrda berilsa — P&L va xarajatlarda OKTABRda». Maosh xarajati va «to'langan» —
+/// «QAYSI OY UCHUN» (FinanceTransaction.Month) bo'yicha, to'lov kuni bo'yicha EMAS.
+/// </summary>
+public class PnlSalaryMonthTests
+{
+    [Fact]
+    public async Task Oktabr_maoshi_noyabrda_berilsa__PnL_da_OKTABR_xarajati_noyabrda_yoq()
+    {
+        using var db = TestDb.Sqlite();
+        var ctx = db.Context;
+        ctx.Users.Add(new AppUser { Id = "s1", FullName = "Operator", Role = Roles.Staff, Email = "s1" });
+        // Oylik KIRITILMAGAN xodim — berilgan pul baribir xarajat bo'lsin.
+        ctx.FinanceTransactions.Add(new FinanceTransaction
+        {
+            Direction = "expense", Category = "salary", StaffUserId = "s1", Month = "2026-10", Amount = 5_000_000m,
+            SalaryPayKind = "final", Date = "2026-11-05",
+        });
+        await ctx.SaveChangesAsync();
+
+        var oct = await WunderkindLC.Application.Services.FinanceReports2.PnlEngine.ComputeAsync(ctx, "2026-10", "2026-10-31");
+        var staffOct = Assert.Single(oct.Total.Expenses.Lines, l => l.Id == "payroll:staff");
+        Assert.Equal((5_000_000m, 5_000_000m), (staffOct.Current, staffOct.Paid));
+
+        var nov = await WunderkindLC.Application.Services.FinanceReports2.PnlEngine.ComputeAsync(ctx, "2026-11", "2026-11-30");
+        Assert.DoesNotContain(nov.Total.Expenses.Lines, l => l.Id == "payroll:staff" && (l.Current != 0 || l.Paid != 0));
+    }
+}

@@ -262,8 +262,31 @@ export function PayrollTab() {
 }
 
 /** Maosh to'lovi — avans yoki yakuniy; odatdagi maosh chiqimi (`POST finance/transactions`). */
-function PayModal({ row, month, onClose, onDone }: { row: PayrollRow; month: string; onClose: () => void; onDone: () => void }) {
-  const [amount, setAmount] = useState<number | null>(row.remaining > 0 ? row.remaining : null)
+function PayModal({ row: initialRow, month: initialMonth, onClose, onDone }: { row: PayrollRow; month: string; onClose: () => void; onDone: () => void }) {
+  // «QAYSI OY UCHUN» (2026-11-10, egasi: «oktabr oyligini noyabrda kiritdim — noyabr chiqimi bo'lib qoldi»): reestrda ochiq
+  // turgan oy — faqat standart; foydalanuvchi aniq tanlaydi. Oy almashsa o'sha oy hisobi (hisoblangan/berilgan/qoldiq) qayta olinadi.
+  const [month, setMonth] = useState(initialMonth)
+  const [row, setRow] = useState<PayrollRow>(initialRow)
+  const [rowLoading, setRowLoading] = useState(false)
+  const monthOptions = Array.from({ length: 6 }, (_, i) => shiftMonth(currentMonth(), -i))
+  if (!monthOptions.includes(initialMonth)) monthOptions.push(initialMonth)
+  const [amount, setAmount] = useState<number | null>(initialRow.remaining > 0 ? initialRow.remaining : null)
+  const pickMonth = async (m: string) => {
+    setMonth(m)
+    setRowLoading(true)
+    setError('')
+    try {
+      const reg = await getPayroll(m)
+      const next = [...reg.teachers, ...reg.staff].find((x) => x.kind === initialRow.kind && x.id === initialRow.id)
+      const r = next ?? { ...initialRow, accrued: 0, paid: 0, remaining: 0, advance: 0, final: 0, other: 0, pending: 0 }
+      setRow(r)
+      setAmount(r.remaining > 0 ? r.remaining : null)
+    } catch (e) {
+      setError(apiErrorMessage(e, "Bu oy hisobini yuklab bo'lmadi"))
+    } finally {
+      setRowLoading(false)
+    }
+  }
   // Tur tanlanmaguncha summaga qarab: qoldiqni TO'LIQ yopsa — «yakuniy», kamroq bo'lsa — «avans».
   const [kindPicked, setKind] = useState<'advance' | 'final' | null>(null)
   const kind: 'advance' | 'final' = kindPicked ?? (row.remaining > 0 && (amount ?? 0) >= row.remaining ? 'final' : 'advance')
@@ -313,13 +336,22 @@ function PayModal({ row, month, onClose, onDone }: { row: PayrollRow; month: str
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={busy}>Bekor</Button>
-          <Button onClick={() => void submit()} disabled={busy || !amount || amount <= 0}>{busy ? 'Saqlanmoqda...' : 'Berish'}</Button>
+          <Button onClick={() => void submit()} disabled={busy || rowLoading || !amount || amount <= 0}>{busy ? 'Saqlanmoqda...' : 'Berish'}</Button>
         </>
       }
     >
       <div className="space-y-3">
-        <p className="text-sm text-slate-500">
-          {formatMonth(month)}: hisoblangan {formatMoney(row.accrued)}, berilgan {formatMoney(row.paid)}.
+        <label className="block text-sm">
+          <span className="mb-1 block font-medium text-slate-700">Qaysi oy uchun (maosh oyi)</span>
+          <select value={month} onChange={(e) => void pickMonth(e.target.value)} disabled={busy || rowLoading} className={input}>
+            {monthOptions.map((m) => <option key={m} value={m}>{formatMonth(m)}</option>)}
+          </select>
+          <span className="mt-1 block text-xs text-slate-400">
+            To'lov shu oy maoshi hisobiga va moliyaviy hisobotda (P&L) shu oy xarajatiga yoziladi; «Sana» — pul berilgan kun.
+          </span>
+        </label>
+        <p className={cn('text-sm text-slate-500', rowLoading && 'opacity-50')}>
+          {formatMonth(month)}: hisoblangan {formatMoney(row.accrued)}, berilgan {formatMoney(row.paid)}, qoldiq {formatMoney(Math.max(0, row.remaining))}.
         </p>
         {(row.pending ?? 0) > 0 && (
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">

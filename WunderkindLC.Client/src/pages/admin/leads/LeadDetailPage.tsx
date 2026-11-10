@@ -121,9 +121,9 @@ export function LeadDetailPage() {
   const navigate = useNavigate()
   const { can } = usePerm()
   const canEdit = can('leads.list', 'edit')
-  // Lidni BUTUNLAY o'chirish — FAQAT superadmin (2026-11-10, direktor ham faqat arxivlaydi); serverdagi `LeadDeleteRights` bilan bir xil.
+  // Lidni BUTUNLAY o'chirish — superadmin va direktor (admin), FAQAT arxivlangan liddan (2026-11-10); serverdagi `LeadDeleteRights` bilan bir xil.
   const role = useAuth().user?.role
-  const canDelete = role === 'superadmin'
+  const canDelete = role === 'superadmin' || role === 'admin'
   // Aylantirish O'QUVCHI yaratadi — server lid ruxsatidan tashqari o'quvchi qo'shish huquqini ham talab qiladi.
   const canConvert = can('leads.list', 'create') && can('students.list', 'create')
 
@@ -338,8 +338,8 @@ export function LeadDetailPage() {
         : [{ label: 'Arxivlash', icon: Archive, danger: true, onClick: () => setLosing(true) }]
       : []),
     // Aylantirilgan lid O'CHIRILMAYDI (server 400): KPI "shartnoma" va sotuv tushumi unga tayanadi.
-    // ⚠️ O'chirish — FAQAT superadmin (ROL), ruxsat kaliti yetmaydi (server `LeadDeleteRights`).
-    ...(canDelete && !lead.convertedStudentId
+    // ⚠️ O'chirish — superadmin va direktor (ROL), FAQAT arxivlangan (yo'qotilgan) liddan; server `LeadDeleteRights`.
+    ...(canDelete && lost && !lead.convertedStudentId
       ? [{ label: "Lidni o'chirish", icon: Trash2, danger: true, onClick: () => setDeleting(true) }]
       : []),
   ]

@@ -1278,8 +1278,11 @@ public partial class StudentsController(
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id, [FromQuery] string? reasonId = null)
     {
+        // 2026-11-10 (egasi): butunlay o'chirish — FAQAT superadmin va direktor (HARD rol) va FAQAT arxivdagi o'quvchi.
+        if (!LeadDeleteRights.CanDelete(User)) return StatusCode(403, new { message = LeadDeleteRights.Denied });
         var student = await db.Students.FindAsync(id);
         if (student is null) return NotFound();
+        if (!student.IsArchived) return BadRequest(new { message = LeadDeleteRights.StudentNotArchived });
         var reason = string.IsNullOrWhiteSpace(reasonId) ? "" : (await db.ActionReasons.Where(r => r.Id == reasonId).Select(r => r.Label).FirstOrDefaultAsync() ?? "");
         // Bog'liq qatorlar orphan qolmasligi uchun ularni ham olib tashlaymiz: oylik hisob, guruh a'zoliklari,
         // jurnal yozuvlari. (Moliya yozuvlari audit uchun saqlanadi.)
