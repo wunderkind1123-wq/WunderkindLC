@@ -838,3 +838,13 @@ bir martalik kirish kodini so'ray olardi. Qoida — `TelegramLinks` (Application
   (`AdminPerm` fe'l→amal xaritasi: DELETE = `delete`; klientda `can('students.list','delete')`).
 - Har uzilish — `Student` turidagi audit qatori ("Telegram ulanishi uzildi …"), `studentId` bilan.
 - Ota-ona qayta ulanishi uchun botga to'g'ri raqamni yuboradi (oddiy ro'yxatdan o'tish).
+
+## TELEGRAM initData — `signature` HMAC'ga KIRADI (2026-11-10, prod nosozligi)
+
+Prod: `POST api/telegram/link` bir haftada 383 × 400 («Telegram ma'lumoti tasdiqlanmadi»), BIRORTA ham 200 yo'q;
+`TelegramRegistrations` da panel akkaunti (`UserId`) qatori — 0 ta ⇒ HR topshiriqlari va boshqa xodim xabarlari
+HECH KIMGA bormagan. Sabab: `TelegramInitData` Ed25519 `signature` maydonini data_check_string'dan chiqarib tashlardi
+(rasmiy qoidada HMAC uchun FAQAT `hash` chiqariladi). Endi avval rasmiy variant (signature bilan), keyin zaxira (usiz) —
+ikkalasi ham bot tokeni bilan. Rad etish sababi (`hash`/`expired`/`no-user`/`malformed`/`empty`) `TelegramLinkController`
+logiga yoziladi (initData'ning o'zi — HECH QACHON). Karyera Mini App'i (`PublicCareerController`) ham shu funksiyadan.
+Testlar: `TelegramInitDataTests`.

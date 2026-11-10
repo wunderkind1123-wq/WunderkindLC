@@ -373,14 +373,41 @@ public class TelegramInitDataTests
     }
 
     [Fact]
-    public void Validate_SignatureMaydoni_HisobgaKirmaydi()
+    public void Validate_SignatureMaydoni_RASMIY_qoidada_HMAC_ga_KIRADI()
     {
-        // Telegram yangi Ed25519 `signature` maydonini ham yuboradi — u HMAC data_check_string'ga
-        // KIRMAYDI. Kirsa edi, barcha yangi klientlar 401 olardi.
+        // 2026-11-10 (prod: `POST telegram/link` 383 × 400, birorta xodim ulanmadi): Telegram rasmiy qoidasida HMAC
+        // data_check_string'dan FAQAT `hash` chiqariladi — Ed25519 `signature` unga KIRADI. Bot aynan shunday imzolaydi.
+        var fields = BaseFields();
+        fields["signature"] = "aBcD_ef-123456789";
+        var initData = BuildInitData(BotToken, fields);
+
+        Assert.NotNull(TelegramInitData.Validate(initData, BotToken, out var reason));
+        Assert.Equal("", reason);
+    }
+
+    [Fact]
+    public void Validate_SignatureSIZ_imzolangan_eski_satr_ham_qabul_qilinadi()
+    {
+        // Zaxira: `signature` HMAC'ga kirmagan holda imzolangan satr (eski taxmin) ham o'tadi — ikkalasi ham TOKEN bilan.
         var fields = BaseFields();
         var initData = BuildInitData(BotToken, fields) + "&signature=aBcD_ef-123456789";
 
         Assert.NotNull(TelegramInitData.Validate(initData, BotToken));
+    }
+
+    [Fact]
+    public void Validate_rad_etish_sababi_qaytadi()
+    {
+        var fields = BaseFields();
+        fields["signature"] = "sig";
+        var initData = BuildInitData(BotToken, fields);
+        Assert.Null(TelegramInitData.Validate(initData, "boshqa:token", out var wrongToken));
+        Assert.Equal("hash", wrongToken);
+        Assert.Null(TelegramInitData.Validate("", BotToken, out var empty));
+        Assert.Equal("empty", empty);
+        var old = BaseFields(authDate: DateTimeOffset.UtcNow.AddDays(-2));
+        Assert.Null(TelegramInitData.Validate(BuildInitData(BotToken, old), BotToken, out var expired));
+        Assert.Equal("expired", expired);
     }
 
     [Fact]

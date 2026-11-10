@@ -130,7 +130,7 @@ public class TelegramMiniAppLinkTests
         var src = File.ReadAllText(Path.Combine(dir!.FullName, "WunderkindLC.Server", "Controllers", "TelegramLinkController.cs"));
         Assert.Contains("[Authorize]", src);
         Assert.DoesNotContain("AllowAnonymous", src);
-        Assert.Contains("TelegramInitData.Validate(req.InitData, telegram.BotToken)", src);
+        Assert.Contains("TelegramInitData.Validate(req.InitData, telegram.BotToken", src); // + `out reason` (2026-11-10)
         // The account comes from the session, never from the request body.
         Assert.Contains("ClaimTypes.NameIdentifier", src);
         Assert.DoesNotContain("StudentId", src.Split("record LinkRequest")[1].Split(';')[0]);

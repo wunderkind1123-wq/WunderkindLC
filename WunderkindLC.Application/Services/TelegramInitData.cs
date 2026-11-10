@@ -17,6 +17,12 @@ namespace WunderkindLC.Application.Services;
 /// <para><c>data_check_string</c> — <c>hash</c>dan tashqari barcha maydonlar <c>key=value</c>
 /// ko'rinishida, kalit bo'yicha alifbo tartibida, <c>\n</c> bilan ulangan holda.</para>
 ///
+/// <para>⚠️ <c>signature</c> (Telegram'ning Ed25519 imzosi, 2024 dan har klientda) — data_check_string'ga KIRADI:
+/// rasmiy qoidada HMAC uchun FAQAT <c>hash</c> chiqariladi (<c>signature</c> faqat uchinchi tomon Ed25519 tekshiruvida
+/// chiqariladi). 2026-11-10 gacha u chiqarib tashlanardi — prod'da <c>POST telegram/link</c> bir haftada 383 marta 400
+/// qaytardi, BIRORTA panel akkaunti (xodim/admin/superadmin) Telegram'ga ulanmadi va HR topshiriqlari botga bormadi.
+/// Endi ikkala variant tekshiriladi (avval rasmiysi) — ikkalasi ham bot TOKENI bilan, ya'ni soxtalashtirib bo'lmaydi.</para>
+///
 /// <para>Qo'shimcha himoya: <c>auth_date</c> eskirgan bo'lsa (default 24 soat) rad etiladi —
 /// bir marta o'g'irlangan satr abadiy ishlamasin.</para>
 /// </summary>
@@ -29,9 +35,19 @@ public static class TelegramInitData
     /// <param name="initData">Telegram bergan xom so'rov satri (URL-encoded).</param>
     /// <param name="botToken">Mini App QAYSI botga tegishli bo'lsa — o'sha botning tokeni.</param>
     /// <param name="maxAge">Ruxsat etilgan eng katta "yosh" (default 24 soat).</param>
-    public static User? Validate(string? initData, string botToken, TimeSpan? maxAge = null)
+    public static User? Validate(string? initData, string botToken, TimeSpan? maxAge = null) =>
+        Validate(initData, botToken, out _, maxAge);
+
+    /// <summary>
+    /// <see cref="Validate(string?, string, TimeSpan?)"/> + rad etish SABABI (<paramref name="reason"/>): <c>empty</c> ·
+    /// <c>malformed</c> · <c>hash</c> · <c>expired</c> · <c>no-user</c>; muvaffaqiyatda bo'sh. Logga yozish uchun —
+    /// ma'lumotning O'ZI (initData, token) hech qachon yozilmaydi.
+    /// </summary>
+    public static User? Validate(string? initData, string botToken, out string reason, TimeSpan? maxAge = null)
     {
+        reason = "empty";
         if (string.IsNullOrWhiteSpace(initData) || string.IsNullOrWhiteSpace(botToken)) return null;
+        reason = "malformed";
 
         try
         {
@@ -40,6 +56,7 @@ public static class TelegramInitData
             // (`+` belgisini bo'sh joyga AYLANTIRMAYDI, aks holda imzo mos kelmay qolardi).
             var pairs = new List<(string Key, string Value)>();
             string? hash = null;
+            string? signature = null;
             foreach (var part in initData.Split('&', StringSplitOptions.RemoveEmptyEntries))
             {
                 var eq = part.IndexOf('=');
@@ -47,32 +64,44 @@ public static class TelegramInitData
                 var key = part[..eq];
                 var value = Uri.UnescapeDataString(part[(eq + 1)..]);
                 if (key == "hash") { hash = value; continue; }
-                if (key == "signature") continue; // Telegram'ning yangi (Ed25519) imzosi — HMAC hisobiga kirmaydi
+                if (key == "signature") { signature = value; continue; }
                 pairs.Add((key, value));
             }
             if (string.IsNullOrEmpty(hash) || pairs.Count == 0) return null;
 
-            var dataCheckString = string.Join('\n',
-                pairs.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => $"{p.Key}={p.Value}"));
-
             var secretKey = HMACSHA256.HashData(
                 Encoding.UTF8.GetBytes("WebAppData"), Encoding.UTF8.GetBytes(botToken));
-            var computed = HMACSHA256.HashData(secretKey, Encoding.UTF8.GetBytes(dataCheckString));
-            var expected = Convert.ToHexString(computed).ToLowerInvariant();
+            var given = Encoding.ASCII.GetBytes(hash.ToLowerInvariant());
+            bool Matches(IEnumerable<(string Key, string Value)> fields)
+            {
+                var dataCheckString = string.Join('\n',
+                    fields.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => $"{p.Key}={p.Value}"));
+                var computed = HMACSHA256.HashData(secretKey, Encoding.UTF8.GetBytes(dataCheckString));
+                // Vaqt bo'yicha oshkor bo'lmaydigan taqqoslash.
+                return CryptographicOperations.FixedTimeEquals(
+                    Encoding.ASCII.GetBytes(Convert.ToHexString(computed).ToLowerInvariant()), given);
+            }
 
-            // Vaqt bo'yicha oshkor bo'lmaydigan taqqoslash.
-            if (!CryptographicOperations.FixedTimeEquals(
-                    Encoding.ASCII.GetBytes(expected), Encoding.ASCII.GetBytes(hash.ToLowerInvariant())))
-                return null;
+            // Rasmiy: `signature` bilan; zaxira: `signature`siz (eski qoida bo'yicha imzolangan satr).
+            var ok = signature is not null
+                ? Matches(pairs.Append(("signature", signature))) || Matches(pairs)
+                : Matches(pairs);
+            reason = "hash";
+            if (!ok) return null;
 
             // auth_date — eskirmaganini tekshiramiz.
             var authRaw = pairs.FirstOrDefault(p => p.Key == "auth_date").Value;
             if (long.TryParse(authRaw, out var authUnix))
             {
                 var age = DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeSeconds(authUnix);
-                if (age > (maxAge ?? TimeSpan.FromHours(24)) || age < TimeSpan.FromMinutes(-5)) return null;
+                if (age > (maxAge ?? TimeSpan.FromHours(24)) || age < TimeSpan.FromMinutes(-5))
+                {
+                    reason = "expired";
+                    return null;
+                }
             }
 
+            reason = "no-user";
             var userJson = pairs.FirstOrDefault(p => p.Key == "user").Value;
             if (string.IsNullOrWhiteSpace(userJson)) return null;
 
@@ -83,10 +112,12 @@ public static class TelegramInitData
             string Str(string prop) =>
                 root.TryGetProperty(prop, out var v) ? v.GetString() ?? "" : "";
 
+            reason = "";
             return new User(idEl.GetInt64(), Str("username"), Str("first_name"), Str("last_name"));
         }
         catch
         {
+            reason = "malformed";
             return null;
         }
     }

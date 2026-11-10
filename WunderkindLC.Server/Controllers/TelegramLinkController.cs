@@ -28,9 +28,14 @@ public class TelegramLinkController(
             return BadRequest(new { message = "Telegram bot sozlanmagan" });
         // The Mini App must belong to the MAIN bot: its token signs initData, and the chat id is only
         // deliverable through that bot.
-        var tg = TelegramInitData.Validate(req.InitData, telegram.BotToken);
+        var tg = TelegramInitData.Validate(req.InitData, telegram.BotToken, out var reason);
         if (tg is null)
+        {
+            // Faqat SABAB (hash / expired / …) — initData'ning o'zi logga yozilmaydi. Ilgari bu jim edi va bir hafta davomida
+            // hech bir xodim ulanmagani sezilmadi (2026-11-10).
+            logger.LogWarning("Telegram ulanishi rad etildi: initData tasdiqlanmadi ({Reason})", reason);
             return BadRequest(new { message = "Telegram ma'lumoti tasdiqlanmadi — Panelni bot ichidan qayta oching" });
+        }
 
         var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(uid)) return Unauthorized();
