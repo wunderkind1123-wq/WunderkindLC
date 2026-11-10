@@ -194,6 +194,7 @@ public static class BackupService
         // SPEC-backlog-2026-10-17 F3: chiqim tasdig'i so'rovlari va xodim oyliklari (pul).
         await Add("expenseRequests", db.ExpenseRequests);
         await Add("staffSalaries", db.StaffSalaries);
+        await Add("staffSalaryAdjustments", db.StaffSalaryAdjustments);
         // Davomat jarimalari (U3c) — maoshdan ushlanadi, ya'ni PUL.
         await Add("teacherAttendanceFines", db.TeacherAttendanceFines);
         await Add("teacherFines", db.TeacherFines);

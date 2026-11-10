@@ -97,6 +97,12 @@ export interface PayrollRow {
   fixedFrom: string | null
   /** Shu oy uchun TASDIQ KUTAYOTGAN maosh so'rovlari summasi (chegaradan katta to'lov). */
   pending?: number
+  /** Xodim: asos (qat'iy oylik / KPI natijasi). Hisoblangan = asos + bonus − jarima (2026-11-10). */
+  base?: number
+  /** Qo'lda kiritilgan bonuslar jami (shu oy). */
+  bonus?: number
+  /** Qo'lda kiritilgan jarimalar jami (shu oy). */
+  fine?: number
 }
 
 export interface Payroll {
@@ -108,6 +114,9 @@ export interface Payroll {
   final: number
   teachers: PayrollRow[]
   staff: PayrollRow[]
+  /** Xodimlarga qo'lda bonus / jarima jami. */
+  bonus?: number
+  fine?: number
 }
 
 export async function getPayroll(month: string): Promise<Payroll> {
@@ -130,4 +139,37 @@ export async function getPayrollPeople(): Promise<PayrollPerson[]> {
 
 export async function setStaffSalary(userId: string, amount: number, fromMonth: string, note?: string): Promise<void> {
   await api.put(`/admin/finance/payroll/staff/${encodeURIComponent(userId)}/salary`, { amount, fromMonth, note })
+}
+
+// ── Xodim oyligiga QO'LDA bonus / jarima (2026-11-10) ───────────────────────────────────────────────────
+
+export type SalaryAdjustmentKind = 'bonus' | 'fine'
+
+export interface SalaryAdjustment {
+  id: string
+  userId: string
+  month: string
+  kind: SalaryAdjustmentKind
+  amount: number
+  reason: string
+  createdByName: string | null
+  createdAt: string
+}
+
+/** Oydagi bonus/jarimalar; `userId` berilsa — faqat shu xodimniki. */
+export async function getSalaryAdjustments(month: string, userId?: string): Promise<SalaryAdjustment[]> {
+  const { data } = await api.get<SalaryAdjustment[]>('/admin/finance/payroll/adjustments', { params: { month, userId } })
+  return data
+}
+
+export async function addSalaryAdjustment(
+  userId: string,
+  body: { kind: SalaryAdjustmentKind; amount: number; reason: string; month: string },
+): Promise<SalaryAdjustment> {
+  const { data } = await api.post<SalaryAdjustment>(`/admin/finance/payroll/staff/${encodeURIComponent(userId)}/adjustments`, body)
+  return data
+}
+
+export async function deleteSalaryAdjustment(id: string): Promise<void> {
+  await api.delete(`/admin/finance/payroll/adjustments/${encodeURIComponent(id)}`)
 }

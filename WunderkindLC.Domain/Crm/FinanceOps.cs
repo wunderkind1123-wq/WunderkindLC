@@ -65,3 +65,33 @@ public class StaffSalary
     public string? CreatedBy { get; set; }
     public string CreatedAt { get; set; } = AppClock.Iso();
 }
+
+/// <summary>Xodim oyligiga QO'LDA bonus / jarima turlari.</summary>
+public static class StaffSalaryAdjustmentKinds
+{
+    public const string Bonus = "bonus";
+    public const string Fine = "fine";
+    public static bool IsValid(string? v) => v is Bonus or Fine;
+}
+
+/// <summary>
+/// XODIM OYLIGIGA QO'LDA BONUS / JARIMA (egasi, 2026-11-10: «fiks summa, pastda jarima qancha, bonus qancha — hisobotda
+/// ko'rinsin»). Bir oyda bir nechta bo'lishi mumkin, har biri SABABI bilan. Hisoblangan maosh =
+/// asos (qat'iy oylik yoki KPI natijasi) + bonuslar − jarimalar (<c>PayrollRegister</c>). Faqat panel xodimlari
+/// (o'qituvchilarda o'z maosh hisobi va jarimalari bor). Ko'rinish — faqat Moliya (`finance.main`).
+/// </summary>
+public class StaffSalaryAdjustment
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string UserId { get; set; } = string.Empty;
+    /// <summary>Qaysi oy maoshiga ("yyyy-MM").</summary>
+    public string Month { get; set; } = string.Empty;
+    /// <summary><see cref="StaffSalaryAdjustmentKinds"/>.</summary>
+    public string Kind { get; set; } = StaffSalaryAdjustmentKinds.Bonus;
+    /// <summary>Har doim musbat; ishora <see cref="Kind"/> dan.</summary>
+    public decimal Amount { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public string? CreatedBy { get; set; }
+    public string? CreatedByName { get; set; }
+    public string CreatedAt { get; set; } = AppClock.Iso();
+}

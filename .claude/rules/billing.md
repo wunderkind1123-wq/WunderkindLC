@@ -1173,3 +1173,22 @@ to'lov turi — avans / yakuniy.
 - O'qituvchi profili → «Guruhlar»: joriy oy bo'yicha guruhlaridagi o'quvchilar · to'laganlar · to'lamaganlar · qarz
   (`finance/teacher-payments`, faqat `finance.main` ko'radiganlarga).
 - Testlar: `FinanceOpsTests`.
+
+### XODIM OYLIGIGA QO'LDA BONUS / JARIMA (2026-11-10, migratsiya `AddStaffSalaryAdjustments`)
+
+Egasi: «fiks summa belgilanadi, pastda jarima qancha, bonus qancha — kiritilsin, hisobotda ko'rinsin». Faqat panel
+XODIMLARI (administrator, operator, menejer, direktor…); o'qituvchilarda o'z maosh hisobi va jarimalari bor (o'zgarishsiz).
+
+- **Model:** `StaffSalaryAdjustment` (UserId · Month "yyyy-MM" · Kind `bonus`|`fine` · Amount > 0 · Reason 3..300 · kim/qachon).
+  Bir oyda bir nechta, har biri SABABI bilan. `FinanceTransaction` EMAS — kassaga tegmaydi; pul odatdagi maosh to'lovi bilan.
+- **Hisob (`PayrollRegister`):** xodim qatorida `Base` (qat'iy oylik yoki KPI natijasi/okladi) + `Bonus` − `Fine` = `Accrued`
+  (`PayrollRegister.Total`, kamida 0); qoldiq/holat shundan. KPI xodimiga ham qo'shiladi (egasining tanlovi — KPI ustiga).
+  O'qituvchi qatorida `Base = Accrued`, bonus/jarima 0. Oylik yoki to'lovi yo'q admin/superadmin ham bonusi bo'lsa ro'yxatda.
+- **API (`PayrollController`, `finance.main`):** `GET payroll/adjustments?month=&userId=` (RRP), `POST payroll/staff/{userId}/adjustments`,
+  `DELETE payroll/adjustments/{id}`; har amal — audit `Staff` («Xodim oyligiga bonus/jarima: …» sababi bilan). Ruxsat — oylik
+  qoidasi: superadmin bo'lmagan O'Z oyligiga va superadmin oyligiga kirita olmaydi; oy — joriy yoki O'TGAN (oy yopilishi),
+  undan eski — faqat superadmin; kelgusi oy — 400. Tekshiruv — `PayrollRegister.ValidateAdjustment` (sof).
+- **UI (Moliya → «Maosh reestri»):** xodimlar jadvalida Oylik · Bonus · Jarima · Hisoblangan ustunlari, qatorda «Bonus / jarima»
+  oynasi (ro'yxat sababi bilan, qo'shish, o'chirish, jami), «Xodimlar hisoboti (Excel)» — oy bo'yicha CSV (bonus/jarima sabablari bilan).
+  Xodim O'Z oyligini ko'rmaydi (egasining tanlovi — faqat Moliya).
+- Zaxira: `staffSalaryAdjustments`. Testlar: `StaffSalaryAdjustmentTests`.

@@ -10,11 +10,19 @@ namespace WunderkindLC.Application.Services;
 public record PayrollRowDto(
     string Kind, string Id, string Name, string Role, string Source,
     decimal Accrued, decimal Advance, decimal Final, decimal Other, decimal Paid, decimal Remaining, string Status,
-    decimal? FixedAmount, string? FixedFrom, decimal Pending = 0);
+    decimal? FixedAmount, string? FixedFrom, decimal Pending = 0,
+    // LC (2026-11-10): xodim — asos (qat'iy oylik / KPI natijasi) + QO'LDA bonus − QO'LDA jarima = Accrued.
+    // O'qituvchida Base = Accrued, Bonus = Fine = 0 (uning jarimalari maosh hisobining ichida).
+    decimal Base = 0, decimal Bonus = 0, decimal Fine = 0);
 
 public record PayrollDto(
     string Month, decimal Accrued, decimal Paid, decimal Remaining, decimal Advance, decimal Final,
-    List<PayrollRowDto> Teachers, List<PayrollRowDto> Staff);
+    List<PayrollRowDto> Teachers, List<PayrollRowDto> Staff,
+    decimal Bonus = 0, decimal Fine = 0);
+
+/// <summary>Xodim oyligiga qo'lda kiritilgan bonus / jarima qatori.</summary>
+public record StaffSalaryAdjustmentDto(
+    string Id, string UserId, string Month, string Kind, decimal Amount, string Reason, string? CreatedByName, string CreatedAt);
 
 /// <summary>
 /// XODIMLAR MAOSHI REESTRI (SPEC-backlog-2026-10-17 F3 K3; egasining qarori: fiks + KPI, avans/yakuniy). Bir OY uchun
@@ -83,7 +91,7 @@ public static class PayrollRegister
             var pend = pending.Where(r => r.TeacherId == te.Id).Sum(r => r.Amount);
             if (te.IsArchived && accrued <= 0 && paid <= 0 && pend <= 0) continue;
             teacherRows.Add(new PayrollRowDto("teacher", te.Id, te.FullName, "O'qituvchi", "ledger",
-                accrued, adv, fin, oth, paid, accrued - paid, StatusOf(accrued, paid), null, null, pend));
+                accrued, adv, fin, oth, paid, accrued - paid, StatusOf(accrued, paid), null, null, pend, Base: accrued));
         }
 
         // ---- xodimlar ----
@@ -93,6 +101,13 @@ public static class PayrollRegister
         var results = await db.KpiMonthResults.AsNoTracking()
             .Where(r => r.Month == month && r.Status == "confirmed").ToListAsync(ct);
         var paidStaffIds = pays.Select(p => p.StaffUserId).OfType<string>().ToHashSet();
+        // LC: qo'lda bonus / jarima (2026-11-10) — shu oy uchun, xodim bo'yicha jami.
+        var adjustments = (await db.StaffSalaryAdjustments.AsNoTracking().Where(a => a.Month == month)
+                .Select(a => new { a.UserId, a.Kind, a.Amount }).ToListAsync(ct))
+            .GroupBy(a => a.UserId)
+            .ToDictionary(g => g.Key, g => (
+                Bonus: g.Where(a => a.Kind == StaffSalaryAdjustmentKinds.Bonus).Sum(a => a.Amount),
+                Fine: g.Where(a => a.Kind == StaffSalaryAdjustmentKinds.Fine).Sum(a => a.Amount)));
         var withSalary = salaries.Select(s => s.UserId).ToHashSet();
         var users = await db.Users.AsNoTracking()
             .Where(u => u.Role == Roles.Staff || u.Role == Roles.Admin || u.Role == Roles.SuperAdmin)
@@ -105,7 +120,7 @@ public static class PayrollRegister
             var profile = profiles.FirstOrDefault(p => p.UserId == u.Id);
             // Admin/superadmin — faqat maoshi kiritilgan yoki to'lov olgan bo'lsa (markaz egasi ro'yxatni to'ldirmasin).
             if (u.Role != Roles.Staff && profile is null && !withSalary.Contains(u.Id) && !paidStaffIds.Contains(u.Id)
-                && !pending.Any(r => r.StaffUserId == u.Id)) continue;
+                && !pending.Any(r => r.StaffUserId == u.Id) && !adjustments.ContainsKey(u.Id)) continue;
 
             var fixedRow = SalaryFor(salaries, u.Id, month);
             string source;
@@ -122,16 +137,38 @@ public static class PayrollRegister
 
             var (adv, fin, oth) = Split(pays.Where(p => p.StaffUserId == u.Id).Select(p => (p.SalaryPayKind, p.Amount)));
             var paid = adv + fin + oth;
+            // Asos (qat'iy oylik / KPI) + qo'lda bonus − qo'lda jarima. Jarima asosdan oshsa ham hisoblangan manfiy bo'lmaydi.
+            var baseAmount = accrued;
+            var (bonus, fine) = adjustments.GetValueOrDefault(u.Id);
+            accrued = Total(baseAmount, bonus, fine);
             staffRows.Add(new PayrollRowDto("staff", u.Id, u.FullName,
                 string.IsNullOrWhiteSpace(u.Position) ? RoleLabel(u.Role) : u.Position!, source,
                 accrued, adv, fin, oth, paid, accrued - paid, StatusOf(accrued, paid),
-                fixedRow?.Amount, fixedRow?.EffectiveFrom, pending.Where(r => r.StaffUserId == u.Id).Sum(r => r.Amount)));
+                fixedRow?.Amount, fixedRow?.EffectiveFrom, pending.Where(r => r.StaffUserId == u.Id).Sum(r => r.Amount),
+                baseAmount, bonus, fine));
         }
 
         var all = teacherRows.Concat(staffRows).ToList();
         return new PayrollDto(month,
             all.Sum(r => r.Accrued), all.Sum(r => r.Paid), all.Sum(r => Math.Max(0, r.Remaining)),
-            all.Sum(r => r.Advance), all.Sum(r => r.Final), teacherRows, staffRows);
+            all.Sum(r => r.Advance), all.Sum(r => r.Final), teacherRows, staffRows,
+            staffRows.Sum(r => r.Bonus), staffRows.Sum(r => r.Fine));
+    }
+
+    /// <summary>Hisoblangan = asos + bonus − jarima, kamida 0 (jarima maoshdan oshib «qarz» yaratmaydi).</summary>
+    public static decimal Total(decimal baseAmount, decimal bonus, decimal fine) => Math.Max(0m, baseAmount + bonus - fine);
+
+    /// <summary>Qo'lda bonus/jarima qo'shish-o'chirish qoidasi (sof). Xato matni yoki null.</summary>
+    public static string? ValidateAdjustment(string? kind, decimal amount, string? reason, string? month)
+    {
+        if (!StaffSalaryAdjustmentKinds.IsValid(kind)) return "Turini tanlang: bonus yoki jarima";
+        if (amount <= 0) return "Summa 0 dan katta bo'lsin";
+        if (amount > 1_000_000_000m) return "Summa juda katta";
+        var r = (reason ?? "").Trim();
+        if (r.Length < 3) return "Sababini yozing (kamida 3 belgi)";
+        if (r.Length > 300) return "Sabab juda uzun — ko'pi bilan 300 belgi";
+        if (!PaymentFields.IsMonth(month)) return "Oy noto'g'ri (yyyy-MM)";
+        return null;
     }
 
     private static string RoleLabel(string role) => role switch

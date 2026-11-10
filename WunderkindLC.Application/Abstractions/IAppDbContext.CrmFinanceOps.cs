@@ -8,4 +8,5 @@ public partial interface IAppDbContext
 {
     DbSet<ExpenseRequest> ExpenseRequests { get; }
     DbSet<StaffSalary> StaffSalaries { get; }
+    DbSet<StaffSalaryAdjustment> StaffSalaryAdjustments { get; }
 }

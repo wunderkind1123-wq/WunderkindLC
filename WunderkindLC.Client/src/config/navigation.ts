@@ -199,9 +199,9 @@ export const navByRole: Record<Role, NavItem[]> = {
             { label: 'Kassalar', to: '/admin/finance?tab=cashiers', perm: 'finance.main' },
             { label: 'Bonus', to: '/admin/finance?tab=bonuses', perm: 'finance.main' },
             { label: 'Jarima', to: '/admin/moliya/jarima', perm: 'finance.main' },
-            { label: 'Oylik chiqarish', to: '/admin/finance?tab=teachers', perm: 'finance.main' },
-            // Egasining TZ'si (2026-10-17, SPEC-backlog F3): xodimlar maoshi reestri va katta chiqimlar tasdig'i.
-            { label: 'Maosh reestri', to: '/admin/finance?tab=payroll', perm: 'finance.main' },
+            // 2026-11-10 (egasi): «Oylik chiqarish» va «Maosh reestri» — BITTA sahifa (`SalaryViewSwitch`): oy bo'yicha hammasi
+            // (o'qituvchi + xodim, bonus/jarima) ↔ o'qituvchilar davr hisobi.
+            { label: 'Oylik chiqarish', to: '/admin/finance?tab=payroll', perm: 'finance.main' },
             { label: "Chiqimlar tasdig'i", to: '/admin/finance?tab=approvals', perm: 'finance.main' },
           ],
         },

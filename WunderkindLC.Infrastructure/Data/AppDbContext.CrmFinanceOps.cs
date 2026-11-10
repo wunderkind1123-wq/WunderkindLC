@@ -10,6 +10,7 @@ public partial class AppDbContext
 {
     public DbSet<ExpenseRequest> ExpenseRequests => Set<ExpenseRequest>();
     public DbSet<StaffSalary> StaffSalaries => Set<StaffSalary>();
+    public DbSet<StaffSalaryAdjustment> StaffSalaryAdjustments => Set<StaffSalaryAdjustment>();
 
     partial void ConfigureCrmFinanceOps(ModelBuilder b)
     {
@@ -42,6 +43,18 @@ public partial class AppDbContext
             e.Property(x => x.UserId).HasMaxLength(64);
             e.Property(x => x.EffectiveFrom).HasMaxLength(7);
             e.HasIndex(x => new { x.UserId, x.EffectiveFrom }).IsUnique();
+        });
+
+        b.Entity<StaffSalaryAdjustment>(e =>
+        {
+            e.Property(x => x.UserId).HasMaxLength(64);
+            e.Property(x => x.Month).HasMaxLength(7);
+            e.Property(x => x.Kind).HasMaxLength(8);
+            e.Property(x => x.Amount).HasPrecision(18, 2);
+            e.Property(x => x.Reason).HasMaxLength(300);
+            e.Property(x => x.CreatedBy).HasMaxLength(64);
+            e.Property(x => x.CreatedByName).HasMaxLength(200);
+            e.HasIndex(x => new { x.Month, x.UserId });
         });
     }
 }

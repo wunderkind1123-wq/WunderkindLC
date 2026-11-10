@@ -60,6 +60,7 @@ import { usePerm } from '@/lib/permissions'
 import { tabFromUrl } from '@/lib/tabParam'
 import { ExpenseApprovalsTab } from './ExpenseApprovalsTab'
 import { PayrollTab } from './PayrollTab'
+import { SalaryViewSwitch } from './SalaryViewSwitch'
 import { todayIso } from '@/lib/month'
 
 import { DateInput } from '@/components/ui/DateInput'
@@ -611,6 +612,8 @@ export function FinancePage() {
       {tab === 'bonuses' && <RetentionBonusTab />}
       {/* SPEC-backlog-2026-10-17 F3 — o'z yuklanishi bilan (sahifaning umumiy ma'lumotiga bog'liq emas). */}
       {tab === 'approvals' && <ExpenseApprovalsTab />}
+      {/* «Oylik chiqarish» — bitta sahifa: oy bo'yicha hammasi (reestr) ↔ o'qituvchilar davr hisobi. */}
+      {(tab === 'payroll' || tab === 'teachers') && <SalaryViewSwitch tab={tab} />}
       {tab === 'payroll' && <PayrollTab />}
 
       {tab === 'bonuses' || tab === 'approvals' || tab === 'payroll' ? null : loading || !summary ? (
