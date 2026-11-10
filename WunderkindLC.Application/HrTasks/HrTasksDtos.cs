@@ -176,6 +176,12 @@ public record HrTaskDto
     public string? EmployeeName { get; init; }
     public string? PositionName { get; init; }
     public int ProofCount { get; init; }
+    /// <summary>LC: SOTUV topshirig'i belgisi — <c>lead</c> (lid sahifasidan qo'yilgan) | <c>trial</c> (sinov darsi
+    /// ro'yxati) | null (oddiy topshiriq). Ro'yxatlarda boshqa rangda chiziladi (egasi, 2026-11-10).</summary>
+    public string? SalesKind { get; init; }
+    /// <summary>LC: lid topshirig'ida — lid id'si va ismi (lid sahifasiga havola).</summary>
+    public string? LeadId { get; init; }
+    public string? LeadName { get; init; }
 }
 
 public sealed record HrTaskProofDto(
@@ -243,7 +249,9 @@ public sealed record HrSettingsDto(
     bool ReminderEnabled,
     IReadOnlyList<int> ReminderOffsets,
     bool RemindEndOfDay,
-    DateTimeOffset? UpdatedAt);
+    DateTimeOffset? UpdatedAt,
+    bool AfternoonListEnabled = true,
+    string AfternoonTime = "16:00");
 
 /// <summary><c>PUT /settings</c> — the whole object (reminder fields default like the old API).</summary>
 public sealed record HrSettingsInput(
@@ -256,7 +264,9 @@ public sealed record HrSettingsInput(
     string? CloseOverdueTime,
     bool? ReminderEnabled,
     List<int>? ReminderOffsets,
-    bool? RemindEndOfDay);
+    bool? RemindEndOfDay,
+    bool? AfternoonListEnabled = null,
+    string? AfternoonTime = null);
 
 // ---------------------------------------------------------------- reports
 
@@ -315,7 +325,11 @@ public sealed record HrAppTaskDto(
     DateTimeOffset? AcceptedAt,
     bool NeedsAcceptance,
     IReadOnlyList<HrAppAttachmentDto> Attachments,
-    string? VoiceUrl);
+    string? VoiceUrl,
+    /// <summary>LC: <c>lead</c> | <c>trial</c> | null — <see cref="HrTaskDto.SalesKind"/>.</summary>
+    string? SalesKind = null,
+    string? LeadId = null,
+    string? LeadName = null);
 
 public sealed record HrTaskListDto(DateOnly Date, IReadOnlyList<HrAppTaskDto> Items);
 

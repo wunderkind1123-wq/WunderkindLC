@@ -20,6 +20,7 @@ import { EmployeeReportTable } from './EmployeeReportTable'
 import { PeriodCard } from './PeriodCard'
 import { usePeriodRange } from './period'
 import { hrtPaths, hrtTasksLink } from './paths'
+import { SalesBadge } from './SalesBadge'
 
 /** Row count of the "needs attention" and "self-created" lists. */
 const SHORT_LIST_LIMIT = 10
@@ -227,7 +228,10 @@ function TodayFocus({ today }: { today: string }) {
                   className="flex items-start justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-slate-50"
                 >
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-slate-800">{task.title}</span>
+                    <span className="flex items-center gap-1.5">
+                      <SalesBadge kind={task.salesKind} linkToLead={false} />
+                      <span className="block truncate text-sm font-medium text-slate-800">{task.title}</span>
+                    </span>
                     <span className="block truncate text-xs text-slate-400">{task.employeeName ?? '—'}</span>
                   </span>
                   <span className="shrink-0 whitespace-nowrap text-xs font-medium text-red-600">

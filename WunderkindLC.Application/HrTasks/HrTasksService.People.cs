@@ -424,7 +424,7 @@ public sealed partial class HrTasksService
         {
             employee.IsActive = active;
             changed = true;
-            if (!active) await CancelOpenTasksAsync(employee.Id, now, ct);
+            if (!active) await CancelEmployeeOpenTasksAsync(db, employee.Id, now, ct);
         }
         if (Has(body, "managerIds"))
         {
@@ -483,7 +483,7 @@ public sealed partial class HrTasksService
         var now = Now;
         var changed = employee.IsActive;
         employee.IsActive = false;
-        var cancelled = await CancelOpenTasksAsync(employee.Id, now, ct);
+        var cancelled = await CancelEmployeeOpenTasksAsync(db, employee.Id, now, ct);
         if (changed || cancelled > 0)
         {
             employee.UpdatedAt = now;
@@ -492,13 +492,6 @@ public sealed partial class HrTasksService
         return (await EmployeeDtosAsync([employee], ct))[0];
     }
 
-    private async Task<int> CancelOpenTasksAsync(string employeeId, DateTimeOffset now, CancellationToken ct)
-    {
-        var open = await db.HrTasks
-            .Where(t => t.EmployeeId == employeeId && (t.Status == HrTaskStatuses.Open || t.Status == HrTaskStatuses.Returned))
-            .ToListAsync(ct);
-        return open.Count(t => t.Cancel(now));
-    }
 
     /// <summary>
     /// "Invite". LMS: a one-time link code the admin hands over. LC has no admin-issued code: the chat

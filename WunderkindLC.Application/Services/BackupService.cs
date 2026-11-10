@@ -298,6 +298,7 @@ public static class BackupService
         await Add("hrSettings", db.HrSettings);
         // LC: avtomatik sinov darsi topshiriqlari ↔ sinovlar (tiklanganda topshiriq qayta yaratilmasin).
         await Add("hrTrialTasks", db.HrTrialTasks);
+        await Add("hrLeadTasks", db.HrLeadTasks);
         // ---- Instagram (biznes qismi; tokenlar `SecretScrub` bilan tushadi) ----
         await Add("igAccounts", db.IgAccounts);
         await Add("igAutoRules", db.IgAutoRules);

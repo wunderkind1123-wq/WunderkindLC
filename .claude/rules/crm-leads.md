@@ -9,6 +9,10 @@ paths:
   - "WunderkindLC.Application/Services/LeadRemoval.cs"
   - "WunderkindLC.Application/Services/LeadTrialRules.cs"
   - "WunderkindLC.Application/Services/LeadIntake.cs"
+  - "WunderkindLC.Application/Services/LeadTasks.cs"
+  - "WunderkindLC.Application/HrTasks/HrTasksService.Leads.cs"
+  - "WunderkindLC.Client/src/lib/leadTaskDue.ts"
+  - "WunderkindLC.Client/src/api/services/leadTasks.ts"
   - "WunderkindLC.Client/src/pages/admin/leads/**"
   - "WunderkindLC.Client/src/pages/admin/marketing/**"
 ---
@@ -342,23 +346,23 @@ alohida arxiv bandi YO'Q, eski `/admin/leads/arxiv` shu tabga yo'naltiradi. Meny
 OLMAYDI, `lost` — faqat yo'qotilganlar; to'rt bo'lim (buyurtma · birinchi dars · o'quvchi · arxiv) KESISHMAYDI
 (`leadStatus.test.ts`). Bosh sahifadagi «Buyurtmalar» (`OpenLeads`) ham yo'qotilganni sanamaydi — endi ikki son bir xil.
 ⚠️ Bu «Sozlamalar → Arxiv» (o'chirish) EMAS: lid bazada joyida, hisobot va voronka o'zgarmaydi; lid sahifasidagi
-«Tiklash» uni buyurtmalarga qaytaradi. Kanban (butun voronka) avvalgidek — «Yo'qotilgan» ustuni turaveradi.
+«Tiklash» uni buyurtmalarga qaytaradi. Kanbanda «Yo'qotilgan» ustuni 2026-11-10 dan — kartasiz «Arxivga» tashlash joyi (§5.7).
 Jadval ostidagi izoh: «yo'qotilgan N tasi — «Arxiv»» havolasi bilan.
 
 ### 5.6. «ARXIVLASH» va O'CHIRISH HUQUQI (2026-11-04, egasi: «lid CRM'dan hech qachon o'chib ketmasligi kerak»)
 
 - Lid sahifasidagi «⋮» menyusida «Yo'qotilgan deb belgilash» o'rnida qizil **«Arxivlash»** — amal AYNAN o'sha
   (`PATCH {id}/lost`, sabab MAJBURIY, `LeadLostModal` sarlavhasi «Lidni arxivlash»). Lid bazada qoladi → §5.5 arxiv.
-- **Butunlay o'chirish — FAQAT superadmin va direktor = `admin` ROLI** (`LeadDeleteRights.CanDelete`, HARD rol): ruxsat
-  kaliti (`leads`, `leads.list:delete`) xodimga YETMAYDI — 403 sabab matni bilan. Ikkala yo'l: `DELETE api/admin/leads/{id}`
+- **Butunlay o'chirish — FAQAT superadmin** (`LeadDeleteRights.CanDelete`, HARD rol; 2026-11-10 dan direktor = `admin` ham
+  EMAS — egasi: «xodimlardan o'chirishni olib tashla, faqat arxivlash qolsin»): ruxsat kaliti (`leads`, `leads.list:delete`)
+  YETMAYDI — 403 sabab matni bilan. Ikkala yo'l: `DELETE api/admin/leads/{id}`
   va `DELETE api/admin/archive/{id}` (lid surati / `lead_history`). Klientda ham yashirilgan (lid menyusi, Sozlamalar →
   Arxiv'dagi savat tugmasi). Testlar: `LeadDeleteRightsTests`.
 
 ### 6. Filtrlar (Lidlar sahifasi, ikkala ko'rinish)
 
-`?lost=hide|only` va `?reason=<sabab matni>` (sabab tanlansa — faqat o'sha sabab bilan
-yo'qotilganlar). Standart — hammasi; jadvalda yo'qotilgan qator ism yonida «Yo'qotilgan» chipi bilan.
-`hide` da kanbandagi ustun turaveradi (kartaga tashlash mumkin), lekin kartalari chizilmaydi.
+⚠️ 2026-11-10 dan `?lost=` filtri YO'Q (§5.7 — yo'qotilgan = arxiv, ro'yxatda turmaydi). `?reason=<sabab matni>` — faqat
+Arxiv tabida («Arxivlash sababi»).
 Ustunni o'chirishda yo'qotilgan lidlar sanalmaydi (ular u yerda ko'rinmaydi; yetim-tuzatish ularni
 birinchi bosqichga o'tkazadi, holati o'zgarmaydi).
 
@@ -406,3 +410,41 @@ uchun "Boshqa" ga o'tib ketardi — `LeadOrigins`), audit yo'q edi.
 TAG-TUGI BILAN olib tashlandi (foydalanuvchi: "lcda allaqachon bori umuman kerakmas"): `LeadAutoTask`,
 `NotifyNewLeadAsync` dagi `autoTask` parametri, `CenterMeta.LeadAutoTask*` sozlamalari, Instagram/Meta yo'llaridagi
 chaqiruvlar. Lid kartasi (Telegram) o'zgarmagan. Kerak bo'lsa HR topshiriqlari ustiga ALOHIDA ish sifatida qaytariladi.
+
+## LID TOPSHIRIQLARI — «keyingi qadam» (2026-11-10, sotuv rejasi 1-qism)
+
+Egasi: spetsifikatsiyadagi (`docs/sales/SALES_MODULE_SPEC.md`) CRM'da YO'Q imkoniyatlarni mavjud lidlar ustiga qo'shish
+(`docs/sales/PLAN.md`). ⚠️ Egasi: **«Vazifalar alohida bo'lmasin — Topshiriqlar bilan BITTA, sotuvnikilari boshqa rangda
+ajralib tursin»**. Shuning uchun lid vazifasi — oddiy HR topshirig'i (`HrTask`, `.claude/rules/hr-tasks.md` §9), alohida
+jadval/sahifa YO'Q. Bu 2026-10-21 da olib tashlangan avto-topshiriq (`LeadAutoTask`) EMAS: topshiriqni menejer o'zi qo'yadi.
+
+- **Model:** `HrTask` + `HrLeadTask` (`hr_lead_tasks`, migratsiya `AddHrLeadTasks`; tur, asl matn, butun kun). Holat — HR'niki
+  (`open/returned` → ochiq; `done`; `cancelled/missed` → bekor) — `LeadTasks.StatusOf`.
+- **Qoidalar — `LeadTasks` (sof) + `HrTasksService.Leads.cs` (amallar), testlar `HrLeadTasksTests`:** natija MAJBURIY
+  (≥ 3 belgi; HR'da ham `ProofRequired = true` — xodim «Mening topshiriqlarim»da natijasiz yopolmaydi); faqat OCHIQ lidga;
+  mas'ul: tanlangan → lid mas'uli → yaratuvchi, FAQAT faol HR xodimi (superadmin HR'da yo'q — 400 sabab bilan);
+  biriktirilmagan lidga yaratuvchi mas'ul bo'ladi; «keyingi topshiriq» bajarish bilan BITTA tranzaksiyada.
+- **Telegram:** yangi topshiriq / mas'ul almashuvi → `NotifyAssignedAsync` (to'liq xabar + «✅ Qabul qildim»); o'ziga qo'ygani — yo'q.
+  Lid sahifasida «✓ qabul qildi» / «qabul qilinmagan».
+- **Avto-bekor:** `LeadLoss.MarkLostAsync`, `LeadConversion.CloseLeadAsync` → `LeadTasks.CancelOpenForLeadAsync` (bitta hodisa);
+  lid O'CHIRILSA (`LeadRemoval`) ochiqlari bekor, HR tarixi qoladi. Tiklashda qaytmaydi.
+- **Lid tarixi:** `task` · `task_done` · `task_cancel`. HR tomonida yopilsa ham yoziladi (`CompleteAsync` — xodim, `CancelTaskAsync`
+  — panel → `RecordLeadTaskChangeAsync`). Voronka (`LeadAnalytics`) va Telegram lid kartasi bu turlarni O'QIMAYDI.
+- **API:** `api/admin/lead-tasks` (`LeadTasksController`, ruxsat `leads.list` — HR panel kalitisiz ham): `GET ?leadId&status`,
+  `GET meta`, `POST` (create), `PUT {id}` · `PUT {id}/complete` · `PUT {id}/cancel` (edit).
+- **Kanban:** `GET api/admin/leads` → `nextTaskAt/Type/Text/AllDay`, `openTasks` (`LeadTasks.OpenByLeadAsync`, markaz vaqti).
+  Klient `lib/leadTaskDue.ts`: sariq «Topshiriq yo'q», qizil «N kun kechikdi», yashil «Bugun HH:mm», ko'k ertaga/sana.
+- **UI:** lid sahifasida `tasks/LeadTasksPanel` (lenta pastida). Alohida «Vazifalar» sahifasi YO'Q — hammasi «Topshiriqlar»da,
+  `SalesBadge` (to'q sariq «Sotuv · lid» / «Sotuv · sinov darsi» + chap chiziq) bilan.
+- Kesh: `/admin/lead-tasks` → `/admin/leads`, `/admin/hr`, `/hr`; HR mutatsiyalari butun keshni tozalaydi. Zaxira: `hrLeadTasks`.
+
+### 5.7. «YO'QOTILGAN» = ARXIV — ro'yxatda TURMAYDI (2026-11-10, egasi)
+
+«Yo'qotilgan deb belgilash = arxivga tushish; yo'qotilgan lidlar ro'yxatda turmasin». Model o'zgarmagan (`LostAt`, sabab,
+hisobot, «Tiklash») — faqat ko'rinish:
+- Kanbandagi doimiy ustun endi **«Arxivga» TASHLASH JOYI** (`LostColumn`): kartalar CHIZILMAYDI, karta tashlansa sabab
+  oynasi → lid kanbandan yo'qoladi; sarlavhada «Arxivda N ta lid ↗» havolasi. Kanbanda sudrab TIKLASH yo'q — lid sahifasidagi
+  «Tiklash» (Arxiv tabidan ochiladi).
+- `leadMatchesStatus(…, 'all')` («Hammasi (arxivsiz)») ham yo'qotilganni OLMAYDI; Status filtridan «Yo'qotilgan (arxiv)» va
+  «Yo'qotilganlar» (`lost=hide|only`) filtri OLIB TASHLANDI; «Arxivlash sababi» filtri — faqat Arxiv tabida.
+- Lid TO'LIQ ma'lumoti bilan (hodisalar, sinov darslari, topshiriqlar tarixi) bazada qoladi — Arxiv tabida ko'rinadi.

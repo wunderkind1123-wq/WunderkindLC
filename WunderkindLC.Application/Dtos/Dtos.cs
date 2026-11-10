@@ -916,7 +916,15 @@ public record LeadWithAttendanceDto(
     string? LostReasonId = null,
     string? LostReason = null,
     string? LostComment = null,
-    string? LostByName = null);
+    string? LostByName = null,
+    /// <summary>LID TOPSHIRIG'I (`LeadTasks`): eng yaqin muddatli OCHIQ topshiriq — kanban kartasidagi indikator.
+    /// Null — ochiq topshiriq yo'q («Topshiriq yo'q» sariq belgisi).</summary>
+    string? NextTaskAt = null,
+    string? NextTaskType = null,
+    string? NextTaskText = null,
+    bool NextTaskAllDay = false,
+    /// <summary>Ochiq topshiriqlar soni.</summary>
+    int OpenTasks = 0);
 
 /// <summary>
 /// «Birinchi darsga yozilganlar» qatori (<c>GET api/admin/leads/first-lesson</c>). Tanlov qoidasi —

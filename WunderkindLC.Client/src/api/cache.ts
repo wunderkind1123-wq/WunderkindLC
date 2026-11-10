@@ -196,7 +196,12 @@ const CROSS_INVALIDATION: Record<string, string[]> = {
   // suhbati/reklama lidining lid bog'lanishi tozalanadi.
   '/admin/leads': ['/admin/students', '/admin/classes', '/admin/lead-forms', '/admin/lead-sources',
     '/admin/lead-stages', '/admin/level-tests', '/admin/journal',
-    '/admin/course-analytics', '/admin/instagram'],
+    '/admin/course-analytics', '/admin/instagram', '/admin/lead-tasks', '/admin/hr', '/hr'],
+  // Lid TOPSHIRIG'I — «Topshiriqlar» (HR) bo'limidagi oddiy topshiriq: kanban indikatorida (`/admin/leads`
+  // javobida `nextTaskAt`), HR panelida va «Mening topshiriqlarim»da ko'rinadi. Teskarisi: lid yo'qotilsa/
+  // aylantirilsa ochiq topshiriqlari avtomatik bekor bo'ladi (yuqorida); HR mutatsiyalari jadvalda yo'q →
+  // butun kesh tozalanadi (lid indikatori ham yangilanadi).
+  '/admin/lead-tasks': ['/admin/leads', '/admin/hr', '/hr'],
   // Bosqich/manba nomlari lid qatorlariga denormalizatsiya qilingan.
   '/admin/lead-stages': ['/admin/leads', '/admin/lead-forms'],
   '/admin/lead-sources': ['/admin/leads', '/admin/lead-forms'],

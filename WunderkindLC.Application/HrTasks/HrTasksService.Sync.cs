@@ -179,7 +179,7 @@ public sealed partial class HrTasksService
             db.HrEmployees.Remove(employee);
             return new HrRelease(true, false, 0);
         }
-        var cancelled = await CancelOpenTasksAsync(db, id, now, ct);
+        var cancelled = await CancelEmployeeOpenTasksAsync(db, id, now, ct);
         employee.IsActive = false;
         employee.UserId = FormerUserPrefix + userId;
         employee.UpdatedAt = now;
@@ -198,16 +198,7 @@ public sealed partial class HrTasksService
         if (employee is null || employee.IsActive == active) return 0;
         employee.IsActive = active;
         employee.UpdatedAt = now;
-        return active ? 0 : await CancelOpenTasksAsync(db, employee.Id, now, ct);
-    }
-
-    private static async Task<int> CancelOpenTasksAsync(
-        Abstractions.IAppDbContext db, string employeeId, DateTimeOffset now, CancellationToken ct)
-    {
-        var open = await db.HrTasks
-            .Where(t => t.EmployeeId == employeeId && (t.Status == HrTaskStatuses.Open || t.Status == HrTaskStatuses.Returned))
-            .ToListAsync(ct);
-        return open.Count(t => t.Cancel(now));
+        return active ? 0 : await CancelEmployeeOpenTasksAsync(db, employee.Id, now, ct);
     }
 }
 

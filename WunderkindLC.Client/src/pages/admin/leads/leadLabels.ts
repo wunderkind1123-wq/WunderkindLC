@@ -15,6 +15,9 @@ export const eventTypeLabels: Record<LeadEventType, string> = {
   created: 'Yaratildi',
   lost: "Yo'qotildi",
   restore: 'Tiklandi',
+  task: 'Topshiriq',
+  task_done: 'Topshiriq ✓',
+  task_cancel: 'Topshiriq ✗',
 }
 
 export const eventTypeColors: Record<LeadEventType, string> = {
@@ -26,6 +29,9 @@ export const eventTypeColors: Record<LeadEventType, string> = {
   created: 'bg-slate-100 text-slate-500',
   lost: 'bg-rose-50 text-rose-700',
   restore: 'bg-sky-50 text-sky-700',
+  task: 'bg-orange-50 text-orange-700',
+  task_done: 'bg-emerald-50 text-emerald-700',
+  task_cancel: 'bg-slate-100 text-slate-500',
 }
 
 /**
@@ -118,8 +124,8 @@ export const cameBackAfterLoss = (l: { lostAt?: string | null; lastRepeatAt?: st
  * «Buyurtmalar ro'yxati» STATUS filtri (2026-10-09). `lead` — haqiqiy BUYURTMA: o'quvchiga aylantirilmagan VA
  * «Birinchi darsga yozilganlar»da EMAS (`firstLessonAt` — serverdagi `LeadFirstLesson.Pick`, ikkinchi ta'rif yo'q;
  * bosh sahifadagi «Buyurtmalar» sanog'i — `DashboardSummary.OpenLeads` — AYNAN shu). `first` — birinchi darsda,
- * `student` — aylantirilgan, `lost` — YO'QOTILGAN (Lidlar → «Arxiv (yo'qotilganlar)»), `all` (yoki noma'lum
- * qiymat) — hammasi.
+ * `student` — aylantirilgan, `lost` — YO'QOTILGAN = ARXIV (O'quvchilar → «Arxiv» → «Lidlar»), `all` (yoki noma'lum
+ * qiymat) — arxivdan TASHQARI hammasi.
  * ⚠️ Ilgari sinovga yozilgan lid ikkala bo'limda ham turardi ("oldingi bosqichdan o'chmayapti").
  * ⚠️ 2026-11-04 (egasi): yo'qotilgan lid ham «Buyurtmalar»dan ARXIVGA o'tadi — `lead` uni olmaydi (bosh sahifadagi
  * `OpenLeads` ham yo'qotilganni sanamaydi — endi ikki son bir xil). Lid o'chirilmaydi: hisobot va «Tiklash» joyida.
@@ -132,5 +138,6 @@ export function leadMatchesStatus(
   if (status === 'lost') return isLeadLost(l)
   if (status === 'first') return !!l.firstLessonAt
   if (status === 'student') return !!l.convertedStudentId
-  return true
+  // 2026-11-10 (egasi): «yo'qotilgan = arxiv, ro'yxatda turmasin» — «Hammasi» ham ARXIVNI olmaydi (u faqat Arxiv tabida).
+  return !isLeadLost(l)
 }

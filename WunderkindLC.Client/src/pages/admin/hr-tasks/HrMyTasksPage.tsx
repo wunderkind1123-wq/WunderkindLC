@@ -11,8 +11,8 @@ import {
   reopenMyTask,
   type HrMyTask,
 } from '@/api/services/hrTasks'
-import type { HrTaskStatus } from '@/types/hrTasks'
-import { HR_DEFAULT_PAGE_SIZE } from '@/types/hrTasks'
+import type { HrTaskStatus, Page } from '@/types/hrTasks'
+import { HR_DEFAULT_PAGE_SIZE, HR_MAX_PAGE_SIZE } from '@/types/hrTasks'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Badge, CursorPager, EmptyState, PageHeader, ProgressBar, Skeleton, inputCls } from '@/components/hr-tasks/ui'
@@ -37,10 +37,17 @@ import { cn } from '@/lib/utils'
 import { CompleteTaskModal, ProgressModal, SelfTaskModal } from './MyTaskModals'
 import { DateStrip } from './DateStrip'
 import { dayEmptyText, dayHeadline, daySummary, sortDayTasks } from './myDay'
+import { SALES_ROW_ACCENT, SalesBadge } from './SalesBadge'
+import { hrtOpenWorkLink } from './paths'
+import { BOARD_COLUMNS, groupBoard, type BoardColumnKey } from './myBoard'
+import { Navigate } from 'react-router-dom'
+import { useAuth } from '@/context/auth-context'
 
-export type MyTab = 'open' | 'done' | 'all' | 'day'
+export type MyTab = 'board' | 'open' | 'done' | 'all' | 'day'
 
 const TABS: { key: MyTab; label: string }[] = [
+  // LC (egasi, 2026-11-10): kanban — Kechikkan · Bugun · Ertaga · Keyinroq (`myBoard.ts`); bajarilgani doskadan yo'qoladi.
+  { key: 'board', label: 'Doska' },
   { key: 'open', label: 'Bajarish kerak' },
   { key: 'done', label: 'Bajarilgan' },
   { key: 'all', label: 'Hammasi' },
@@ -63,13 +70,18 @@ type Action = { kind: 'complete' | 'progress'; task: HrMyTask } | { kind: 'self'
  * A user without an HR row (403 `hr_not_employee`) gets a calm explanation.
  *
  * `defaultTab` — the teacher portal (opened inside Telegram) starts on the day view, as the
- * LMS Mini App did; the admin panel starts on "Bajarish kerak", as the LMS web page did.
+ * LMS Mini App did; LC: the admin panel starts on the BOARD («Doska», egasi 2026-11-10) — LMS started on "Bajarish kerak".
  */
-export function HrMyTasksPage({ defaultTab = 'open' }: { defaultTab?: MyTab } = {}) {
+export function HrMyTasksPage({ defaultTab = 'board' }: { defaultTab?: MyTab } = {}) {
   const toast = useToast()
   const [today] = useState(() => hrToday())
   const me = useLoad('hr-me', getMe)
   const notEmployee = me.rawError !== null && hrIsNotEmployee(me.rawError)
+  // LC (egasi, 2026-11-10): superadmin HR'da xodim EMAS (§4) — «Mening topshiriqlarim» unga «ro'yxatda yo'qsiz»
+  // deyardi. Rahbar (superadmin / direktor = admin roli) uchun bu menyu BUTUN tashkilot topshiriqlariga olib boradi:
+  // «kim nima ish qilayotgani» panel ro'yxatida (xodim ustuni, sotuv topshiriqlari — `SalesBadge`).
+  const role = useAuth().user?.role
+  const isLeader = role === 'superadmin' || role === 'admin'
 
   const [tab, setTab] = useState<MyTab>(defaultTab)
   const [pickedDay, setPickedDay] = useState<string | null>(null)
@@ -84,7 +96,11 @@ export function HrMyTasksPage({ defaultTab = 'open' }: { defaultTab?: MyTab } = 
   const serverToday = me.data?.today?.slice(0, 10) || today
   const day = pickedDay ?? serverToday
   const dayList = useLoad(ready && tab === 'day' ? `my-day|${day}|${version}` : null, () => getMyDayTasks(day))
-  const list = useLoad(ready && tab !== 'day' ? `my|${filterKey}|${pager.cursor ?? ''}|${version}` : null, () =>
+  // Doska — barcha OCHIQ topshiriqlar bitta so'rovda (sahifalashsiz; ko'pi bilan HR_MAX_PAGE_SIZE).
+  const board = useLoad(ready && tab === 'board' ? `my-board|${q}|${version}` : null, () =>
+    getMyTasks({ status: ['open', 'returned'], q, sort: 'due_at', limit: HR_MAX_PAGE_SIZE, withTotal: true }),
+  )
+  const list = useLoad(ready && tab !== 'day' && tab !== 'board' ? `my|${filterKey}|${pager.cursor ?? ''}|${version}` : null, () =>
     getMyTasks({
       status: tabStatuses(tab),
       q,
@@ -133,6 +149,8 @@ export function HrMyTasksPage({ defaultTab = 'open' }: { defaultTab?: MyTab } = 
       </div>
     )
   }
+
+  if (notEmployee && isLeader) return <Navigate to={hrtOpenWorkLink(today)} replace />
 
   if (notEmployee || !me.data) {
     return (
@@ -226,7 +244,18 @@ export function HrMyTasksPage({ defaultTab = 'open' }: { defaultTab?: MyTab } = 
         ))}
       </div>
 
-      {tab === 'day' ? (
+      {tab === 'board' ? (
+        <MyBoard
+          load={board}
+          today={serverToday}
+          search={search}
+          onSearch={setSearch}
+          busyId={busyId}
+          onAccept={(task) => void run(task, acceptMyTask, 'Tasdiqlandi — rahbar ko‘rganingizni biladi')}
+          onComplete={(task) => setAction({ kind: 'complete', task })}
+          onProgress={(task) => setAction({ kind: 'progress', task })}
+        />
+      ) : tab === 'day' ? (
         <>
           <Card className="space-y-2 p-3 sm:p-4">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -359,6 +388,113 @@ export function HrMyTasksPage({ defaultTab = 'open' }: { defaultTab?: MyTab } = 
   )
 }
 
+const BOARD_TONE: Record<BoardColumnKey, { title: string; bar: string; bg: string }> = {
+  overdue: { title: 'text-red-700', bar: 'bg-red-500', bg: 'bg-red-50/60' },
+  today: { title: 'text-emerald-700', bar: 'bg-emerald-500', bg: 'bg-emerald-50/50' },
+  tomorrow: { title: 'text-sky-700', bar: 'bg-sky-500', bg: 'bg-sky-50/50' },
+  later: { title: 'text-slate-600', bar: 'bg-slate-400', bg: 'bg-slate-50' },
+}
+
+/**
+ * LC: «Doska» — BELGILANGAN 4 ustun (`myBoard.ts`). Faqat bajarilmaganlar: «Bajardim» bosilgach topshiriq doskadan
+ * yo'qoladi (ro'yxat qayta yuklanadi), «Bajarilgan» tabida tarix bo'lib qoladi. Telefonda ustunlar yonma-yon suriladi.
+ */
+function MyBoard({
+  load,
+  today,
+  search,
+  onSearch,
+  busyId,
+  onAccept,
+  onComplete,
+  onProgress,
+}: {
+  load: ReturnType<typeof useLoad<Page<HrMyTask>>>
+  today: string
+  search: string
+  onSearch: (v: string) => void
+  busyId: string | null
+  onAccept: (task: HrMyTask) => void
+  onComplete: (task: HrMyTask) => void
+  onProgress: (task: HrMyTask) => void
+}) {
+  const items = (load.data ?? load.previous)?.items ?? []
+  const columns = groupBoard<HrMyTask>(items, today)
+
+  return (
+    <>
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input className={cn(inputCls, 'pl-9')} placeholder="Topshiriq sarlavhasi" value={search} onChange={(e) => onSearch(e.target.value)} />
+      </div>
+
+      {load.error && items.length === 0 ? (
+        <Card>
+          <EmptyState
+            title="Topshiriqlarni yuklab bo‘lmadi"
+            hint={load.error}
+            action={
+              <Button variant="secondary" onClick={load.reload}>
+                Qayta urinish
+              </Button>
+            }
+          />
+        </Card>
+      ) : load.loading && items.length === 0 ? (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {BOARD_COLUMNS.map((c) => (
+            <Skeleton key={c.key} className="h-48 w-full rounded-2xl" />
+          ))}
+        </div>
+      ) : (
+        <div
+          className={cn(
+            '-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 transition-opacity md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-4',
+            load.loading && 'opacity-60',
+          )}
+        >
+          {BOARD_COLUMNS.map((col) => {
+            const tone = BOARD_TONE[col.key]
+            const tasks = columns[col.key]
+            return (
+              <section key={col.key} className={cn('flex w-[85vw] max-w-[360px] shrink-0 snap-start flex-col rounded-2xl p-2 md:w-auto md:max-w-none', tone.bg)}>
+                <div className="flex items-center justify-between px-1.5 pb-1.5">
+                  <h3 className={cn('text-sm font-semibold', tone.title)}>{col.label}</h3>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200">{tasks.length}</span>
+                </div>
+                <div className={cn('mb-2 h-0.5 rounded-full', tone.bar)} />
+                {tasks.length === 0 ? (
+                  <p className="px-2 py-6 text-center text-xs text-slate-400">{col.empty}</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {tasks.map((task) => (
+                      <MyTaskCard
+                        key={task.id}
+                        task={task}
+                        today={today}
+                        busy={busyId === task.id}
+                        onAccept={() => onAccept(task)}
+                        onComplete={() => onComplete(task)}
+                        onProgress={() => onProgress(task)}
+                        onReopen={() => undefined}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )
+          })}
+        </div>
+      )}
+      {load.data?.hasMore && (
+        <p className="text-xs text-amber-700">
+          Doskada birinchi {HR_MAX_PAGE_SIZE} ta ko‘rsatildi{load.data.total ? ` (jami ${load.data.total} ta)` : ''} — qolganini «Bajarish kerak» tabida qidiring.
+        </p>
+      )}
+    </>
+  )
+}
+
 function MyTaskCard({
   task,
   today,
@@ -386,7 +522,18 @@ function MyTaskCard({
   const canReopen = task.status === 'done' && hrTashkentParts(task.completedAt)?.date === today
 
   return (
-    <li className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:p-4">
+    <li
+      className={cn(
+        'rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:p-4',
+        // LC: sotuv (lid / sinov darsi) topshirig'i — boshqa rangda (egasi, 2026-11-10).
+        task.salesKind && cn('bg-orange-50/40', SALES_ROW_ACCENT),
+      )}
+    >
+      {task.salesKind && (
+        <div className="mb-1">
+          <SalesBadge kind={task.salesKind} leadId={task.leadId} leadName={task.leadName} />
+        </div>
+      )}
       <p className="break-words font-medium text-slate-800">{task.title}</p>
       {task.description && <p className="mt-1 whitespace-pre-line break-words text-sm text-slate-500">{task.description}</p>}
 

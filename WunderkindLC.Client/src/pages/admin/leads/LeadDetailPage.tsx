@@ -52,6 +52,7 @@ import {
 } from './LeadPanels'
 import { eventTypeColors, eventTypeLabels, isLeadLost, leadCallNumbers } from './leadLabels'
 import { useLeadActivity, useLeadGroupOptions } from './useLeadDetail'
+import { LeadTasksPanel } from './tasks/LeadTasksPanel'
 import { leadErrorText, useLeadEntryForm } from './useLeadEntryForm'
 
 /**
@@ -120,9 +121,9 @@ export function LeadDetailPage() {
   const navigate = useNavigate()
   const { can } = usePerm()
   const canEdit = can('leads.list', 'edit')
-  // Lidni BUTUNLAY o'chirish — faqat superadmin va direktor (admin roli); serverdagi `LeadDeleteRights` bilan bir xil.
+  // Lidni BUTUNLAY o'chirish — FAQAT superadmin (2026-11-10, direktor ham faqat arxivlaydi); serverdagi `LeadDeleteRights` bilan bir xil.
   const role = useAuth().user?.role
-  const canDelete = role === 'superadmin' || role === 'admin'
+  const canDelete = role === 'superadmin'
   // Aylantirish O'QUVCHI yaratadi — server lid ruxsatidan tashqari o'quvchi qo'shish huquqini ham talab qiladi.
   const canConvert = can('leads.list', 'create') && can('students.list', 'create')
 
@@ -337,7 +338,7 @@ export function LeadDetailPage() {
         : [{ label: 'Arxivlash', icon: Archive, danger: true, onClick: () => setLosing(true) }]
       : []),
     // Aylantirilgan lid O'CHIRILMAYDI (server 400): KPI "shartnoma" va sotuv tushumi unga tayanadi.
-    // ⚠️ O'chirish — FAQAT superadmin va direktor (admin ROLI), ruxsat kaliti yetmaydi (server `LeadDeleteRights`).
+    // ⚠️ O'chirish — FAQAT superadmin (ROL), ruxsat kaliti yetmaydi (server `LeadDeleteRights`).
     ...(canDelete && !lead.convertedStudentId
       ? [{ label: "Lidni o'chirish", icon: Trash2, danger: true, onClick: () => setDeleting(true) }]
       : []),
@@ -715,6 +716,27 @@ export function LeadDetailPage() {
                 ))
               )}
             </div>
+            {/* TOPSHIRIQLAR — ochiq topshiriqlar lentaning pastida, yozish maydonidan tepada (sotuv rejasi 1-qism). */}
+            <LeadTasksPanel
+              // Lid yopilsa/tiklansa qayta yuklanadi: server ochiq topshiriqlarni avtomatik bekor qiladi.
+              key={`${lead.id}:${isOpen}`}
+              leadId={lead.id}
+              leadOpen={isOpen}
+              leadAssigneeId={lead.assigneeUserId}
+              canCreate={can('leads.list', 'create')}
+              canEdit={canEdit}
+              onChanged={() => {
+                activity.refresh()
+                // Topshiriq qo'yilganda biriktirilmagan lidga mas'ul yoziladi — kartochkadagi ism yangilansin.
+                // Ikkilamchi o'qish: xato bo'lsa eski ism qoladi (`error-visibility.md` §4).
+                getLeads()
+                  .then((all) => {
+                    const fresh = all.find((l) => l.id === lead.id)
+                    if (fresh) setLead((l) => (l ? { ...l, assigneeUserId: fresh.assigneeUserId, assigneeName: fresh.assigneeName } : l))
+                  })
+                  .catch(() => {})
+              }}
+            />
             {/* "Eslatma" — lid tarixiga izoh (edutizimdagi pastki kulrang panel). */}
             <div className="flex items-center gap-2 rounded-b-xl border-t border-[#eeeeee] bg-[#F5F6F6] px-3 py-2">
               <span className="shrink-0 text-[13px] font-medium text-brand-600 underline">Eslatma:</span>

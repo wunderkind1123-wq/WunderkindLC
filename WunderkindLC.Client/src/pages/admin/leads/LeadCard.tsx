@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { IconPhone, IconRepeat } from '@tabler/icons-react'
+import { IconChecklist, IconPhone, IconRepeat } from '@tabler/icons-react'
 import type { Lead } from '@/types'
 import { formatDate, formatDateTime, cn } from '@/lib/utils'
 import { formatPhone } from '@/lib/numberFormat'
+import { dueIndicator, dueToneColor } from '@/lib/leadTaskDue'
 import { cameBackAfterLoss, isLeadLost } from './leadLabels'
 
 /** Lid yaratilganidan beri o'tgan kun (createdAt "yyyy-MM-ddTHH:mm:ss"). */
@@ -131,6 +132,10 @@ export function LeadCardContent({
         {lead.assigneeName || ' '}
       </p>
 
+      {/* KEYINGI QADAM (lid topshirig'i — «Topshiriqlar» bo'limida) — faqat OCHIQ lidda. Sariq «Topshiriq yo'q» — menejer lidni unutmasin
+          (sotuv rejasi 1-qism, spec §15.4); qizil — kechikkan; yashil — bugun. */}
+      {!lead.convertedStudentId && !isLeadLost(lead) && <TaskIndicator lead={lead} />}
+
       {/* TAKRORIY MUROJAAT — odam ommaviy forma yoki daraja testi orqali YANA yozilgan. Bosqich
           ATAYIN o'zgarmaydi (birinchi teginish saqlanadi), shuning uchun "yo'qotilgan" ustunidagi
           karta ham shu belgi bilan ko'zga tashlanadi (`crm-leads.md`). */}
@@ -171,6 +176,27 @@ export function LeadCardContent({
         </span>
       </div>
     </div>
+  )
+}
+
+/** Kartadagi topshiriq qatori: «📋 Bugun 15:00 · Qo'ng'iroq» / «2 kun kechikdi» / «Topshiriq yo'q». */
+function TaskIndicator({ lead }: { lead: Lead }) {
+  const ind = dueIndicator(lead.nextTaskAt, lead.nextTaskAllDay)
+  const color = dueToneColor[ind.tone]
+  const more = (lead.openTasks ?? 0) > 1 ? ` (+${(lead.openTasks ?? 0) - 1})` : ''
+  return (
+    <p
+      className="mt-1 flex items-center gap-1 truncate text-[11px] font-medium"
+      style={{ color }}
+      title={lead.nextTaskText ? `Keyingi topshiriq: ${lead.nextTaskText}` : undefined}
+    >
+      <IconChecklist className="h-3.5 w-3.5 shrink-0" />
+      <span className="truncate">
+        {ind.text}
+        {lead.nextTaskText && ind.tone !== 'none' && <span className="font-normal text-[#757575]"> · {lead.nextTaskText}</span>}
+        {more}
+      </span>
+    </p>
   )
 }
 

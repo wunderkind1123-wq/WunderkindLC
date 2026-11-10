@@ -41,7 +41,9 @@ import { cn } from '@/lib/utils'
 import { ReturnTaskModal, TaskEditModal } from './TaskActionModals'
 import { TaskDetailDrawer } from './TaskDetailDrawer'
 import { usePeriodRange } from './period'
-import { hrtPaths } from './paths'
+import { HRT_UPCOMING_DAYS, hrAddDays, hrtPaths } from './paths'
+import { hrToday } from '@/components/hr-tasks/lib'
+import { SALES_ROW_ACCENT, SalesBadge } from './SalesBadge'
 
 type Overlay = 'edit' | 'return' | 'cancel' | null
 
@@ -67,6 +69,8 @@ export function HrTasksPage() {
   const flash = useFlashToast()
   const period = usePeriodRange()
   const { params, update, range } = period
+  const [todayIso] = useState(() => hrToday())
+  const upcomingOn = range.dateFrom === todayIso && range.dateTo === hrAddDays(todayIso, HRT_UPCOMING_DAYS)
 
   const view = parseView(params.get('view'))
   const employeeId = params.get('employeeId') ?? ''
@@ -258,7 +262,22 @@ export function HrTasksPage() {
           />
         </div>
 
-        <PeriodTabs value={period.preset} active={!period.isCustom} onChange={period.setPreset} />
+        <div className="flex flex-wrap items-center gap-2">
+          <PeriodTabs value={period.preset} active={!period.isCustom} onChange={period.setPreset} />
+          {/* LC: davr tugmalari faqat orqaga sanaydi — kelgusi (ertangi, haftalik) topshiriqlar uchun alohida tugma
+              (egasi, 2026-11-10: «lidga topshiriq qo'ydim, ko'rinmayapti»). */}
+          <button
+            type="button"
+            aria-pressed={upcomingOn}
+            onClick={() => update({ period: null, dateFrom: todayIso, dateTo: hrAddDays(todayIso, HRT_UPCOMING_DAYS) })}
+            className={cn(
+              'h-9 shrink-0 rounded-full px-4 text-sm font-medium transition',
+              upcomingOn ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50',
+            )}
+          >
+            Kelgusi {HRT_UPCOMING_DAYS} kun
+          </button>
+        </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-slate-500">Status</span>
@@ -322,11 +341,14 @@ export function HrTasksPage() {
                           className={cn(
                             'cursor-pointer align-top transition-colors hover:bg-slate-50/70 focus-visible:bg-slate-50 focus-visible:outline-none',
                             task.status === 'cancelled' && 'opacity-60',
+                            // LC: sotuv (lid / sinov darsi) topshirig'i — boshqa rangda (egasi, 2026-11-10).
+                            task.salesKind && 'bg-orange-50/40',
                           )}
                         >
-                          <td className="py-3 pl-5 pr-3">
+                          <td className={cn('py-3 pl-5 pr-3', task.salesKind && SALES_ROW_ACCENT)}>
                             <p className="flex items-center gap-1.5 font-medium text-slate-800">
                               {task.voiceUrl && <Mic className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-label="Ovozli izoh" />}
+                              <SalesBadge kind={task.salesKind} leadId={task.leadId} leadName={task.leadName} />
                               <span className="truncate">{task.title}</span>
                             </p>
                             {task.description && <p className="truncate text-xs text-slate-400">{task.description}</p>}
@@ -387,11 +409,13 @@ export function HrTasksPage() {
                       className={cn(
                         'block w-full rounded-2xl border border-slate-200/80 bg-white p-3 text-left shadow-sm transition active:scale-[0.99]',
                         task.status === 'cancelled' && 'opacity-60',
+                        task.salesKind && cn('bg-orange-50/40', SALES_ROW_ACCENT),
                       )}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <p className="flex min-w-0 flex-1 items-center gap-1.5 text-sm font-medium text-slate-800">
                           {task.voiceUrl && <Mic className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-label="Ovozli izoh" />}
+                          <SalesBadge kind={task.salesKind} leadId={task.leadId} leadName={task.leadName} linkToLead={false} />
                           <span className="truncate">{task.title}</span>
                         </p>
                         <Badge className="shrink-0" tone={hrTaskStatusTone(task.status)}>

@@ -187,11 +187,22 @@ public sealed partial class HrTasksService
     /// Each active, linked employee gets their open list (period_start ≤ day), overdue first in red.
     /// No tasks → no message. Returns messages delivered.
     /// </summary>
-    public async Task<int> SendMorningListsAsync(DateOnly? day, DateTimeOffset now, CancellationToken ct = default)
+    public Task<int> SendMorningListsAsync(DateOnly? day, DateTimeOffset now, CancellationToken ct = default) =>
+        SendOpenListsAsync(day, now, afternoon: false, ct);
+
+    /// <summary>
+    /// LC: kunduzgi (sukut 16:00) ro'yxat — har xodimga HALI BAJARILMAGAN topshiriqlari (bugungi + kechikkanlar),
+    /// ertalabki ro'yxat bilan bir xil tanlov (`.claude/rules/hr-tasks.md` §11). Bo'sh ro'yxat yuborilmaydi.
+    /// </summary>
+    public Task<int> SendAfternoonListsAsync(DateOnly? day, DateTimeOffset now, CancellationToken ct = default) =>
+        SendOpenListsAsync(day, now, afternoon: true, ct);
+
+    private async Task<int> SendOpenListsAsync(DateOnly? day, DateTimeOffset now, bool afternoon, CancellationToken ct)
     {
         now = now.ToUniversalTime();
         var settings = await GetOrCreateSettingsAsync(ct);
-        if (!settings.MorningListEnabled || !telegram.IsConfigured) return 0;
+        var enabled = afternoon ? settings.AfternoonListEnabled : settings.MorningListEnabled;
+        if (!enabled || !telegram.IsConfigured) return 0;
         var tz = settings.Zone;
         var target = day ?? HrValues.LocalDate(now, tz);
         var rows = await (from t in db.HrTasks.AsNoTracking()
@@ -208,7 +219,8 @@ public sealed partial class HrTasksService
         foreach (var group in rows.GroupBy(r => (r.EmployeeId, r.UserId)))
         {
             if (!chats.TryGetValue(group.Key.UserId, out var chatIds)) continue;
-            var text = HrTasksTexts.Morning([.. group.Select(r => DigestTask(r.Task, proofs.GetValueOrDefault(r.Task.Id)))], tz, now);
+            List<HrDigestTask> items = [.. group.Select(r => DigestTask(r.Task, proofs.GetValueOrDefault(r.Task.Id)))];
+            var text = afternoon ? HrTasksTexts.Afternoon(items, tz, now) : HrTasksTexts.Morning(items, tz, now);
             if (text.Length == 0) continue;
             foreach (var chat in chatIds)
                 if (await SafeSendAsync(chat, text, MyTasksUrl(roles.GetValueOrDefault(group.Key.UserId)), ct)) sent++;

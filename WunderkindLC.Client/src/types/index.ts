@@ -666,6 +666,16 @@ export interface Lead {
   lostReason?: string | null
   lostComment?: string | null
   lostByName?: string | null
+  /**
+   * LID TOPSHIRIG'I (`LeadTasks`, «Topshiriqlar» bo'limida): eng yaqin muddatli OCHIQ topshiriq — kanban kartasidagi
+   * indikator. Bo'sh — ochiq topshiriq yo'q («Topshiriq yo'q» sariq belgisi).
+   */
+  nextTaskAt?: string | null
+  nextTaskType?: string | null
+  nextTaskText?: string | null
+  nextTaskAllDay?: boolean
+  /** Ochiq topshiriqlar soni. */
+  openTasks?: number
 }
 
 /**
@@ -689,7 +699,10 @@ export interface LeadStageCount {
 }
 
 /** Lid tarixidagi voqea turi */
-export type LeadEventType = 'note' | 'stage' | 'call' | 'trial' | 'convert' | 'created' | 'lost' | 'restore'
+export type LeadEventType =
+  | 'note' | 'stage' | 'call' | 'trial' | 'convert' | 'created' | 'lost' | 'restore'
+  // Lid topshiriqlari (`LeadTasks`): qo'yildi / bajarildi / bekor qilindi.
+  | 'task' | 'task_done' | 'task_cancel'
 
 /** Lid tarixi (timeline) yozuvi */
 export interface LeadEvent {

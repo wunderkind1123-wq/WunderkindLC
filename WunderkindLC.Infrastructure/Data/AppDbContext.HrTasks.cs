@@ -30,6 +30,8 @@ public partial class AppDbContext
     public DbSet<HrJobRun> HrJobRuns => Set<HrJobRun>();
     /// <summary>LC: avtomatik sinov darsi topshiriqlari (`HrTrialTask`).</summary>
     public DbSet<HrTrialTask> HrTrialTasks => Set<HrTrialTask>();
+    /// <summary>LC: lid (sotuv) topshiriqlari (`HrLeadTask`).</summary>
+    public DbSet<HrLeadTask> HrLeadTasks => Set<HrLeadTask>();
 
     partial void ConfigureHrTasks(ModelBuilder b) =>
         HrTasksModel.Apply(b, Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite");
@@ -41,7 +43,7 @@ internal static class HrTasksModel
     [
         typeof(HrPosition), typeof(HrEmployee), typeof(HrEmployeeManager), typeof(HrTaskTemplate), typeof(HrTask),
         typeof(HrTaskProof), typeof(HrTaskProgress), typeof(HrTaskAttachment), typeof(HrTaskReminder),
-        typeof(HrSettings), typeof(HrJobRun), typeof(HrTrialTask),
+        typeof(HrSettings), typeof(HrJobRun), typeof(HrTrialTask), typeof(HrLeadTask),
     ];
 
     private static string In(string column, params string[] values) =>
@@ -261,13 +263,15 @@ internal static class HrTasksModel
             e.Property(x => x.DigestTime).HasDefaultValueSql("'19:00'").ValueGeneratedNever();
             e.Property(x => x.MorningListEnabled).HasDefaultValue(true).ValueGeneratedNever();
             e.Property(x => x.MorningTime).HasDefaultValueSql("'07:30'").ValueGeneratedNever();
+            e.Property(x => x.AfternoonListEnabled).HasDefaultValue(true).ValueGeneratedNever();
+            e.Property(x => x.AfternoonTime).HasDefaultValueSql("'16:00'").ValueGeneratedNever();
             e.Property(x => x.GenerationTime).HasDefaultValueSql("'00:10'").ValueGeneratedNever();
             e.Property(x => x.CloseOverdueTime).HasDefaultValueSql("'23:50'").ValueGeneratedNever();
             e.Property(x => x.ReminderEnabled).HasDefaultValue(true).ValueGeneratedNever();
             if (!sqlite)
             {
                 e.Property(x => x.DigestWeekdays).HasColumnType("smallint[]").HasDefaultValueSql("'{1,2,3,4,5,6}'").ValueGeneratedNever();
-                e.Property(x => x.ReminderOffsets).HasColumnType("smallint[]").HasDefaultValueSql("'{120,60,30}'").ValueGeneratedNever();
+                e.Property(x => x.ReminderOffsets).HasColumnType("smallint[]").HasDefaultValueSql("'{30}'").ValueGeneratedNever();
             }
             e.Property(x => x.RemindEndOfDay).HasDefaultValue(false).ValueGeneratedNever();
             e.Ignore(x => x.Zone);
@@ -298,6 +302,21 @@ internal static class HrTasksModel
             e.HasOne<HrTask>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.EmployeeId, x.Kind, x.LessonDate }).IsUnique().HasDatabaseName("uq_hr_trial_task");
             e.HasIndex(x => x.TaskId);
+        });
+
+        // LC qo'shimchasi: lid (sotuv) topshiriqlari — `HrLeadTask`. Bitta topshiriq bitta lidga (unikal task_id);
+        // lid bo'yicha qidiruv (lid sahifasi, kanban indikatori) — lead_id indeksi. Lidga FK YO'Q (tarix qoladi).
+        b.Entity<HrLeadTask>(e =>
+        {
+            e.ToTable("hr_lead_tasks", t =>
+                t.HasCheckConstraint("ck_hr_lead_task_type", In("type", HrLeadTaskTypes.All)));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.LeadId).HasMaxLength(200);
+            e.Property(x => x.Type).HasMaxLength(16);
+            e.Property(x => x.Text).HasMaxLength(500);
+            e.HasOne<HrTask>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.TaskId).IsUnique().HasDatabaseName("uq_hr_lead_task");
+            e.HasIndex(x => x.LeadId);
         });
 
         ApplySnakeCaseNames(b);

@@ -139,15 +139,18 @@ public sealed partial class HrTasksService
                 .Select(a => new { a.TaskId, a.FilePath, a.CreatedAt, a.Id }).ToListAsync(ct))
             .GroupBy(a => a.TaskId!)
             .ToDictionary(g => g.Key, g => g.OrderBy(a => a.CreatedAt).ThenBy(a => a.Id, StringComparer.Ordinal).First().FilePath);
+        var sales = await SalesMarksAsync(taskIds, ct);
 
         return [.. tasks.Select(t =>
         {
             var employee = employees.GetValueOrDefault(t.EmployeeId);
+            var mark = sales.GetValueOrDefault(t.Id);
             return ToDto(t,
                 employee?.FullName,
                 employee?.PositionId is { } pid ? positions.GetValueOrDefault(pid) : null,
                 proofCounts.GetValueOrDefault(t.Id),
-                voices.TryGetValue(t.Id, out var path) ? files.UrlFor(path) : null);
+                voices.TryGetValue(t.Id, out var path) ? files.UrlFor(path) : null)
+                with { SalesKind = mark?.Kind, LeadId = mark?.LeadId, LeadName = mark?.LeadName };
         })];
     }
 
@@ -197,6 +200,7 @@ public sealed partial class HrTasksService
             AcceptedAt = dto.AcceptedAt, NeedsAcceptance = dto.NeedsAcceptance, VoiceUrl = dto.VoiceUrl,
             CreatedBy = dto.CreatedBy, CreatedAt = dto.CreatedAt, UpdatedAt = dto.UpdatedAt, EmployeeName = dto.EmployeeName,
             PositionName = dto.PositionName, ProofCount = dto.ProofCount,
+            SalesKind = dto.SalesKind, LeadId = dto.LeadId, LeadName = dto.LeadName,
             Proofs = [.. proofs.Select(p => new HrTaskProofDto(p.Id, p.TaskId, p.Kind, p.FilePath, p.OriginalName,
                 p.ContentType, p.SizeBytes, ProofUrl(p), p.Text, p.CreatedAt))],
             Progress = [.. progress.Select(p => new HrTaskProgressDto(p.Id, p.TaskId, p.Amount, p.Note, p.CreatedAt))],
@@ -376,6 +380,8 @@ public sealed partial class HrTasksService
         var task = await ScopedTaskAsync(panel.Scope, id, ct);
         if (task.MarkReturned(Now, comment))
         {
+            // LC: lid topshirig'i yana ochiq — lid tarixida ham.
+            await RecordLeadTaskChangeAsync(task, LeadTaskChange.Returned, await PanelActorNameAsync(panel, ct), panel.Actor.UserId, ct);
             await db.SaveChangesAsync(ct);
             var userId = await db.HrEmployees.Where(e => e.Id == task.EmployeeId).Select(e => e.UserId).FirstOrDefaultAsync(ct);
             if (userId is not null) await SendToUserAsync(userId, HrTasksTexts.Returned(task.Title, task.DirectorComment), ct);
@@ -387,7 +393,12 @@ public sealed partial class HrTasksService
     {
         if (comment is { Length: > 2000 }) throw HrErrors.Validation("Izoh 2000 belgidan oshmasligi kerak");
         var task = await ScopedTaskAsync(panel.Scope, id, ct);
-        if (task.Cancel(Now, comment)) await db.SaveChangesAsync(ct);
+        if (task.Cancel(Now, comment))
+        {
+            // LC: lid (sotuv) topshirig'i — lid tarixiga ham yoziladi (`HrTasksService.Leads.cs`).
+            await RecordLeadTaskChangeAsync(task, LeadTaskChange.Cancelled, await PanelActorNameAsync(panel, ct), panel.Actor.UserId, ct);
+            await db.SaveChangesAsync(ct);
+        }
         return await TaskDtoAsync(task, ct);
     }
 
@@ -671,10 +682,12 @@ public sealed partial class HrTasksService
         var attachments = (await db.HrTaskAttachments.AsNoTracking().Where(a => a.TaskId != null && ids.Contains(a.TaskId))
                 .OrderBy(a => a.CreatedAt).ThenBy(a => a.Id).ToListAsync(ct))
             .GroupBy(a => a.TaskId!).ToDictionary(g => g.Key, g => g.ToList());
+        var sales = await SalesMarksAsync(ids, ct);
         return [.. tasks.Select(t =>
         {
             var mine = attachments.GetValueOrDefault(t.Id) ?? [];
             var voice = mine.FirstOrDefault(a => a.Kind == HrAttachmentKinds.Voice);
+            var mark = sales.GetValueOrDefault(t.Id);
             return new HrAppTaskDto(
                 t.Id, t.Title, t.Description, t.Kind, t.Status, t.Source, t.DueAt, t.IsOverdue(now), t.IsLate,
                 t.ProofRequired, t.TargetAmount, t.Kind == HrTaskKinds.Numeric ? t.CurrentAmount : null, t.Unit,
@@ -682,8 +695,28 @@ public sealed partial class HrTasksService
                 [.. (proofs.GetValueOrDefault(t.Id) ?? []).Select(p => new HrAppProofDto(p.Id, p.Kind, ProofUrl(p), p.OriginalName))],
                 t.AcceptedAt, t.NeedsAcceptance,
                 [.. mine.Select(a => new HrAppAttachmentDto(a.Id, a.Kind, files.UrlFor(a.FilePath), a.ContentType, a.SizeBytes, a.DurationSeconds))],
-                voice is null ? null : files.UrlFor(voice.FilePath));
+                voice is null ? null : files.UrlFor(voice.FilePath),
+                mark?.Kind, mark?.LeadId, mark?.LeadName);
         })];
+    }
+
+    /// <summary>LC: SOTUV belgisi — lid topshirig'i (`hr_lead_tasks`) yoki sinov darsi ro'yxati (`hr_trial_tasks`).</summary>
+    private sealed record SalesMark(string Kind, string? LeadId, string? LeadName);
+
+    private async Task<Dictionary<string, SalesMark>> SalesMarksAsync(List<string> taskIds, CancellationToken ct)
+    {
+        var result = new Dictionary<string, SalesMark>();
+        if (taskIds.Count == 0) return result;
+        var leadLinks = await (from l in db.HrLeadTasks.AsNoTracking()
+                               where taskIds.Contains(l.TaskId)
+                               join lead in db.Leads.AsNoTracking() on l.LeadId equals lead.Id into leads
+                               from lead in leads.DefaultIfEmpty()
+                               select new { l.TaskId, l.LeadId, Name = lead == null ? null : lead.FullName })
+            .ToListAsync(ct);
+        foreach (var l in leadLinks) result[l.TaskId] = new SalesMark("lead", l.LeadId, l.Name ?? "(lid o'chirilgan)");
+        foreach (var id in await db.HrTrialTasks.AsNoTracking().Where(r => taskIds.Contains(r.TaskId)).Select(r => r.TaskId).ToListAsync(ct))
+            result.TryAdd(id, new SalesMark("trial", null, null));
+        return result;
     }
 
     private async Task<HrAppTaskDto> AppTaskAsync(HrTask task, CancellationToken ct) => (await AppTasksAsync([task], Now, ct))[0];
@@ -733,7 +766,12 @@ public sealed partial class HrTasksService
         if (comment is { Length: > 2000 }) throw HrErrors.Validation("Izoh 2000 belgidan oshmasligi kerak");
         var task = await OwnTaskAsync(me, id, ct);
         var proofs = await db.HrTaskProofs.CountAsync(p => p.TaskId == task.Id, ct);
-        if (task.Complete(Now, comment, proofs)) await db.SaveChangesAsync(ct);
+        if (task.Complete(Now, comment, proofs))
+        {
+            // LC: lid (sotuv) topshirig'i — natija lid tarixiga ham yoziladi (`HrTasksService.Leads.cs`).
+            await RecordLeadTaskChangeAsync(task, LeadTaskChange.Done, me.FullName, me.UserId, ct);
+            await db.SaveChangesAsync(ct);
+        }
         return await AppTaskAsync(task, ct);
     }
 
@@ -751,7 +789,12 @@ public sealed partial class HrTasksService
         if (HrValues.LocalDate(completedAt, tz) != today) throw HrErrors.TaskNotEditable("reopen_window");
         if (await db.HrJobRuns.AnyAsync(r => r.JobName == HrJobs.Digest && r.RunDate == today, ct))
             throw HrErrors.TaskNotEditable("digest_sent");
-        if (task.Reopen(now)) await db.SaveChangesAsync(ct);
+        if (task.Reopen(now))
+        {
+            // LC: lid tarixida «bajarildi» yozuvi turibdi — qayta ochilgani ham ko'rinsin.
+            await RecordLeadTaskChangeAsync(task, LeadTaskChange.Reopened, me.FullName, me.UserId, ct);
+            await db.SaveChangesAsync(ct);
+        }
         return await AppTaskAsync(task, ct);
     }
 

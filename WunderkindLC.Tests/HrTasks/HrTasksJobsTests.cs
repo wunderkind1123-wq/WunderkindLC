@@ -144,6 +144,13 @@ public class HrTasksJobsTests
         var now = At(2038, 2, 3, 15);
         var soon = await kit.TaskAsync(e.Employee!.Id, now.AddMinutes(50), title: "Tez orada");
         await kit.TaskAsync(e.Employee.Id, At(2038, 2, 3, 23, 59), title: "Kun oxiri"); // no due time → skipped
+        // LC: sukut endi faqat [30] (§10) — LMS'ning uch bosqichli mantig'i shu yerda aniq sozlama bilan tekshiriladi
+        await using (var ctx = kit.NewContext())
+        {
+            var settings = await kit.Service(now, ctx).GetOrCreateSettingsAsync();
+            settings.ReminderOffsets = [120, 60, 30];
+            await ctx.SaveChangesAsync();
+        }
 
         Assert.Equal(1, await kit.Service().SendRemindersAsync(now));
         Assert.Equal(0, await kit.Service().SendRemindersAsync(now)); // 120 and 60 are claimed

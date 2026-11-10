@@ -45,6 +45,10 @@ public static class LeadRemoval
             new { Events = events, Trials = trials }, reason, actorName);
         db.LeadEvents.RemoveRange(events);
         db.TrialLessons.RemoveRange(trials);
+        // LID TOPSHIRIQLARI (HR) — ochiqlari BEKOR qilinadi (xodimning «Topshiriqlar»ida egasi yo'q ish osilib
+        // qolmasin); topshiriqlarning o'zi HR tarixida qoladi. Hodisa yozilmaydi — lid hodisalari o'chiriladi.
+        await LeadTasks.CancelOpenForLeadAsync(db, lead.Id, "Lid o'chirildi", new LeadTasks.Actor(null, actorName), ct,
+            recordEvent: false);
 
         foreach (var conv in await db.IgConversations.Where(c => c.LeadId == lead.Id).ToListAsync(ct))
             conv.LeadId = null;

@@ -4033,6 +4033,59 @@ namespace WunderkindLC.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("WunderkindLC.Domain.HrLeadTask", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AllDay")
+                        .HasColumnType("boolean")
+                        .HasColumnName("all_day");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("LeadId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("lead_id");
+
+                    b.Property<string>("TaskId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("task_id");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_lead_tasks");
+
+                    b.HasIndex("LeadId")
+                        .HasDatabaseName("ix_hr_lead_tasks_lead_id");
+
+                    b.HasIndex("TaskId")
+                        .IsUnique()
+                        .HasDatabaseName("uq_hr_lead_task");
+
+                    b.ToTable("hr_lead_tasks", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_lead_task_type", "type in ('call','meeting','message','other')");
+                        });
+                });
+
             modelBuilder.Entity("WunderkindLC.Domain.HrPosition", b =>
                 {
                     b.Property<string>("Id")
@@ -4073,6 +4126,16 @@ namespace WunderkindLC.Infrastructure.Migrations
                     b.Property<short>("Id")
                         .HasColumnType("smallint")
                         .HasColumnName("id");
+
+                    b.Property<bool>("AfternoonListEnabled")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("afternoon_list_enabled");
+
+                    b.Property<TimeOnly>("AfternoonTime")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("afternoon_time")
+                        .HasDefaultValueSql("'16:00'");
 
                     b.Property<TimeOnly>("CloseOverdueTime")
                         .HasColumnType("time without time zone")
@@ -4119,7 +4182,7 @@ namespace WunderkindLC.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("smallint[]")
                         .HasColumnName("reminder_offsets")
-                        .HasDefaultValueSql("'{120,60,30}'");
+                        .HasDefaultValueSql("'{30}'");
 
                     b.Property<string>("Timezone")
                         .IsRequired()
@@ -10696,6 +10759,16 @@ namespace WunderkindLC.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_hr_employee_managers_hr_employees_manager_id");
+                });
+
+            modelBuilder.Entity("WunderkindLC.Domain.HrLeadTask", b =>
+                {
+                    b.HasOne("WunderkindLC.Domain.HrTask", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_lead_tasks_hr_tasks_task_id");
                 });
 
             modelBuilder.Entity("WunderkindLC.Domain.HrTask", b =>

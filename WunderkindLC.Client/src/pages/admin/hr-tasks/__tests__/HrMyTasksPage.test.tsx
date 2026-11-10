@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { HrMyTask } from '@/api/services/hrTasks'
 
@@ -21,6 +21,10 @@ vi.mock('@/api/services/hrTasks', async (importOriginal) => {
   return { ...real, ...api }
 })
 
+// Kim kirgan: standart — oddiy xodim; rahbar (superadmin/admin) testida almashtiriladi.
+const auth = vi.hoisted(() => ({ role: 'staff' }))
+vi.mock('@/context/auth-context', () => ({ useAuth: () => ({ user: { role: auth.role } }) }))
+
 import { HrMyTasksPage } from '../HrMyTasksPage'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -33,6 +37,7 @@ beforeEach(() => {
   document.body.appendChild(host)
   root = createRoot(host)
   for (const fn of Object.values(api)) fn.mockReset()
+  auth.role = 'staff'
   api.getMySummary.mockResolvedValue({ periodStart: '2026-10-01', periodEnd: '2026-10-31', total: 0, done: 0, missed: 0, late: 0, open: 0, percent: 0, kpi: [] })
 })
 afterEach(() => {
@@ -49,7 +54,13 @@ function task(patch: Partial<HrMyTask>): HrMyTask {
   }
 }
 
-async function render(defaultTab?: 'open' | 'day') {
+/** Yo'naltirilgan manzilni ko'rsatadi. */
+function Probe() {
+  const loc = useLocation()
+  return <span>{`ROYXAT${loc.search}`}</span>
+}
+
+async function render(defaultTab?: 'board' | 'open' | 'day') {
   await act(async () => {
     root.render(
       <MemoryRouter>
@@ -88,15 +99,59 @@ describe('HrMyTasksPage', () => {
     expect(text).toContain('Qayta ochish')
   })
 
-  it('ro\'yxat ko\'rinishi (admin paneli) — sukut «Bajarish kerak»', async () => {
+  it('LC: admin paneli — sukut «Doska»: Kechikkan / Bugun / Ertaga / Keyinroq, faqat bajarilmaganlar', async () => {
+    api.getMe.mockResolvedValue({ employeeId: 'e1', fullName: 'Ali', positionName: null, timezone: 'Asia/Tashkent', today: '2026-10-21' })
+    api.getMyTasks.mockResolvedValue({
+      items: [
+        task({ id: 'a', title: 'Kechagi hisobot', dueAt: '2026-10-20T13:00:00Z', isOverdue: true }),
+        task({ id: 'b', title: 'Ertangi uchrashuv', dueAt: '2026-10-22T08:00:00Z' }),
+      ],
+      nextCursor: null, hasMore: false, total: 2,
+    })
+    await render()
+
+    expect(api.getMyTasks).toHaveBeenCalledWith(expect.objectContaining({ status: ['open', 'returned'], sort: 'due_at' }))
+    const columns = [...host.querySelectorAll('section')].map((s) => s.textContent ?? '')
+    expect(columns).toHaveLength(4)
+    expect(columns[0]).toContain('Kechikkan')
+    expect(columns[0]).toContain('Kechagi hisobot')
+    expect(columns[2]).toContain('Ertaga')
+    expect(columns[2]).toContain('Ertangi uchrashuv')
+  })
+
+  it('ro\'yxat ko\'rinishi — «Bajarish kerak» tabi', async () => {
     api.getMe.mockResolvedValue({ employeeId: 'e1', fullName: 'Ali', positionName: null, timezone: 'Asia/Tashkent', today: '2026-10-21' })
     api.getMyTasks.mockResolvedValue({ items: [task({ title: 'Oylik hisobot' })], nextCursor: null, hasMore: false, total: 1 })
-    await render()
+    await render('open')
 
     expect(api.getMyTasks).toHaveBeenCalledWith(expect.objectContaining({ status: ['open', 'returned'], sort: 'due_at' }))
     expect(api.getMyDayTasks).not.toHaveBeenCalled()
     expect(host.textContent).toContain('Oylik hisobot')
     expect(host.textContent).toContain('Jami 1 ta topshiriq')
+  })
+
+  it("LC: rahbar (superadmin/admin) HR'da yo'q — barcha xodimlarning BAJARILMAGAN (kechikkan + kelgusi) topshiriqlariga yo'naltiriladi", async () => {
+    auth.role = 'superadmin'
+    api.getMe.mockRejectedValue({ response: { status: 403, data: { code: 'hr_not_employee', message: 'Siz ro‘yxatda yo‘qsiz' } } })
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={['/admin/hr/mening-topshiriqlarim']}>
+          <Routes>
+            <Route path="/admin/hr/mening-topshiriqlarim" element={<HrMyTasksPage />} />
+            <Route path="/admin/hr/topshiriqlar/royxat" element={<Probe />} />
+          </Routes>
+        </MemoryRouter>,
+      )
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(host.textContent).not.toContain('Siz HR xodimlari ro‘yxatida yo‘qsiz')
+    // kechikkanlar ham ko'rinsin: oyna bugundan ORQAGA ham ochiladi, faqat bajarilmaganlar
+    expect(host.textContent).toMatch(/^ROYXAT\?dateFrom=\d{4}-\d{2}-\d{2}&dateTo=\d{4}-\d{2}-\d{2}&status=open&status=returned$/)
+    const [from, to] = [...(host.textContent ?? '').matchAll(/\d{4}-\d{2}-\d{2}/g)].map((m) => m[0])
+    expect(from! < to!).toBe(true)
   })
 
   it('HR qatori yo\'q foydalanuvchi — xato emas, tushuntirish', async () => {

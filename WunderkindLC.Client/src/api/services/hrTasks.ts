@@ -1,4 +1,5 @@
 import type {
+  HrSalesKind,
   AddProgressInput,
   CompleteTaskInput,
   CreateTaskInput,
@@ -561,6 +562,10 @@ export interface HrMyTask {
   voiceUrl: string | null
   attachments: TaskAttachment[]
   proofs: Proof[]
+  /** LC: sotuv topshirig'i (`lead` | `trial`) — ro'yxatda boshqa rangda (`SalesBadge`). */
+  salesKind?: HrSalesKind | null
+  leadId?: string | null
+  leadName?: string | null
 }
 
 type RawMyTask = Partial<Omit<HrTask, 'currentAmount'>> &
@@ -591,6 +596,9 @@ function toMyTask(raw: RawMyTask): HrMyTask {
     voiceUrl: raw.voiceUrl ?? null,
     attachments: raw.attachments ?? [],
     proofs: raw.proofs ?? [],
+    salesKind: raw.salesKind ?? null,
+    leadId: raw.leadId ?? null,
+    leadName: raw.leadName ?? null,
   }
 }
 

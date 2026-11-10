@@ -19,7 +19,7 @@ import {
   type LeadAnswersPayload,
 } from '@/api/services/leads'
 import { getLeadSources } from '@/api/services/leadSources'
-import { LOST_COLUMN_ID, markLeadLost, restoreLead, type LeadLossState } from '@/api/services/leadLoss'
+import { LOST_COLUMN_ID, markLeadLost, type LeadLossState } from '@/api/services/leadLoss'
 import {
   createStage,
   deleteStage,
@@ -63,8 +63,8 @@ import { useUrlFilters } from './useUrlFilters'
 const FILTER_KEYS = [
   'q', 'from', 'to', 'day', 'stage', 'course', 'level', 'group', 'teacher', 'moderator',
   'status', 'source',
-  // YO'QOTILGANLAR: `lost` — '' (hammasi) | 'hide' | 'only'; `reason` — yo'qotish sababi (matn).
-  'lost', 'reason',
+  // `reason` — arxivlash (yo'qotish) sababi, faqat Arxiv tabida. (`lost` filtri 2026-11-10 da olib tashlandi: yo'qotilgan = arxiv.)
+  'reason',
 ] as const
 
 /** Select'dagi "bo'sh qiymatli" variant (manbasiz, mas'ulsiz, kurssiz). */
@@ -181,16 +181,6 @@ export function LeadsPage({ archive = false }: { archive?: boolean } = {}) {
         return
       }
       setLostTarget(lead)
-      return
-    }
-
-    // Yo'qotilgan karta boshqa ustunga — TIKLASH (server bosqichni ham o'zgartiradi va tarixga yozadi).
-    if (isLeadLost(lead)) {
-      const title = stages.find((s) => s.id === newStage)?.title ?? ''
-      if (!confirm(`"${lead.fullName}" lidini tiklab, «${title}» ustuniga o'tkazasizmi?`)) return
-      restoreLead(lead.id, newStage)
-        .then(applyLossState)
-        .catch((err) => alert(apiErrorMessage(err, "Lidni tiklab bo'lmadi")))
       return
     }
 
@@ -331,10 +321,8 @@ export function LeadsPage({ archive = false }: { archive?: boolean } = {}) {
     if (f.teacher && l.teacherId !== f.teacher) return false
     if (f.moderator && (f.moderator === NONE ? !!l.assigneeUserId : l.assigneeUserId !== f.moderator)) return false
     if (f.source && (f.source === NONE ? !!l.source : l.source !== f.source)) return false
-    // YO'QOTILGANLAR: yashirish / faqat ular; sabab tanlansa — faqat o'sha sabab bilan yo'qotilganlar.
-    if (f.lost === 'hide' && isLeadLost(l)) return false
-    if (f.lost === 'only' && !isLeadLost(l)) return false
-    if (f.reason && (!isLeadLost(l) || (l.lostReason ?? '') !== f.reason)) return false
+    // Yo'qotilgan = ARXIV (2026-11-10): buyurtmalar ro'yxatida umuman yo'q; sabab filtri — faqat Arxiv tabida.
+    if (archive && f.reason && (l.lostReason ?? '') !== f.reason) return false
     return matchesSearch(l)
   }
   const matches = (l: Lead) => matchesStatus(l) && matchesOthers(l)
@@ -349,6 +337,8 @@ export function LeadsPage({ archive = false }: { archive?: boolean } = {}) {
       else if (l.firstLessonAt) hiddenByStatus.first++
     }
   }
+  /** Arxivdagi (yo'qotilgan) lidlar soni — kanbandagi «Arxivga» joyida havola bilan. */
+  const archivedCount = archive ? 0 : leads.filter(isLeadLost).length
 
   // Select variantlari — ma'lumotdan (faqat haqiqatan uchraydigan qiymatlar).
   const courseOptions = useMemo(() => {
@@ -571,8 +561,7 @@ export function LeadsPage({ archive = false }: { archive?: boolean } = {}) {
               <option value="lead">Buyurtma (sinovga yozilmagan)</option>
               <option value="first">Birinchi darsga yozilgan</option>
               <option value="student">O'quvchiga aylantirilgan</option>
-              <option value="lost">Yo'qotilgan (arxiv)</option>
-              <option value="all">Hammasi</option>
+              <option value="all">Hammasi (arxivsiz)</option>
             </FilterSelect>
           )}
           <FilterSelect placeholder="Manba" value={f.source} onChange={(e) => set({ source: e.target.value })}>
@@ -583,19 +572,15 @@ export function LeadsPage({ archive = false }: { archive?: boolean } = {}) {
             ))}
             <option value={NONE}>Noma'lum</option>
           </FilterSelect>
-          {!archive && (
-            <FilterSelect placeholder="Yo'qotilganlar" value={f.lost} onChange={(e) => set({ lost: e.target.value })}>
-              <option value="hide">Yo'qotilganlarni yashirish</option>
-              <option value="only">Faqat yo'qotilganlar</option>
+          {archive && (
+            <FilterSelect placeholder="Arxivlash sababi" value={f.reason} onChange={(e) => set({ reason: e.target.value })}>
+              {lostReasonOptions.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
             </FilterSelect>
           )}
-          <FilterSelect placeholder="Yo'qotish sababi" value={f.reason} onChange={(e) => set({ reason: e.target.value })}>
-            {lostReasonOptions.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </FilterSelect>
           {filtersActive && (
             <button
               type="button"
@@ -671,7 +656,7 @@ export function LeadsPage({ archive = false }: { archive?: boolean } = {}) {
                 key={stage.id}
                 stage={stage}
                 leads={visibleLeads
-                  // Yo'qotilgan lid o'z bosqichida emas, faqat DOIMIY "Yo'qotilgan" ustunida chiziladi.
+                  // Yo'qotilgan (arxivlangan) lid kanbanda YO'Q — u faqat Arxivda.
                   .filter((l) => !isLeadLost(l) && stageOf(l) === stage.id)
                   // Eng so'nggi HARAKAT tepada. `createdAt` EMAS, chunki takroriy murojaatda
                   // u ATAYIN o'zgarmaydi (first-touch: lid QACHON birinchi kelgani hisobotlar
@@ -698,17 +683,9 @@ export function LeadsPage({ archive = false }: { archive?: boolean } = {}) {
               />
             ))}
 
-            {/* DOIMIY "Yo'qotilgan" ustuni — har doim foydalanuvchi ustunlaridan KEYIN (ular qayta
-                tartiblansa ham), tahrirlanmaydi/o'chirilmaydi. Eng so'nggi yo'qotilgani tepada. */}
-            <LostColumn
-              leads={visibleLeads
-                .filter(isLeadLost)
-                .sort((a, b) => (b.lostAt || '').localeCompare(a.lostAt || ''))}
-              hidden={f.lost === 'hide'}
-              showReportLink={can('leads.stats', 'view')}
-              onCardClick={openLead}
-              onCall={setCallLead}
-            />
+            {/* DOIMIY «Arxivga» joyi — har doim foydalanuvchi ustunlaridan KEYIN, tahrirlanmaydi/o'chirilmaydi.
+                Kartalar CHIZILMAYDI (egasi, 2026-11-10: «yo'qotilgan = arxiv, ro'yxatda turmasin»). */}
+            <LostColumn archivedCount={archivedCount} showReportLink={can('leads.stats', 'view')} />
 
             <button
               type="button"

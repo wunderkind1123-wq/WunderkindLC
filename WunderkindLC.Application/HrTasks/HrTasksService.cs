@@ -117,6 +117,9 @@ public sealed partial class HrTasksService(
         s.ReminderOffsets = HrSettings.CleanReminderOffsets(
             input.ReminderOffsets ?? [.. HrSettings.DefaultReminderOffsets.Select(x => (int)x)]);
         s.RemindEndOfDay = input.RemindEndOfDay ?? false;
+        // LC: kunduzgi ro'yxat (§11) — eski klient maydonni yubormasa joriy qiymat qoladi
+        if (input.AfternoonListEnabled is { } afternoonOn) s.AfternoonListEnabled = afternoonOn;
+        if (ParseTime(input.AfternoonTime, "afternoonTime") is { } afternoonAt) s.AfternoonTime = afternoonAt;
         s.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
         return ToDto(s);
@@ -125,7 +128,7 @@ public sealed partial class HrTasksService(
     private static HrSettingsDto ToDto(HrSettings s) => new(
         s.Timezone, Hm(s.DigestTime), [.. s.DigestWeekdays.Select(x => (int)x)], s.MorningListEnabled,
         Hm(s.MorningTime), Hm(s.GenerationTime), Hm(s.CloseOverdueTime), s.ReminderEnabled,
-        [.. s.ReminderOffsets.Select(x => (int)x)], s.RemindEndOfDay, s.UpdatedAt);
+        [.. s.ReminderOffsets.Select(x => (int)x)], s.RemindEndOfDay, s.UpdatedAt, s.AfternoonListEnabled, Hm(s.AfternoonTime));
 
     // =====================================================================
     //  Scope

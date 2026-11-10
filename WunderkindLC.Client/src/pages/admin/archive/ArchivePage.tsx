@@ -28,9 +28,9 @@ const TABS: { key: string; label: string }[] = [
 ]
 
 export function ArchivePage() {
-  // Lid suratini BUTUNLAY o'chirish — faqat superadmin va direktor (admin roli); server `LeadDeleteRights` bilan bir xil.
+  // Lid suratini BUTUNLAY o'chirish — FAQAT superadmin (2026-11-10); server `LeadDeleteRights` bilan bir xil.
   const role = useAuth().user?.role
-  const canPurgeLead = role === 'superadmin' || role === 'admin'
+  const canPurgeLead = role === 'superadmin'
   const [active, setActive] = useState('lead')
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [rows, setRows] = useState<ArchivedRecord[]>([])

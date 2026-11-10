@@ -230,12 +230,22 @@ public static class HrTasksTexts
     /// The morning list: overdue tasks first in a red section (Telegram cannot colour text —
     /// 🔴 + bold + own section), then today's. Empty string = nothing to send.
     /// </summary>
-    public static string Morning(IReadOnlyList<HrDigestTask> tasks, TimeZoneInfo tz, DateTimeOffset? now)
+    public static string Morning(IReadOnlyList<HrDigestTask> tasks, TimeZoneInfo tz, DateTimeOffset? now) =>
+        OpenList("🌅 <b>Bugungi topshiriqlar</b>", tasks, tz, now);
+
+    /// <summary>LC: kunduzgi (16:00) «hali bajarilmagan» ro'yxat — ertalabki bilan bir xil ko'rinish (§11).</summary>
+    public static string Afternoon(IReadOnlyList<HrDigestTask> tasks, TimeZoneInfo tz, DateTimeOffset now)
+    {
+        var body = OpenList($"🕓 <b>Hali bajarilmagan topshiriqlar — {tasks.Count} ta</b>", tasks, tz, now);
+        return body.Length == 0 ? "" : body + "\n\nBajarganlaringizni natijasi bilan yoping.";
+    }
+
+    private static string OpenList(string heading, IReadOnlyList<HrDigestTask> tasks, TimeZoneInfo tz, DateTimeOffset? now)
     {
         if (tasks.Count == 0) return "";
         var overdue = now is { } n1 ? tasks.Where(t => t.DueAt < n1).ToList() : [];
         var current = now is { } n2 ? tasks.Where(t => t.DueAt >= n2).ToList() : tasks.ToList();
-        var lines = new List<string> { "🌅 <b>Bugungi topshiriqlar</b>", "" };
+        var lines = new List<string> { heading, "" };
         var number = 1;
         if (overdue.Count > 0 && now is { } n)
         {
@@ -267,6 +277,26 @@ public static class HrTasksTexts
     }
 
     /// <summary>Deadline reminder (old build_reminder_text): the nearest deadline leads.</summary>
+    /// <summary>
+    /// LC: MUDDAT KELDI (egasi, 2026-11-10: «deadline kelsa botdan xabar borsin») — LMS'da faqat oldindan eslatma bor edi.
+    /// Muddati hozirgina tugagan, hali bajarilmagan topshiriqlar — xodimga bitta xabar.
+    /// </summary>
+    public static string DueNow(IReadOnlyList<string> titles)
+    {
+        if (titles.Count == 0) return "";
+        var lines = new List<string>
+        {
+            titles.Count == 1 ? "⌛ <b>Topshiriq muddati keldi</b> — hali bajarilmagan:" : $"⌛ <b>{titles.Count} ta topshiriq muddati keldi</b> — hali bajarilmagan:",
+        };
+        var shown = titles.Take(MaxReminderLines).ToList();
+        lines.AddRange(shown.Select(t => $"• {Escape(t)}"));
+        var rest = titles.Count - shown.Count;
+        if (rest > 0) lines.Add($"…va yana {rest} ta");
+        lines.Add("");
+        lines.Add("Bajargan bo'lsangiz — natijasini yozib yoping.");
+        return string.Join("\n", lines);
+    }
+
     public static string Reminder(IReadOnlyList<(string Title, int RemainingMinutes)> items)
     {
         if (items.Count == 0) return "";

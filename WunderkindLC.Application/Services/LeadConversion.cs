@@ -355,6 +355,9 @@ public static class LeadConversion
         });
 
         await ResolvePendingTrialsAsync(db, lead.Id, todayIso, actor, nowIso, ct);
+        // Lid yopildi (o'quvchi bo'ldi) — uning ochiq topshiriqlari endi kerak emas (`LeadTasks`).
+        await LeadTasks.CancelOpenForLeadAsync(db, lead.Id, "lid o'quvchiga aylantirildi",
+            new LeadTasks.Actor(actor.UserId, actor.Name), ct);
 
         audit.Record(LeadLoss.AuditEntity, lead.Id, "update",
             (created ? $"Lid o'quvchiga aylantirildi: {lead.FullName}" : $"Lid mavjud o'quvchiga bog'landi: {lead.FullName} → {student.FullName}")

@@ -138,6 +138,7 @@ outbox'siz, to'g'ridan-to'g'ri (`messaging.md` §0.5 ruxsat bergan toifa).
 | Xodim faolligi | `StaffActivity` «yopilgan topshiriqlar» = xodimning O'ZI bajargan HR topshiriqlari |
 | Bot xabari | LMS — sarlavha + muddat; LC — to'liq topshiriq, biriktirmalar va «✅ Qabul qildim» (§5) |
 | Sinov darsi topshiriqlari | LC qo'shimchasi (§8) — `hr_trial_tasks` |
+| Lid (sotuv) topshiriqlari | LC qo'shimchasi (§9) — `hr_lead_tasks`, ro'yxatlarda «Sotuv» belgisi |
 | KPI / so'rovnomalar | LMS'ning HR KPI'si va so'rovnomalari ko'chirilmagan. LC KPI cheklistining `tasks.overdue_zero` / `tasks.due_done` kalitlari HR topshiriqlaridan hisoblanadi (`ChecklistAutoCheck`, `kpi.md` §11) |
 
 ## 7. Yangi narsa qo'shsangiz
@@ -178,3 +179,73 @@ Kod: `HrTrialRules` (sof, `HrTrialTasksTests`), `HrTasksService.Trials.cs`, jadv
   Qo'lda «Bajardim» ham mumkin (isbotsiz). Yopish oynasi — oxirgi 45 kun.
 - ⚠️ Kechagi ro'yxat FAQAT ochiq lidlar bilan yaratiladi; 09:00 gacha hech narsa yaratilmaydi (lekin yopish yuguradi);
   server butun kun o'chiq bo'lsa o'sha kun o'tkazib yuboriladi (orqaga yaratilmaydi).
+
+## 9. LID (SOTUV) TOPSHIRIQLARI (LC qo'shimchasi, 2026-11-10)
+
+Egasi: «lid vazifalari alohida bo'lim bo'lmasin — Topshiriqlar bilan BITTA, sotuvnikilari boshqa rangda ajralib tursin».
+Lid sahifasidan qo'yilgan «keyingi qadam» — oddiy `HrTask` (`Source = director`, `CreatedBy` = qo'ygan xodim,
+`ProofRequired = true` — natija majburiy) + `hr_lead_tasks` bog'lanishi (migratsiya `AddHrLeadTasks`; unikal `task_id`,
+lidga FK YO'Q). Kod: `HrTasksService.Leads.cs`, qoidalar `LeadTasks` (Application/Services), testlar `HrLeadTasksTests`.
+To'liq lid tomoni — `.claude/rules/crm-leads.md` «LID TOPSHIRIQLARI».
+
+- Yaratish/tahrir/bajarish/bekor qilish — `api/admin/lead-tasks` (`leads.list`, HR panel DOIRASI qo'llanmaydi — tizim yo'li,
+  sinov topshiriqlari kabi). Telegram — `NotifyAssignedAsync` (to'liq xabar + «✅ Qabul qildim»).
+- Mas'ul — faqat FAOL HR xodimi, panel akkaunti (staff/admin); o'qituvchilar ro'yxatda yo'q.
+- **Ajratish:** `HrTaskDto` va `HrAppTaskDto` da `SalesKind` (`lead` | `trial` | null), `LeadId`, `LeadName`
+  (`SalesMarksAsync` — `hr_lead_tasks` va `hr_trial_tasks` dan). Klient `hr-tasks/SalesBadge.tsx`: to'q sariq chip + chap
+  chiziq — panel ro'yxati, «Mening topshiriqlarim», tafsilot (lid sahifasiga havola), bosh panel.
+- HR tomonida yopilgan lid topshirig'i lid tarixiga ham yoziladi: xodim «Bajardim» (`CompleteAsync`) va panel «Bekor qilish»
+  (`CancelTaskAsync`) → `RecordLeadTaskChangeAsync` (shu saqlashning o'zida).
+- Lid yo'qotilsa/aylantirilsa/o'chirilsa — ochiq lid topshiriqlari BEKOR (`LeadTasks.CancelOpenForLeadAsync`, `LeadRemoval`).
+- ⚠️ **«Kelgusi 30 kun»** (LC, `HrTasksPage`): LMS davr tugmalari faqat BUGUNDAN ORQAGA sanaydi — ertangi topshiriq (lid
+  topshiriqlari odatda shunday) hech bir tabda chiqmasdi (egasi: «qo'ydim, ko'rinmayapti»). Tugma `dateFrom = bugun, dateTo = +30`.
+- ⚠️ **«Bajarilmagan ishlar» havolasi** (`paths.hrtOpenWorkLink`): `−30 … +30 kun` + holat `open`/`returned` — KECHIKKANLAR ham
+  ko'rinadi (faqat «bugundan oldinga» oyna ularni yashirardi). Ishlatiladi: lid sahifasidagi «Topshiriqlarda ko'rish» va
+  **rahbar «Mening topshiriqlarim»** — superadmin/admin HR'da xodim bo'lmasa (§4) «ro'yxatda yo'qsiz» o'rniga shu
+  ro'yxatga yo'naltiriladi (`HrMyTasksPage`, «kim nima ish qilayotgani»).
+- HR tomonidagi har o'zgarish lid tarixida: bajarildi / bekor / **qayta ochildi** / **qaytarildi** (`RecordLeadTaskChangeAsync`);
+  xodim nofaol bo'lsa (bo'shatish, akkaunt o'chirish/arxiv) ochiq topshiriqlari bekor — YAGONA joy
+  `CancelEmployeeOpenTasksAsync`, lid topshirig'ida lid tarixiga «mas'ul xodim faol emas» yoziladi.
+- Lid sahifasidan muddat o'zgartirilsa yuborilgan eslatma belgilari o'chadi (`ForgetRemindersAsync`, panel tahriri kabi) —
+  «30 daqiqa qoldi» / «muddati keldi» yangi muddat uchun qayta ketadi.
+
+## 10. «MUDDAT KELDI» XABARI (LC qo'shimchasi, 2026-11-10)
+
+Egasi: «topshiriq deadline kelsa botdan xabar borsin». LMS eslatmalari (§5) faqat muddatdan OLDIN (120/60/30 daq).
+`HrTasksService.DueNow.cs` → `SendDueNowAsync` (rejalashtiruvchi har 5 daq, «Eslatmalar» yoqilgan bo'lsa, oldindan
+eslatmalardan alohida try ichida), matn `HrTasksTexts.DueNow`, testlar `HrDueNowTests`.
+
+- Muddati so'nggi **30 daqiqada** tugagan (`DueNowWindowMinutes` — server o'chib qolsa eski kechikkanlar to'lqin bo'lib
+  ketmasin), hali ochiq topshiriq → ijrochiga BITTA xabar (bir nechtasi bo'lsa — ro'yxat).
+- Bir topshiriqqa BIR marta: `hr_task_reminders` ga `offset_minutes = 0` qatori (oldindan eslatmalar ≥ 5 daq — to'qnashmaydi).
+- «Kun oxiri» (23:59, vaqtsiz / «Butun kun») topshiriqlar — faqat `RemindEndOfDay` yoqilgan bo'lsa (yarim tunda xabar yo'q).
+- Telegram ulanmagan xodimga hech narsa (oldindan eslatmalar kabi).
+
+**Eslatma sukuti — faqat 30 daqiqa (egasi, 2026-11-10):** «ikki soat oldin emas, faqat yarim soat oldin, keyin vaqti
+kelganda». `HrSettings.DefaultReminderOffsets = [30]` (LMS — `[120, 60, 30]`), baza sukuti `'{30}'`, migratsiya
+`AddHrAfternoonList` mavjud sozlama qatorini ham `{30}` ga o'tkazdi. «Sozlamalar»da yana 1–2 soat qo'shish mumkin
+(tanlov tugmalari qoldi).
+
+## 11. KUNDUZGI «HALI BAJARILMAGAN» RO'YXAT (LC qo'shimchasi, 2026-11-10)
+
+Egasi: «har kuni 16:00 da bajarilmagan topshiriqlar hammasi ro'yxat bo'lib borsin». `HrSettings.AfternoonListEnabled`
+(sukut yoqiq) + `AfternoonTime` (sukut 16:00) — migratsiya `AddHrAfternoonList`, «Sozlamalar»da o'zgartiriladi.
+`SendAfternoonListsAsync` — ertalabki ro'yxat (`SendMorningListsAsync`) bilan BIR XIL tanlov (ochiq/qaytarilgan,
+`period_start <= bugun`, faol xodim) va ko'rinish (`HrTasksTexts.Afternoon` — «🕓 Hali bajarilmagan topshiriqlar — N ta»,
+kechikkanlar alohida qizil). Rejalashtiruvchida `HrJobs.Afternoon` — kuniga BIR marta (`hr_job_runs`), server o'chib
+qolsa o'sha kuni kechroq, lekin ko'pi bilan 3 soat (`HrTasksScheduler.AfternoonLateWindow`) — kechqurun/tunda
+«hali bajarilmagan» xabari yuborilmaydi. Bo'sh ro'yxat yuborilmaydi. `PUT settings` da maydonlar ixtiyoriy (eski klient yubormasa
+joriy qiymat qoladi). Testlar: `HrAfternoonListTests`.
+
+## 12. «MENING TOPSHIRIQLARIM» — DOSKA (kanban, LC qo'shimchasi, 2026-11-10)
+
+Egasi: «topshiriqlarim kanban shaklida — bajarilmagan, bugun, kechikkan ustunlari; bajarilgani o'chib ketsin, «bajarildi»
+bo'lib qolib ketmasin». `HrMyTasksPage` — yangi **«Doska»** tabi, admin panelda STANDART (`defaultTab = 'board'`;
+o'qituvchi portali avvalgidek «Kun bo'yicha»). Sof qoida — `myBoard.ts` (`myBoard.test.ts`).
+
+- BELGILANGAN ustunlar (egasining tanlovi — xodim qo'shmaydi/o'chirmaydi): **Kechikkan · Bugun · Ertaga · Keyinroq**
+  (Toshkent sanasi, «bugun» — serverniki; kechikkan — serverning `isOverdue`; muddatsiz — «Keyinroq»).
+- Faqat `open`/`returned` (bitta so'rov, ≤ `HR_MAX_PAGE_SIZE`; ko'prog'i bo'lsa ogohlantirish). «Bajardim» → doskadan
+  YO'QOLADI, lekin bazadan O'CHMAYDI (egasining tanlovi): «Bajarilgan» tabi, KPI, hisobot va lid tarixi unga tayanadi.
+- Kartalar — o'sha `MyTaskCard` (tasdiqlash, bajarish, KPI qadam, sotuv belgisi). Sudrab muddat o'zgartirish YO'Q:
+  muddatni xodim emas, topshiriq bergan o'zgartiradi (LMS qoidasi).

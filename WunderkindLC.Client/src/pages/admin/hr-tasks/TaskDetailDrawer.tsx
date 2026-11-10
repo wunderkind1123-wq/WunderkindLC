@@ -29,6 +29,8 @@ import {
   hrVoiceDuration,
 } from '@/components/hr-tasks/lib'
 import { cn } from '@/lib/utils'
+import { Link } from 'react-router-dom'
+import { SalesBadge } from './SalesBadge'
 
 /**
  * Task detail — side drawer (the old `TaskDetailDrawer`). Action modals (edit, return,
@@ -133,6 +135,16 @@ export function TaskDetailDrawer({
                 </Badge>
               ) : null}
             </div>
+            {task.salesKind && (
+              <div className="flex flex-wrap items-center gap-2">
+                <SalesBadge kind={task.salesKind} leadId={task.leadId} leadName={task.leadName} />
+                {task.salesKind === 'lead' && task.leadId && (
+                  <Link to={`/admin/leads/${task.leadId}`} className="text-sm font-medium text-brand-600 hover:underline">
+                    Lid sahifasini ochish{task.leadName ? ` — ${task.leadName}` : ''}
+                  </Link>
+                )}
+              </div>
+            )}
             <h3 className="break-words text-lg font-semibold leading-snug text-slate-900">{task.title}</h3>
             {task.description ? (
               <p className="whitespace-pre-line break-words text-sm text-slate-600">{task.description}</p>

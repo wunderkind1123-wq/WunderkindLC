@@ -60,9 +60,14 @@ public class LeadsController(
                 .Select(x => new { x.Id, x.Name }).ToListAsync())
             .ToDictionary(x => x.Id, x => x.Name ?? "", StringComparer.Ordinal);
 
+        // OCHIQ LID TOPSHIRIQLARI («Topshiriqlar» bo'limidagi HR topshiriqlari, `LeadTasks`) — kanban kartasidagi
+        // «keyingi qadam» indikatori. Bitta so'rov.
+        var openTasks = await LeadTasks.OpenByLeadAsync(db);
+
         return leads.Select(lead =>
         {
             var trials = ctx.TrialsByLead[lead.Id].ToList();
+            var nextTask = openTasks.GetValueOrDefault(lead.Id);
             var shown = LeadFirstLesson.Display(trials, today);
             var group = shown is { } s ? ctx.Groups.GetValueOrDefault(s.GroupId) : null;
             // Kutilayotgan birinchi dars — FAQAT ochiq lidda (bosh sahifa kartochkasi bilan bitta ta'rif):
@@ -101,7 +106,9 @@ public class LeadsController(
                 : lead.Level,
             // YO'QOTILGAN — kanbandagi doimiy ustun va filtrlar shundan quriladi (`LeadLoss`).
             LostAt: lead.LostAt, LostReasonId: lead.LostReasonId, LostReason: lead.LostReason,
-            LostComment: lead.LostComment, LostByName: lead.LostByName);
+            LostComment: lead.LostComment, LostByName: lead.LostByName,
+            NextTaskAt: nextTask?.DueAt, NextTaskType: nextTask?.Type, NextTaskText: nextTask?.Text,
+            NextTaskAllDay: nextTask?.AllDay ?? false, OpenTasks: nextTask?.OpenCount ?? 0);
         }).ToList();
     }
 

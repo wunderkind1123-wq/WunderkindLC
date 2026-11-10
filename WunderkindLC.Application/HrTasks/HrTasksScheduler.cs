@@ -20,6 +20,8 @@ public sealed class HrTasksScheduler(IServiceScopeFactory scopes, ILogger<HrTask
     public static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(5);
     /// <summary>Let start-up (migrations, seeding) finish before the first tick.</summary>
     public static readonly TimeSpan FirstTickDelay = TimeSpan.FromSeconds(30);
+    /// <summary>LC: kunduzgi ro'yxat sozlangan vaqtdan shuncha kechikkandan keyin o'sha kuni YUBORILMAYDI.</summary>
+    public static readonly TimeSpan AfternoonLateWindow = TimeSpan.FromHours(3);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -65,6 +67,12 @@ public sealed class HrTasksScheduler(IServiceScopeFactory scopes, ILogger<HrTask
             && await GuardedAsync(HrJobs.Morning, today, now, s => s.SendMorningListsAsync(today, now, ct), ct) is { } morning)
             result["morning_sent"] = morning;
 
+        // LC: kunduzgi «hali bajarilmagan» ro'yxat (§11) — kuniga bir marta (hr_job_runs). Server o'chib qolgan bo'lsa
+        // ko'pi bilan AfternoonLateWindow kechikib ketadi: kechqurun/tunda «hali bajarilmagan» xabari ma'nosiz.
+        if (settings.AfternoonListEnabled && at >= settings.AfternoonTime && at - settings.AfternoonTime <= AfternoonLateWindow
+            && await GuardedAsync(HrJobs.Afternoon, today, now, s => s.SendAfternoonListsAsync(today, now, ct), ct) is { } afternoon)
+            result["afternoon_sent"] = afternoon;
+
         if (at >= settings.DigestTime && settings.DigestWeekdays.Contains((short)HrRecurrenceRules.IsoWeekday(today))
             && await GuardedAsync(HrJobs.Digest, today, now, s => s.SendDigestAsync(today, now, ct), ct) is { } digest)
             result["digest_sent"] = digest;
@@ -83,6 +91,16 @@ public sealed class HrTasksScheduler(IServiceScopeFactory scopes, ILogger<HrTask
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogError(ex, "HR: eslatmalar yuborilmadi");
+            }
+            // LC: «muddat keldi» xabari (§10) — oldindan eslatmalardan ALOHIDA, biri yiqilsa ikkinchisi ishlayveradi.
+            try
+            {
+                using var scope = scopes.CreateScope();
+                if (await Service(scope).SendDueNowAsync(now, ct) is var due and > 0) result["due_now"] = due;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "HR: «muddat keldi» xabarlari yuborilmadi");
             }
         }
 

@@ -205,6 +205,8 @@ public static class HrJobs
 {
     public const string Generate = "generate";
     public const string Morning = "morning";
+    /// <summary>LC: 16:00 dagi «bajarilmaganlar» ro'yxati (`.claude/rules/hr-tasks.md` §11).</summary>
+    public const string Afternoon = "afternoon";
     public const string Digest = "digest";
     public const string CloseOverdue = "close_overdue";
     public const string CleanDrafts = "clean_drafts";
@@ -773,7 +775,8 @@ public class HrSettings
 {
     public const short SingletonId = 1;
     public static readonly short[] DefaultDigestWeekdays = [1, 2, 3, 4, 5, 6];
-    public static readonly short[] DefaultReminderOffsets = [120, 60, 30];
+    /// <summary>LC (egasi, 2026-11-10): faqat yarim soat oldin — LMS'da [120, 60, 30].</summary>
+    public static readonly short[] DefaultReminderOffsets = [30];
 
     public short Id { get; set; } = SingletonId;
     public string Timezone { get; set; } = "Asia/Tashkent";
@@ -781,6 +784,9 @@ public class HrSettings
     public short[] DigestWeekdays { get; set; } = [.. DefaultDigestWeekdays];
     public bool MorningListEnabled { get; set; } = true;
     public TimeOnly MorningTime { get; set; } = new(7, 30);
+    /// <summary>LC: kunduzgi «bajarilmaganlar» ro'yxati (§11).</summary>
+    public bool AfternoonListEnabled { get; set; } = true;
+    public TimeOnly AfternoonTime { get; set; } = new(16, 0);
     public TimeOnly GenerationTime { get; set; } = new(0, 10);
     public TimeOnly CloseOverdueTime { get; set; } = new(23, 50);
     public bool ReminderEnabled { get; set; } = true;

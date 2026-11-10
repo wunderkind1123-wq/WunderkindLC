@@ -31,10 +31,12 @@ describe('leadMatchesStatus', () => {
     }
   })
 
-  it('«hammasi» va noma`lum qiymat — filtrsiz', () => {
-    for (const l of [order, firstLesson, student, lost]) {
+  it('«hammasi» va noma`lum qiymat — arxivdan (yo`qotilganlardan) TASHQARI hammasi', () => {
+    for (const l of [order, firstLesson, student]) {
       expect(leadMatchesStatus(l, 'all')).toBe(true)
       expect(leadMatchesStatus(l, 'eskirgan')).toBe(true)
     }
+    // 2026-11-10 (egasi): yo`qotilgan = arxiv — buyurtmalar ro`yxatida («Hammasi»da ham) turmaydi
+    expect(leadMatchesStatus(lost, 'all')).toBe(false)
   })
 })

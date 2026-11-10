@@ -5,6 +5,7 @@ import type { HrSettings, HrSettingsPayload } from '@/types/hrTasks'
 import {
   HR_DEFAULT_REMINDER_OFFSETS,
   HR_MAX_REMINDER_OFFSETS,
+  HR_REMINDER_OFFSET_CHOICES,
   HR_REMINDER_OFFSET_MAX,
   HR_REMINDER_OFFSET_MIN,
 } from '@/types/hrTasks'
@@ -28,6 +29,8 @@ interface FormValues {
   digestWeekdays: number[]
   morningListEnabled: boolean
   morningTime: string
+  afternoonListEnabled: boolean
+  afternoonTime: string
   reminderEnabled: boolean
   reminderOffsets: number[]
   remindEndOfDay: boolean
@@ -41,6 +44,8 @@ function toForm(s: HrSettings): FormValues {
     digestWeekdays: [...(s.digestWeekdays ?? [])],
     morningListEnabled: s.morningListEnabled,
     morningTime: toTime(s.morningTime),
+    afternoonListEnabled: s.afternoonListEnabled ?? true,
+    afternoonTime: toTime(s.afternoonTime) || '16:00',
     reminderEnabled: s.reminderEnabled ?? true,
     reminderOffsets: [...(s.reminderOffsets ?? HR_DEFAULT_REMINDER_OFFSETS)],
     remindEndOfDay: s.remindEndOfDay ?? false,
@@ -53,6 +58,9 @@ function validate(v: FormValues): Partial<Record<keyof FormValues, string>> {
   if (v.digestWeekdays.length === 0) e.digestWeekdays = 'Kamida bitta kunni tanlang'
   if (v.morningListEnabled && !TIME_RE.test(v.morningTime)) {
     e.morningTime = 'Ertalabki ro‘yxat yoqilgan — vaqtni HH:MM ko‘rinishida kiriting'
+  }
+  if (v.afternoonListEnabled && !TIME_RE.test(v.afternoonTime)) {
+    e.afternoonTime = 'Kunduzgi ro‘yxat yoqilgan — vaqtni HH:MM ko‘rinishida kiriting'
   }
   if (v.reminderOffsets.length > HR_MAX_REMINDER_OFFSETS) e.reminderOffsets = `Ko‘pi bilan ${HR_MAX_REMINDER_OFFSETS} ta eslatma`
   else if (v.reminderEnabled && v.reminderOffsets.length === 0) e.reminderOffsets = 'Kamida bitta eslatma vaqtini belgilang'
@@ -70,6 +78,8 @@ function toPayload(v: FormValues, current: HrSettings): HrSettingsPayload {
     digestWeekdays: [...new Set(v.digestWeekdays)].sort((a, b) => a - b),
     morningListEnabled: v.morningListEnabled,
     morningTime: v.morningTime || current.morningTime,
+    afternoonListEnabled: v.afternoonListEnabled,
+    afternoonTime: v.afternoonTime || current.afternoonTime || '16:00',
     generationTime: current.generationTime,
     closeOverdueTime: current.closeOverdueTime,
     reminderEnabled: v.reminderEnabled,
@@ -144,7 +154,7 @@ function SettingsForm({
   const set = (patch: Partial<FormValues>) => setValues((v) => ({ ...v, ...patch }))
 
   // Buttons smallest first; a non-standard stored value (e.g. 45) is added too.
-  const offsetChoices = [...new Set([...HR_DEFAULT_REMINDER_OFFSETS, ...values.reminderOffsets])].sort((a, b) => a - b)
+  const offsetChoices = [...new Set([...HR_REMINDER_OFFSET_CHOICES, ...values.reminderOffsets])].sort((a, b) => a - b)
 
   async function save(): Promise<void> {
     setSubmitted(true)
@@ -212,6 +222,20 @@ function SettingsForm({
 
         <section className="space-y-3 rounded-xl border border-slate-200 p-3 sm:p-4">
           <Switch
+            checked={values.afternoonListEnabled}
+            onChange={(afternoonListEnabled) => set({ afternoonListEnabled })}
+            label="Kunduzgi «bajarilmagan» ro‘yxat yuborilsin"
+            hint="Har xodimga hali bajarilmagan topshiriqlari (bugungi va kechikkanlar) ro‘yxati boradi; hammasi bajarilgan bo‘lsa xabar bormaydi"
+          />
+          {values.afternoonListEnabled && (
+            <Field label="Kunduzgi xabar vaqti" hint="Sukut — 16:00" error={errors.afternoonTime}>
+              <Time24Input value={values.afternoonTime} onChange={(afternoonTime) => set({ afternoonTime })} />
+            </Field>
+          )}
+        </section>
+
+        <section className="space-y-3 rounded-xl border border-slate-200 p-3 sm:p-4">
+          <Switch
             checked={values.reminderEnabled}
             onChange={(reminderEnabled) => set({ reminderEnabled })}
             label="Muddatdan oldin eslatma"
@@ -241,7 +265,7 @@ function SettingsForm({
                 label="Vaqti ko‘rsatilmagan (kun oxiri) topshiriqlarga ham eslatma"
               />
               <Notice kind="warning">
-                Yoqilsa har kecha 21:59/22:59/23:29 da xabar ketadi — xodim bildirishnomalarni butunlay o‘chirib qo‘yishi
+                Yoqilsa vaqti ko‘rsatilmagan topshiriqlar uchun har kecha yarim tunga yaqin xabar ketadi — xodim bildirishnomalarni butunlay o‘chirib qo‘yishi
                 mumkin.
               </Notice>
             </>

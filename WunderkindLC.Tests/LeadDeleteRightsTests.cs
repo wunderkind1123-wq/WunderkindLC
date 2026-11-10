@@ -20,10 +20,10 @@ public class LeadDeleteRightsTests
 
     [Theory]
     [InlineData(Roles.SuperAdmin, true)]
-    [InlineData(Roles.Admin, true)]
+    [InlineData(Roles.Admin, false)] // 2026-11-10: direktor ham faqat arxivlaydi
     [InlineData(Roles.Staff, false)]
     [InlineData(Roles.Teacher, false)]
-    public void Faqat_superadmin_va_admin(string role, bool expected) =>
+    public void Faqat_superadmin(string role, bool expected) =>
         Assert.Equal(expected, LeadDeleteRights.CanDelete(User(role)));
 
     [Fact]

@@ -204,8 +204,11 @@ export const HR_MAX_BATCH_TOTAL = 500
 
 // ── Eslatma sozlamasining chegaralari (`domain/enums.py`) ─────────────────────
 
-/** Sukutdagi offsetlar: muddatdan 120 / 60 / 30 daqiqa oldin. */
-export const HR_DEFAULT_REMINDER_OFFSETS: readonly number[] = [120, 60, 30] as const
+/** LC sukuti (egasi, 2026-11-10): faqat yarim soat oldin — server `HrSettings.DefaultReminderOffsets` bilan bir xil. */
+export const HR_DEFAULT_REMINDER_OFFSETS: readonly number[] = [30] as const
+
+/** Sozlamadagi tanlov tugmalari: 2 soat / 1 soat / 30 daqiqa (LMS'dagi standart to'plam). */
+export const HR_REMINDER_OFFSET_CHOICES: readonly number[] = [120, 60, 30] as const
 
 export const HR_REMINDER_OFFSET_MIN = 5
 /** 24 soat. */
@@ -623,6 +626,15 @@ export interface HrTask {
   positionName?: string | null
   /** Ro‘yxatda 📎 belgisini chiqarish uchun. */
   proofCount?: number
+  /**
+   * LC: SOTUV topshirig'i belgisi (egasi, 2026-11-10 — «sotuvnikilari boshqa rangda ajralib tursin»):
+   * `lead` — lid sahifasidan qo'yilgan «keyingi qadam», `trial` — sinov darsi ro'yxati, yo'q — oddiy topshiriq.
+   * Ko'rinishi — `pages/admin/hr-tasks/SalesBadge.tsx`.
+   */
+  salesKind?: HrSalesKind | null
+  /** LC: lid topshirig'ida — lid sahifasiga havola uchun. */
+  leadId?: string | null
+  leadName?: string | null
 }
 
 /** Isbot (`hr.task_proofs`, SPEC §3.5). */
@@ -808,6 +820,9 @@ export interface HrSettings {
   morningListEnabled: boolean
   /** Ertalabki ro'yxat vaqti — sukut 07:30 (02.09.2026 da 09:00 dan ko'chirildi). */
   morningTime: HrTimeString
+  /** LC: kunduzgi «hali bajarilmagan» ro'yxat (sukut 16:00) — eski javobda bo'lmasligi mumkin. */
+  afternoonListEnabled?: boolean
+  afternoonTime?: HrTimeString
   generationTime: HrTimeString
   closeOverdueTime: HrTimeString
 
@@ -819,13 +834,13 @@ export interface HrSettings {
    * to'ldiriladi, PUT esa har doim to'liq yuboriladi.
    */
   reminderEnabled?: boolean
-  /** Muddatdan necha daqiqa oldin — sukut `[120, 60, 30]`, kattadan kichikka. */
+  /** Muddatdan necha daqiqa oldin — LC sukuti `[30]` (LMS'da `[120, 60, 30]`), kattadan kichikka. */
   reminderOffsets?: number[]
   /**
    * Muddati aniq belgilanmagan (mahalliy vaqt 23:59) topshiriqlarga ham
    * eslatma ketsinmi.
    *
-   * ⚠️ Sukut `false`: aks holda har kecha 21:59/22:59/23:29 da uch xabar
+   * ⚠️ Sukut `false`: aks holda har kecha yarim tunga yaqin (23:29, yarim tun) xabar
    * ketardi va xodim bildirishnomalarni umuman o'chirib qo'yardi.
    */
   remindEndOfDay?: boolean
@@ -1152,6 +1167,15 @@ export interface Task {
    * maydonga tushadi (`lib/attachments.ts` — `pickVoice()`).
    */
   voiceUrl?: string | null
+  /**
+   * LC: SOTUV topshirig'i belgisi (egasi, 2026-11-10 — «sotuvnikilari boshqa rangda ajralib tursin»):
+   * `lead` — lid sahifasidan qo'yilgan «keyingi qadam», `trial` — sinov darsi ro'yxati, yo'q — oddiy topshiriq.
+   * Ko'rinishi — `pages/admin/hr-tasks/SalesBadge.tsx`.
+   */
+  salesKind?: HrSalesKind | null
+  /** LC: lid topshirig'ida — lid sahifasiga havola uchun. */
+  leadId?: string | null
+  leadName?: string | null
 }
 
 /** `GET /hr/app/tasks?date=YYYY-MM-DD` */
@@ -1216,3 +1240,6 @@ export interface AddProgressInput {
   amount: string
   note: string | null
 }
+
+/** LC: sotuv topshirig'i turi — `lead` (lid «keyingi qadami») | `trial` (sinov darsi ro'yxati). */
+export type HrSalesKind = 'lead' | 'trial'

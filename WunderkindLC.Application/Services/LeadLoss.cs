@@ -134,6 +134,9 @@ public static class LeadLoss
         });
         audit.Record(AuditEntity, lead.Id, "update",
             $"Lid yo'qotilganlarga o'tkazildi ({lead.FullName}) — sabab: {reason.Label}");
+        // Yo'qotilgan lid — faol ish emas: ochiq topshiriqlari «Topshiriqlar»da kechikib osilib qolmasin.
+        await LeadTasks.CancelOpenForLeadAsync(db, lead.Id, "lid arxivlandi (yo'qotildi)",
+            new LeadTasks.Actor(actor.UserId, actor.Name), ct);
         await db.SaveChangesAsync(ct);
         return Outcome.Ok(lead);
     }
