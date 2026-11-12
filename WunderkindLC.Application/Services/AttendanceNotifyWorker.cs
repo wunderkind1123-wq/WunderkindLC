@@ -111,11 +111,9 @@ public class AttendanceNotifyWorker(
             await AttendanceNotify.ReconcileAsync(db, now, ct: ct);
             try
             {
-                var tg = telegram;
-                Func<long, string, CancellationToken, Task>? send = tg is { IsConfigured: true }
-                    ? (chatId, text, c) => tg.SendMessageAsync(chatId, text, ct: c)
-                    : null;
-                await AttendanceNotify.AlertAwaitingAsync(db, send,
+                // 2026-11-13 (egasi): «N ta «kelmadi» xabari tasdiq kutmoqda» menejer/direktorga Telegram'da YUBORILMAYDI —
+                // o'rniga 19:30 dagi kunlik davomat hisoboti (AttendanceDailyReport). Qo'ng'iroqcha (kabinet) qoladi.
+                await AttendanceNotify.AlertAwaitingAsync(db, send: null,
                     AbsentNoticeRules.BaseUrl(config?["App:Host"] ?? config?["APP_HOST"]), now, ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

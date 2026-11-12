@@ -280,7 +280,7 @@ public sealed class AttendanceDisciplineService(
 
     /// <summary>Kundagi darslar — boshlanish vaqti bor, kursi bor (jurnalsiz guruhda davomat olib bo'lmaydi) va
     /// o'sha kuni KUTILGAN (arxivlanmagan) o'quvchisi bor guruhlar; guruh bo'yicha eng erta dars.</summary>
-    private static async Task<List<(AttendanceWatch.DayLesson Lesson, int Expected)>> LessonsAsync(
+    internal static async Task<List<(AttendanceWatch.DayLesson Lesson, int Expected)>> LessonsAsync(
         IAppDbContext db, DateOnly day, CancellationToken ct)
     {
         var all = await LessonAttendanceReminderService.LessonsTodayAsync(db, day, ct);

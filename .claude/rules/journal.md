@@ -356,6 +356,19 @@ undan oldin menejer uni to'xtata oladi. Migratsiya (integrator): `CrmAbsentNotic
   «kelmadi» xabari tasdiq kutmoqda: davomat kech olingan ({vaqt}). Tekshiring: https://{App:Host}/admin/nazorat/
   davomat-xabarlari?date={sana}» (`App:Host` bo'sh bo'lsa havolasiz; `manual` rejimda sabab — «har bir xabarni
   menejer tasdiqlaydi»).
+  ⚠️ **2026-11-13 (egasi): bu ogohlantirish endi Telegram'ga YUBORILMAYDI** — faqat qo'ng'iroqcha (`AttendanceNotifyWorker`
+  `send: null`). O'rniga ↓ kunlik hisobot.
+
+### KUNLIK DAVOMAT HISOBOTI — 19:30 (2026-11-13, `AttendanceDailyReport`, `AttendanceDailyReportTests`)
+
+Egasi: «menejer/direktorga necha kishi kelmagani xabari o'rniga har kuni kechqurun qaysi ustozlar davomat qilgani/qilmagani
+chiroyli ro'yxat bo'lib kelsin». Har kuni **19:30** (`ReportTime`, sozlama YO'Q) — superadmin, admin va `classes.notAttended`
+yoki `students.notices` ruxsatli xodimga: Telegram (HTML, `UserId` ulanishi) + qo'ng'iroqcha. Matn: ❌ qilmaganlar (har
+guruh ✖️/✔️ bilan) → ✅ qilganlar (guruh + olingan vaqt) → jami. Darslar — intizom bilan BIR XIL
+(`AttendanceDisciplineService.LessonsAsync`: ko'chirilgan dars, o'rinbosar, kutilgan o'quvchisi bor guruh); 19:30 dan
+KEYIN boshlanadigan dars kirmaydi (faqat soni). «Olindi» = kunning istalgan davomat belgisi (`AttendanceTaking`, kech
+olingani ham). Bir martalik: `LessonReminderMark` `attreport:{sana}` (yuborishdan OLDIN). Dars yo'q kun — xabar yo'q.
+Davomat intizomi yoqilganiga BOG'LIQ EMAS.
 
 ### Nazorat sahifasi — Nazorat → «Davomat xabarlari»
 

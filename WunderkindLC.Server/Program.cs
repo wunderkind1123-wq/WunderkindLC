@@ -366,6 +366,8 @@ if (!WunderkindLC.Application.Services.ImportMode.Enabled)
     builder.Services.AddHostedService<WunderkindLC.Application.Services.PaymentReminderService>();
     // O'qituvchiga davomat kiritish eslatmasi (dars boshlanishidan N daqiqa keyin, kabinet + Telegram).
     builder.Services.AddHostedService<WunderkindLC.Application.Services.LessonAttendanceReminderService>();
+    // Kunlik davomat hisoboti — 19:30 da menejer/direktorga: qaysi o'qituvchi davomat qildi/qilmadi (Telegram + qo'ng'iroqcha).
+    builder.Services.AddHostedService<WunderkindLC.Application.Services.AttendanceDailyReportService>();
     // Erkin eslatma (admin belgilagan matn+auditoriya+jadval, kabinet + Telegram).
     builder.Services.AddHostedService<WunderkindLC.Application.Services.CustomReminderService>();
     // Tug'ilgan kun tabrigi (09:00 Toshkent; "birthday" qoidasi bo'lsa — kabinet + Telegram).
