@@ -40,7 +40,8 @@ export function IncomeExpensePage() {
     setParams(next, { replace: true })
   }
 
-  const { data, loading, error } = useAsync(() => getFinanceSummary(from, to), [from, to])
+  // Chiqim «qaysi oy uchun» bo'yicha (2026-11-12): oktabr ijarasi noyabrda to'lansa — oktabrda ko'rinadi.
+  const { data, loading, error } = useAsync(() => getFinanceSummary(from, to, { expenseBy: 'month' }), [from, to])
   const [active, setActive] = useState<string | null>(null)
 
   const rows = useMemo(() => {

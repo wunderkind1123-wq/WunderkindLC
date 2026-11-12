@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/RightDrawer'
 import { categoriesByDirection, financeDirectionLabels, formatMonth, monthStatusLabels, paymentMethods } from '@/config/constants'
 import { getTransactionTypes, type TransactionType } from '@/api/services/finance'
+import { getPayroll, getPayrollPeople, type PayrollPerson, type PayrollRow } from '@/api/services/financeOps'
 import { MoneyInput } from '@/components/ui/NumberInput'
 import { balanceTextCls, formatMoney, cn, apiErrorMessage } from '@/lib/utils'
 import { newRequestId } from '@/lib/requestId'
@@ -76,6 +77,10 @@ export function TransactionFormModal({ open, onClose, onSubmit, initial, preset,
   const [form, setForm] = useState<TxForm>(emptyFor('income'))
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [monthInfo, setMonthInfo] = useState<MonthSalary | null>(null)
+  // XODIM maoshi (2026-11-12, egasi: «oylik hammaga Kassa → Yangi amal orqali»): panel xodimlari ro'yxati va
+  // tanlangan xodimning shu oy reestr qatori (hisoblangan = oylik + bonus − jarima, berilgan, qoldiq).
+  const [staffPeople, setStaffPeople] = useState<PayrollPerson[]>([])
+  const [staffRow, setStaffRow] = useState<PayrollRow | null>(null)
   // O'quvchi to'lovi uchun: guruh/o'quvchi tanlash + tanlangan o'quvchining oylar holati
   const [classes, setClasses] = useState<Group[]>([])
   const [students, setStudents] = useState<Student[]>([])
@@ -137,9 +142,13 @@ export function TransactionFormModal({ open, onClose, onSubmit, initial, preset,
   const isStaffSalaryEdit = isSalaryExpense && !!initial?.staffUserId
   const isTuitionIncome = form.direction === 'income' && form.category === 'tuition'
   const showTuition = isTuitionIncome && !initial
-  // "Qaysi oy uchun" — maoshda foydalanuvchi TANLAYDI (pul berilgan sanadan mustaqil).
-  // Tanlanmagan bo'lsa — zaxira sifatida sana oyi ishlatiladi (eski xatti-harakat).
+  // "Qaysi oy uchun" — maoshda ham, BOSHQA XARAJATLARDA ham (2026-11-12) foydalanuvchi TANLAYDI (pul berilgan
+  // sanadan mustaqil). Tanlanmagan bo'lsa — sana oyi (sana o'zgarsa u ham ergashadi).
   const month = form.month || form.date?.slice(0, 7)
+  /** Maosh/vozvratdan boshqa CHIQIM — "Qaysi oy uchun" maydoni shu yerda ham ko'rinadi (P&L shu oy bo'yicha). */
+  const isOtherExpense = form.direction === 'expense' && !isSalaryExpense && !isRefundEdit
+  /** Maosh oluvchisi tanlanganmi (o'qituvchi YOKI xodim). */
+  const hasSalaryRecipient = !!form.teacherId || !!form.staffUserId
 
   const selectedGroup = classes.find((c) => c.id === classId)
 
@@ -338,6 +347,9 @@ export function TransactionFormModal({ open, onClose, onSubmit, initial, preset,
     getTeachers().then(setTeachers)
     getClasses().then(setClasses)
     getStudents().then(setStudents)
+    // Xodimlar ro'yxati `finance.main` (o'qish) talab qiladi — ruxsati yo'q kassirda bo'sh qoladi va tanlovda
+    // faqat o'qituvchilar chiqadi (ikkilamchi O'QISH, `error-visibility.md` §4).
+    getPayrollPeople().then(setStaffPeople).catch(() => setStaffPeople([]))
     // eslint-disable-next-line react-hooks/set-state-in-effect -- modal ochilganda guruh/oylar tanlovini tozalash
     setTuitionTeacherId('')
     setClassId('')
@@ -414,6 +426,43 @@ export function TransactionFormModal({ open, onClose, onSubmit, initial, preset,
     // eslint-disable-next-line react-hooks/exhaustive-deps -- teachers nomini faqat prefill uchun ishlatamiz
   }, [open, isSalaryExpense, form.teacherId, month, initial, salaryType])
 
+  // XODIM maoshi + oy: reestr qatori (hisoblangan = oylik + bonus − jarima, berilgan, qoldiq), yangi amalda
+  // summa = qoldiq.
+  useEffect(() => {
+    if (!open || !isSalaryExpense || !form.staffUserId || !month) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- shartlar buzilganda panelni tozalash (maqsadli)
+      setStaffRow(null)
+      return
+    }
+    let active = true
+    const staffId = form.staffUserId
+    getPayroll(month)
+      .then((p) => {
+        if (!active) return
+        const row = p.staff.find((r) => r.id === staffId) ?? null
+        setStaffRow(row)
+        if (!initial) {
+          const name = row?.name ?? staffPeople.find((x) => x.id === staffId)?.fullName ?? ''
+          const autoNote = `Oylik maosh — ${name} (${formatMonth(month)})`
+          const remaining = Math.max(0, row?.remaining ?? 0)
+          setForm((f) => ({
+            ...f,
+            amount: remaining > 0 ? remaining : f.amount,
+            note: !f.note?.trim() || f.note === autoNoteRef.current ? autoNote : f.note,
+          }))
+          autoNoteRef.current = autoNote
+        }
+      })
+      .catch(() => {
+        // Ma'lumot paneli — ikkilamchi O'QISH: yuklanmasa summa qo'lda kiritiladi.
+        if (active) setStaffRow(null)
+      })
+    return () => {
+      active = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- staffPeople faqat izoh nomi uchun
+  }, [open, isSalaryExpense, form.staffUserId, month, initial])
+
   // ⚠️ setState EFFEKT ICHIDA to'g'ridan-to'g'ri chaqirilmaydi: so'rov effektda bajariladi,
   // holat esa javob kelgach yangilanadi (`react-hooks/set-state-in-effect`).
   useEffect(() => {
@@ -448,6 +497,7 @@ export function TransactionFormModal({ open, onClose, onSubmit, initial, preset,
         // "Qaysi oy uchun": maosh chiqimida bo'sh qolmasin (standart — sana oyi)
         month: isSalaryCat(direction, category) ? f.date?.slice(0, 7) : undefined,
         teacherId: undefined,
+        staffUserId: undefined,
         // To'lov usuli chiqimda ham (SPEC-backlog F3 K1: "chiqim operatsiyalarida to'lov turlari").
         method: f.method ?? 'cash',
       }
@@ -499,7 +549,7 @@ export function TransactionFormModal({ open, onClose, onSubmit, initial, preset,
     if (inFlightRef.current) return
     const amount = form.amount
     if (amount === null || amount <= 0 || !form.date) return
-    if (isSalaryExpense && !isStaffSalaryEdit && !form.teacherId) return
+    if (isSalaryExpense && !isStaffSalaryEdit && !hasSalaryRecipient) return
     if (showTuition && !form.studentId) return
     inFlightRef.current = true
     setSubmitting(true)
@@ -515,7 +565,10 @@ export function TransactionFormModal({ open, onClose, onSubmit, initial, preset,
       typeId: isRefundEdit ? undefined : form.typeId ?? fallbackType?.id,
       note: form.note?.trim() || undefined,
       // teacherId faqat oylik maosh chiqimida; studentId faqat o'quvchi to'lovida saqlanadi
-      teacherId: isSalaryExpense && !isStaffSalaryEdit ? form.teacherId : undefined,
+      // Maosh oluvchisi — o'qituvchi YOKI xodim (server ikkalasini birga rad etadi).
+      teacherId: isSalaryExpense && !isStaffSalaryEdit && !form.staffUserId ? form.teacherId : undefined,
+      staffUserId: isSalaryExpense && !isStaffSalaryEdit && !initial ? form.staffUserId : undefined,
+      salaryPayKind: isSalaryExpense && !initial ? form.salaryPayKind : undefined,
       studentId: isTuitionIncome ? form.studentId : undefined,
       // GURUH: yangi to'lovda tanlangan guruh (bo'sh — guruhsiz eski xatti-harakat); tahrirda
       // yuborilmaydi — server mavjud tegni saqlaydi.
@@ -523,7 +576,8 @@ export function TransactionFormModal({ open, onClose, onSubmit, initial, preset,
       // month = "QAYSI OY UCHUN" (sana emas!): o'quvchi to'lovida ham, maoshda ham saqlanadi —
       // maosh shu maydon bo'yicha oyga bog'lanadi (SalaryLedger.BuildAsync)
       // (maoshda bo'sh qolsa sana oyi zaxira; o'quvchi to'lovi mantig'i o'zgarmagan)
-      month: isSalaryExpense ? month : isTuitionIncome ? form.month : undefined,
+      // BOSHQA XARAJATLARDA ham (2026-11-12): P&L va «Kirim-chiqim» xarajatni shu oy bo'yicha hisoblaydi.
+      month: isSalaryExpense || isOtherExpense ? month : isTuitionIncome ? form.month : undefined,
       method: isRefundEdit ? undefined : form.method || 'cash',
       // Bo'sh — server standart kassani tanlaydi (kiritganning o'z kassasi / «Asosiy kassa»).
       cashboxId: cashboxId || undefined,
@@ -542,7 +596,7 @@ export function TransactionFormModal({ open, onClose, onSubmit, initial, preset,
 
   const saveDisabled =
     submitting ||
-    (form.amount ?? 0) <= 0 || (isSalaryExpense && !isStaffSalaryEdit && !form.teacherId) || (showTuition && !form.studentId)
+    (form.amount ?? 0) <= 0 || (isSalaryExpense && !isStaffSalaryEdit && !hasSalaryRecipient) || (showTuition && !form.studentId)
   // Yo'nalish oldindan berilgan (Kassalar → Chiqim) — panel faqat shu yo'nalish uchun.
   const lockedDirection = !initial && !!preset
 
@@ -631,24 +685,58 @@ export function TransactionFormModal({ open, onClose, onSubmit, initial, preset,
         {/* Oylik maosh: o'qituvchi tanlash + shu oy holati */}
         {isStaffSalaryEdit && (
           <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            Bu XODIM maoshi to'lovi («Maosh reestri»dan berilgan) — o'qituvchi tanlanmaydi.
+            Bu XODIM maoshi to'lovi — oluvchi o'zgartirilmaydi (o'qituvchi tanlanmaydi).
           </p>
         )}
         {isSalaryExpense && !isStaffSalaryEdit && (
           <>
-            <DrawerField label="O'qituvchini tanlang" required>
+            {/* OLUVCHI — o'qituvchi yoki panel xodimi (2026-11-12: oylik HAMMAGA shu yerdan beriladi).
+                Qiymat: "t:{id}" / "s:{id}". Tahrirda oluvchi almashtirilmaydi (o'qituvchi ro'yxati — avvalgidek). */}
+            <DrawerField label="Kimga (oluvchi)" required>
               <DrawerSelect
-                value={form.teacherId ?? ''}
-                onChange={(e) => update('teacherId', e.target.value || undefined)}
+                value={form.staffUserId ? `s:${form.staffUserId}` : form.teacherId ? `t:${form.teacherId}` : ''}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setForm((f) => ({
+                    ...f,
+                    teacherId: v.startsWith('t:') ? v.slice(2) : undefined,
+                    staffUserId: v.startsWith('s:') ? v.slice(2) : undefined,
+                  }))
+                }}
               >
                 <option value="">— tanlang —</option>
-                {teachers.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.fullName}
-                  </option>
-                ))}
+                <optgroup label="O'qituvchilar">
+                  {teachers.map((t) => (
+                    <option key={t.id} value={`t:${t.id}`}>
+                      {t.fullName}
+                    </option>
+                  ))}
+                </optgroup>
+                {!initial && staffPeople.length > 0 && (
+                  <optgroup label="Xodimlar">
+                    {staffPeople.map((p) => (
+                      <option key={p.id} value={`s:${p.id}`}>
+                        {p.fullName}
+                        {p.position || p.role ? ` — ${p.position || p.role}` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </DrawerSelect>
             </DrawerField>
+
+            {!initial && (
+              <DrawerField label="To'lov turi">
+                <DrawerSelect
+                  value={form.salaryPayKind ?? ''}
+                  onChange={(e) => update('salaryPayKind', (e.target.value || undefined) as TxForm['salaryPayKind'])}
+                >
+                  <option value="">— belgilanmagan —</option>
+                  <option value="advance">Avans</option>
+                  <option value="final">Yakuniy (oylik)</option>
+                </DrawerSelect>
+              </DrawerField>
+            )}
 
             {/* QAYSI OY UCHUN — pul berilgan sanadan MUSTAQIL (iyul maoshi avgustda berilishi mumkin) */}
             <DrawerField
@@ -720,7 +808,47 @@ export function TransactionFormModal({ open, onClose, onSubmit, initial, preset,
                 Bu oy uchun maosh to'liq berilgan — qo'shimcha summa ortiqcha hisoblanadi.
               </p>
             )}
+
+            {/* XODIM: «Oylik chiqarish» reestridagi qator — oylik + bonus − jarima = hisoblangan. */}
+            {form.staffUserId && staffRow && (
+              <>
+                <div className="grid grid-cols-3 gap-2 rounded-lg border border-[#dbe0e6] bg-[#f0f2f2] p-2 text-center text-sm">
+                  <InfoCell label={`${formatMonth(month ?? '')} hisoblangan`} value={formatMoney(staffRow.accrued)} />
+                  <InfoCell label="Berilgan" value={formatMoney(staffRow.paid)} valueClass="text-emerald-600" />
+                  <InfoCell
+                    label="Qoldiq"
+                    value={staffRow.remaining < 0 ? `+${formatMoney(-staffRow.remaining)}` : formatMoney(staffRow.remaining)}
+                    valueClass={staffRow.remaining > 0 ? 'text-red-600' : 'text-slate-500'}
+                  />
+                </div>
+                {((staffRow.bonus ?? 0) > 0 || (staffRow.fine ?? 0) > 0) && (
+                  <p className="text-xs text-slate-500">
+                    Oylik {formatMoney(staffRow.base ?? 0)} · bonus +{formatMoney(staffRow.bonus ?? 0)} · jarima −
+                    {formatMoney(staffRow.fine ?? 0)}
+                  </p>
+                )}
+              </>
+            )}
+            {form.staffUserId && !staffRow && (
+              <p className="text-xs text-slate-500">
+                Bu xodimga shu oy uchun oylik belgilanmagan — summani qo'lda kiriting (oylik xodim kartasida belgilanadi).
+              </p>
+            )}
           </>
+        )}
+
+        {/* BOSHQA XARAJAT — qaysi oy uchun (P&L va «Kirim-chiqim» shu oy bo'yicha; Kassa qoldig'i — sana bo'yicha). */}
+        {isOtherExpense && (
+          <DrawerField
+            label="Qaysi oy uchun"
+            hint="Xarajat qaysi oyga tegishli (masalan oktabr ijarasi noyabrda to'lansa — oktabr). Pastdagi Sana — pul berilgan kun."
+          >
+            <DrawerInput
+              type="month"
+              value={month ?? ''}
+              onChange={(e) => update('month', e.target.value || undefined)}
+            />
+          </DrawerField>
         )}
 
         {/* O'quvchi to'lovi: QIDIRUV (tez yo'l) yoki o'qituvchi → guruh → o'quvchi kaskadi */}

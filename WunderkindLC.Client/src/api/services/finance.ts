@@ -356,7 +356,15 @@ export async function deletePlannedExpense(id: string): Promise<void> {
   await api.delete(`/admin/finance/planned-expenses/${id}`)
 }
 
-export async function getFinanceSummary(from?: string, to?: string): Promise<FinanceSummary> {
+/**
+ * `opts.expenseBy = 'month'` — chiqim «qaysi oy uchun» bo'yicha (faqat «Kirim-chiqim» sahifasi, 2026-11-12);
+ * standart — to'lov KUNI bo'yicha (kassa ko'rinishi).
+ */
+export async function getFinanceSummary(
+  from?: string,
+  to?: string,
+  opts?: { expenseBy?: 'month' },
+): Promise<FinanceSummary> {
   if (USE_MOCK) {
     await delay()
     const items = financeMock.filter((t) => inRange(t, from, to))
@@ -379,7 +387,9 @@ export async function getFinanceSummary(from?: string, to?: string): Promise<Fin
       transactionsCount: items.length,
     }
   }
-  const { data } = await api.get<FinanceSummary>('/admin/finance/summary', { params: { from, to } })
+  const { data } = await api.get<FinanceSummary>('/admin/finance/summary', {
+    params: { from, to, expenseBy: opts?.expenseBy },
+  })
   return data
 }
 

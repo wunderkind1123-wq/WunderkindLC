@@ -36,7 +36,10 @@ import { CredentialsBox } from '@/components/ui/CredentialsBox'
 import { ReasonPromptModal } from '@/components/ui/ReasonPromptModal'
 import { TeacherFormModal } from '@/pages/admin/teachers/TeacherFormModal'
 import { formatPhone } from '@/lib/numberFormat'
-import { todayIso } from '@/lib/month'
+import { currentMonth, todayIso } from '@/lib/month'
+import { getPayroll, setStaffSalary } from '@/api/services/financeOps'
+import { MoneyInput } from '@/components/ui/NumberInput'
+import { formatMoney } from '@/lib/utils'
 import { activityKey, activitySummary, isStale, lastSeenLabel, type StaffActivity } from '@/lib/staffActivity'
 
 // Avatar uchun ism harflari (faqat ko'rinish uchun)
@@ -111,6 +114,16 @@ export function StaffPage() {
   const [staffForm, setStaffForm] = useState<(CreateStaffWithTemplatePayload & { id?: string }) | null>(null)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  /**
+   * XODIM OYLIGI (2026-11-12, egasi: «oyliklari xodim yaratishda ham kiritilsin»): qat'iy oylik summasi va qaysi oydan.
+   * Server — `PUT finance/payroll/staff/{id}/salary` (`finance.main`, versiyalangan: o'tgan oylar o'zgarmaydi).
+   * `salaryOrig` — tahrir ochilganda joriy oylik (o'zgarmagan bo'lsa so'rov yuborilmaydi).
+   */
+  const canSalary = can('finance.main', 'edit')
+  const [salaryAmount, setSalaryAmount] = useState<number | null>(null)
+  const [salaryOrig, setSalaryOrig] = useState<number | null>(null)
+  const [salaryFrom, setSalaryFrom] = useState(currentMonth())
+  const [salaryLoading, setSalaryLoading] = useState(false)
   const inFlightRef = useRef(false)
 
   // Login/parol oynasi
@@ -215,8 +228,14 @@ export function StaffPage() {
       return
     }
     setFormError(null)
+    setSalaryAmount(null)
+    setSalaryOrig(null)
+    setSalaryFrom(currentMonth())
     setStaffForm({ fullName: '', position: '', phone: '', roleTemplateId: addRole })
   }
+
+  /** Oylikni saqlash kerakmi (kiritilgan va o'zgargan). */
+  const salaryChanged = canSalary && salaryAmount !== null && salaryAmount !== salaryOrig
 
   const openCredentials = (r: Row) => {
     setCredOf(r)
@@ -259,12 +278,26 @@ export function StaffPage() {
       const { id, ...payload } = staffForm
       if (id) {
         await updateStaff(id, payload)
+        // Oylik xatosi — forma OCHIQ qoladi (xodim ma'lumoti saqlangan, qayta saqlash zararsiz).
+        if (salaryChanged) {
+          await setStaffSalary(id, salaryAmount!, salaryFrom)
+          setSalaryOrig(salaryAmount)
+        }
         toast.success('Xodim saqlandi', payload.fullName)
         setStaffForm(null)
         setTick((x) => x + 1)
       } else {
         const created = await createStaff(payload)
         toast.success("Xodim qo'shildi", created.roleName ? `${created.fullName} — ${created.roleName}` : created.fullName)
+        // ⚠️ Xodim allaqachon yaratilgan — oylik xato bersa forma YOPILADI (qayta saqlash ikkinchi xodim yaratardi),
+        // sabab esa ochiq aytiladi: oylikni tahrirlash orqali qayta kiritish mumkin.
+        if (salaryChanged) {
+          try {
+            await setStaffSalary(created.id, salaryAmount!, salaryFrom)
+          } catch (salaryErr) {
+            alert(apiErrorMessage(salaryErr, "Oylikni saqlab bo'lmadi") + ' — xodim qo\'shildi, oylikni «Tahrirlash» orqali kiriting.')
+          }
+        }
         setStaffForm(null)
         setTick((x) => x + 1)
         if (canRoles)
@@ -280,6 +313,21 @@ export function StaffPage() {
 
   const openEditStaff = (s: Staff) => {
     setFormError(null)
+    setSalaryAmount(null)
+    setSalaryOrig(null)
+    setSalaryFrom(currentMonth())
+    if (canSalary) {
+      // Joriy oylik — reestrning shu oy qatoridan (`fixedAmount`). Qatori yo'q xodimda oylik hali belgilanmagan.
+      setSalaryLoading(true)
+      getPayroll(currentMonth())
+        .then((p) => {
+          const amt = p.staff.find((r) => r.id === s.id)?.fixedAmount ?? null
+          setSalaryAmount(amt)
+          setSalaryOrig(amt)
+        })
+        .catch((e) => setFormError(apiErrorMessage(e, "Joriy oylikni yuklab bo'lmadi")))
+        .finally(() => setSalaryLoading(false))
+    }
     setStaffForm({
       id: s.id,
       fullName: s.fullName,
@@ -623,6 +671,34 @@ export function StaffPage() {
               onChange={(e) => setStaffForm((f) => f && { ...f, position: e.target.value })}
               placeholder="Bo'sh qoldirilsa — rol nomi"
             />
+            {/* OYLIK — faqat Moliya ruxsati (`finance.main:edit`) bo'lsa; server ham shu ruxsatni talab qiladi. */}
+            {canSalary && (
+              <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+                <MoneyInput
+                  label="Oylik (qat'iy summa, so'm)"
+                  value={salaryAmount}
+                  onChange={setSalaryAmount}
+                  disabled={salaryLoading}
+                  placeholder={salaryLoading ? 'Yuklanmoqda...' : "Bo'sh — oylik belgilanmagan"}
+                />
+                {staffForm.id && (
+                  <label className="block text-sm">
+                    <span className="mb-1 block font-medium text-slate-600">Qaysi oydan boshlab</span>
+                    <input
+                      type="month"
+                      value={salaryFrom}
+                      onChange={(e) => e.target.value && setSalaryFrom(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-brand-400"
+                    />
+                  </label>
+                )}
+                <p className="text-xs text-slate-400">
+                  {salaryOrig !== null ? `Hozirgi oylik: ${formatMoney(salaryOrig)}. ` : ''}
+                  Tanlangan oydan boshlab amal qiladi — o'tgan oylar hisobi o'zgarmaydi. Bonus va jarima — Moliya →
+                  «Oylik chiqarish»; oylik puli — Kassa → «Yangi amal» → Maosh. KPI profili bor xodimda KPI natijasi ustun.
+                </p>
+              </div>
+            )}
             {/* Parol almashtirish = akkauntga kirish — server `HasFullAccess("staff")` talab qiladi. */}
             {staffForm.id && canRoles && (
               <div>

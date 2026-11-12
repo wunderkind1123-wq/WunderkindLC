@@ -1,19 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Download, Hourglass, HandCoins, Pencil, Plus, RefreshCw, Scale, Trash2, Users, Wallet } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Hourglass, HandCoins, RefreshCw, Scale, Trash2, Users, Wallet } from 'lucide-react'
 import {
   addSalaryAdjustment,
   deleteSalaryAdjustment,
   getPayroll,
-  getPayrollPeople,
   getSalaryAdjustments,
-  setStaffSalary,
   type Payroll,
-  type PayrollPerson,
   type PayrollRow,
   type SalaryAdjustment,
   type SalaryAdjustmentKind,
 } from '@/api/services/financeOps'
-import { createTransaction, isPendingExpense } from '@/api/services/finance'
 import { Card } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
 import { Button } from '@/components/ui/Button'
@@ -21,13 +17,9 @@ import { Badge } from '@/components/ui/Badge'
 import { Loader } from '@/components/ui/Loader'
 import { Modal } from '@/components/ui/Modal'
 import { MoneyInput } from '@/components/ui/NumberInput'
-import { DateInput } from '@/components/ui/DateInput'
 import { formatMonth } from '@/config/constants'
-import { useCashboxOptions, showCashboxPicker, cashboxOptionLabel } from '@/hooks/useCashboxOptions'
-import { currentMonth, shiftMonth, todayIso } from '@/lib/month'
-import { newRequestId } from '@/lib/requestId'
+import { currentMonth, shiftMonth } from '@/lib/month'
 import { apiErrorMessage, cn, exportToCsv, formatMoney } from '@/lib/utils'
-import { toast } from '@/lib/toast'
 
 const SOURCE_LABEL: Record<string, string> = {
   ledger: "O'qituvchi maoshi",
@@ -49,7 +41,8 @@ const money = (n: number) => (n ? formatMoney(n) : '—')
 /**
  * Moliya → «Maosh reestri» (SPEC-backlog-2026-10-17 F3 K3; egasining qarori: fiks + KPI, avans / yakuniy). Bir oy
  * uchun o'qituvchilar (maosh hisobidan) va xodimlar (KPI yoki qat'iy oylik): hisoblangan, avans, yakuniy, qoldiq.
- * «To'lash» — odatdagi maosh chiqimi (chegaradan katta bo'lsa tasdiq kutadi).
+ * 2026-11-12 (egasi): bu sahifada TO'LOV va oylik belgilash YO'Q — oylik Kassa → «Yangi amal» (maosh chiqimi) orqali
+ * beriladi, xodimning qat'iy oyligi xodim kartasida kiritiladi. Bu yerda faqat hisob + bonus/jarima.
  */
 export function PayrollTab() {
   const cur = currentMonth()
@@ -58,9 +51,6 @@ export function PayrollTab() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [tick, setTick] = useState(0)
-  const [paying, setPaying] = useState<PayrollRow | null>(null)
-  const [editing, setEditing] = useState<PayrollRow | null>(null)
-  const [picking, setPicking] = useState(false)
   const [adjusting, setAdjusting] = useState<PayrollRow | null>(null)
   const [exporting, setExporting] = useState(false)
 
@@ -121,7 +111,7 @@ export function PayrollTab() {
                 <th className="num">Yakuniy</th>
                 <th className="num">Qoldiq</th>
                 <th>Holat</th>
-                <th className="text-right">Amal</th>
+                {staff && <th className="text-right">Amal</th>}
               </tr>
             </thead>
             <tbody>
@@ -155,23 +145,13 @@ export function PayrollTab() {
                       </div>
                     )}
                   </td>
-                  <td className="text-right">
-                    <div className="inline-flex gap-1">
-                      {staff && r.source !== 'kpi' && r.source !== 'kpi-pending' && (
-                        <Button variant="secondary" className="!px-2.5 !py-1 text-xs" onClick={() => setEditing(r)}>
-                          <Pencil className="h-3.5 w-3.5" /> Oylik
-                        </Button>
-                      )}
-                      {staff && (
-                        <Button variant="secondary" className="!px-2.5 !py-1 text-xs" onClick={() => setAdjusting(r)}>
-                          <Scale className="h-3.5 w-3.5" /> Bonus / jarima
-                        </Button>
-                      )}
-                      <Button className="!px-2.5 !py-1 text-xs" onClick={() => setPaying(r)}>
-                        <HandCoins className="h-3.5 w-3.5" /> To'lash
+                  {staff && (
+                    <td className="text-right">
+                      <Button variant="secondary" className="!px-2.5 !py-1 text-xs" onClick={() => setAdjusting(r)}>
+                        <Scale className="h-3.5 w-3.5" /> Bonus / jarima
                       </Button>
-                    </div>
-                  </td>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -195,15 +175,18 @@ export function PayrollTab() {
         <Button variant="secondary" onClick={() => setTick((n) => n + 1)} disabled={loading}>
           <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /> Yangilash
         </Button>
-        <Button variant="secondary" onClick={() => setPicking(true)}>
-          <Plus className="h-4 w-4" /> Xodim oyligi
-        </Button>
         <Button variant="secondary" onClick={() => void exportStaff()} disabled={!data || exporting}>
           <Download className="h-4 w-4" /> {exporting ? 'Tayyorlanmoqda...' : 'Xodimlar hisoboti (Excel)'}
         </Button>
       </div>
 
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+
+      {/* 2026-11-12 (egasi): oylik FAQAT kassadan beriladi — bu sahifa kim qancha olishini ko'rsatadi. */}
+      <p className="rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-800">
+        Oylik <b>Moliya → Kassa → «Yangi amal» → Chiqim → Maosh</b> orqali beriladi (o'qituvchi yoki xodimni tanlab, «qaysi oy
+        uchun» bilan). Bu yerda — kim qancha olishi, berilgani va qoldig'i.
+      </p>
 
       {!data ? (error ? null : <Loader />) : (
         <div className={cn('space-y-4', loading && 'opacity-60')}>
@@ -223,31 +206,11 @@ export function PayrollTab() {
             O'qituvchi maoshi — foiz/qat'iy, ushlanma va jarimalar bilan (o'qituvchi profilidagi hisob). Xodim: KPI profili bo'lsa —
             tasdiqlangan KPI oyi (oklad + bonus − jarima), aks holda qat'iy oylik; bunga «Bonus / jarima»da qo'lda kiritilganlar
             qo'shiladi (hisoblangan = oylik + bonus − jarima). Chiqim tasdig'i chegarasidan katta to'lov mas'ul tasdiqlagach
-            hisobga tushadi.
+            hisobga tushadi. Xodimning qat'iy oyligi — «Xodimlar» bo'limida (xodim kartasi).
           </p>
         </div>
       )}
 
-      {paying && (
-        <PayModal row={paying} month={month} onClose={() => setPaying(null)} onDone={() => { setPaying(null); setTick((n) => n + 1) }} />
-      )}
-      {picking && (
-        <PersonPickModal
-          onClose={() => setPicking(false)}
-          onPick={(p) => {
-            setPicking(false)
-            const row = data?.staff.find((r) => r.id === p.id)
-            setEditing(row ?? {
-              kind: 'staff', id: p.id, name: p.fullName, role: p.position || p.role, source: 'none',
-              accrued: 0, advance: 0, final: 0, other: 0, paid: 0, remaining: 0, status: 'none',
-              fixedAmount: null, fixedFrom: null,
-            })
-          }}
-        />
-      )}
-      {editing && (
-        <SalaryModal row={editing} month={month} onClose={() => setEditing(null)} onDone={() => { setEditing(null); setTick((n) => n + 1) }} />
-      )}
       {adjusting && (
         <AdjustmentsModal
           key={`${adjusting.id}:${month}`}
@@ -258,220 +221,6 @@ export function PayrollTab() {
         />
       )}
     </div>
-  )
-}
-
-/** Maosh to'lovi — avans yoki yakuniy; odatdagi maosh chiqimi (`POST finance/transactions`). */
-function PayModal({ row: initialRow, month: initialMonth, onClose, onDone }: { row: PayrollRow; month: string; onClose: () => void; onDone: () => void }) {
-  // «QAYSI OY UCHUN» (2026-11-10, egasi: «oktabr oyligini noyabrda kiritdim — noyabr chiqimi bo'lib qoldi»): reestrda ochiq
-  // turgan oy — faqat standart; foydalanuvchi aniq tanlaydi. Oy almashsa o'sha oy hisobi (hisoblangan/berilgan/qoldiq) qayta olinadi.
-  const [month, setMonth] = useState(initialMonth)
-  const [row, setRow] = useState<PayrollRow>(initialRow)
-  const [rowLoading, setRowLoading] = useState(false)
-  const monthOptions = Array.from({ length: 6 }, (_, i) => shiftMonth(currentMonth(), -i))
-  if (!monthOptions.includes(initialMonth)) monthOptions.push(initialMonth)
-  const [amount, setAmount] = useState<number | null>(initialRow.remaining > 0 ? initialRow.remaining : null)
-  const pickMonth = async (m: string) => {
-    setMonth(m)
-    setRowLoading(true)
-    setError('')
-    try {
-      const reg = await getPayroll(m)
-      const next = [...reg.teachers, ...reg.staff].find((x) => x.kind === initialRow.kind && x.id === initialRow.id)
-      const r = next ?? { ...initialRow, accrued: 0, paid: 0, remaining: 0, advance: 0, final: 0, other: 0, pending: 0 }
-      setRow(r)
-      setAmount(r.remaining > 0 ? r.remaining : null)
-    } catch (e) {
-      setError(apiErrorMessage(e, "Bu oy hisobini yuklab bo'lmadi"))
-    } finally {
-      setRowLoading(false)
-    }
-  }
-  // Tur tanlanmaguncha summaga qarab: qoldiqni TO'LIQ yopsa — «yakuniy», kamroq bo'lsa — «avans».
-  const [kindPicked, setKind] = useState<'advance' | 'final' | null>(null)
-  const kind: 'advance' | 'final' = kindPicked ?? (row.remaining > 0 && (amount ?? 0) >= row.remaining ? 'final' : 'advance')
-  const inFlight = useRef(false)
-  const [date, setDate] = useState(todayIso())
-  const [note, setNote] = useState('')
-  const [cashbox, setCashbox] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [requestId] = useState(newRequestId)
-  const cashboxes = useCashboxOptions(true)
-  const cashboxId = cashbox ?? cashboxes?.defaultId ?? ''
-
-  const submit = async () => {
-    if (!amount || amount <= 0 || inFlight.current) return
-    inFlight.current = true
-    setBusy(true)
-    setError('')
-    try {
-      const res = await createTransaction({
-        date, direction: 'expense', category: 'salary', amount, month,
-        teacherId: row.kind === 'teacher' ? row.id : undefined,
-        staffUserId: row.kind === 'staff' ? row.id : undefined,
-        salaryPayKind: kind,
-        note: note.trim() || `${row.name} — ${formatMonth(month)} maoshi (${kind === 'advance' ? 'avans' : 'yakuniy'})`,
-        cashboxId: cashboxId || undefined,
-        requestId,
-      })
-      if (isPendingExpense(res)) toast.info('Tasdiq kutilmoqda', res.message)
-      else toast.success("Maosh berildi", formatMoney(amount))
-      onDone()
-    } catch (e) {
-      setError(apiErrorMessage(e, "To'lov qilib bo'lmadi"))
-    } finally {
-      inFlight.current = false
-      setBusy(false)
-    }
-  }
-
-  const input = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400'
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      size="sm"
-      title={`Maosh berish — ${row.name}`}
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose} disabled={busy}>Bekor</Button>
-          <Button onClick={() => void submit()} disabled={busy || rowLoading || !amount || amount <= 0}>{busy ? 'Saqlanmoqda...' : 'Berish'}</Button>
-        </>
-      }
-    >
-      <div className="space-y-3">
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-slate-700">Qaysi oy uchun (maosh oyi)</span>
-          <select value={month} onChange={(e) => void pickMonth(e.target.value)} disabled={busy || rowLoading} className={input}>
-            {monthOptions.map((m) => <option key={m} value={m}>{formatMonth(m)}</option>)}
-          </select>
-          <span className="mt-1 block text-xs text-slate-400">
-            To'lov shu oy maoshi hisobiga va moliyaviy hisobotda (P&L) shu oy xarajatiga yoziladi; «Sana» — pul berilgan kun.
-          </span>
-        </label>
-        <p className={cn('text-sm text-slate-500', rowLoading && 'opacity-50')}>
-          {formatMonth(month)}: hisoblangan {formatMoney(row.accrued)}, berilgan {formatMoney(row.paid)}, qoldiq {formatMoney(Math.max(0, row.remaining))}.
-        </p>
-        {(row.pending ?? 0) > 0 && (
-          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            Tasdiq kutayotgan to'lov bor: {formatMoney(row.pending ?? 0)}. Uni qayta kiritmang — mas'ul tasdiqlagach hisobga tushadi.
-          </p>
-        )}
-        <MoneyInput label="Summa" value={amount} onChange={setAmount} />
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-slate-700">To'lov turi</span>
-          <select value={kind} onChange={(e) => setKind(e.target.value as 'advance' | 'final')} className={input}>
-            <option value="advance">Avans</option>
-            <option value="final">Yakuniy (oylik)</option>
-          </select>
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-slate-700">Sana (berilgan kun)</span>
-          <DateInput value={date} onChange={(e) => setDate(e.target.value)} />
-        </label>
-        {showCashboxPicker(cashboxes) && (
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Kassa</span>
-            <select value={cashboxId} onChange={(e) => setCashbox(e.target.value)} className={input}>
-              {cashboxes.items.map((c) => <option key={c.id} value={c.id}>{cashboxOptionLabel(c)}</option>)}
-            </select>
-          </label>
-        )}
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-slate-700">Izoh</span>
-          <input value={note} onChange={(e) => setNote(e.target.value)} className={input} />
-        </label>
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-      </div>
-    </Modal>
-  )
-}
-
-/** Xodimning qat'iy oyligi — tanlangan oydan boshlab (o'tgan oylar o'zgarmaydi). */
-function SalaryModal({ row, month, onClose, onDone }: { row: PayrollRow; month: string; onClose: () => void; onDone: () => void }) {
-  const [amount, setAmount] = useState<number | null>(row.fixedAmount)
-  const [from, setFrom] = useState(month)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const submit = async () => {
-    if (amount === null || busy) return
-    setBusy(true)
-    setError('')
-    try {
-      await setStaffSalary(row.id, amount, from)
-      toast.success('Oylik saqlandi', formatMoney(amount))
-      onDone()
-    } catch (e) {
-      setError(apiErrorMessage(e, "Oylikni saqlab bo'lmadi"))
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      size="sm"
-      title={`Oylik — ${row.name}`}
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose} disabled={busy}>Bekor</Button>
-          <Button onClick={() => void submit()} disabled={busy || amount === null}>{busy ? 'Saqlanmoqda...' : 'Saqlash'}</Button>
-        </>
-      }
-    >
-      <div className="space-y-3">
-        <MoneyInput label="Oylik summa" value={amount} onChange={setAmount} />
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-slate-700">Qaysi oydan boshlab</span>
-          <input type="month" value={from} onChange={(e) => e.target.value && setFrom(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-sm outline-none focus:border-brand-400" />
-        </label>
-        <p className="text-xs text-slate-500">
-          Tanlangan oydan boshlab amal qiladi (oldingi oylar o'zgarmaydi; o'tgan oydan boshlashni faqat superadmin qila oladi).
-          KPI profili bor xodimning okladi KPI bo'limida kiritiladi.
-        </p>
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-      </div>
-    </Modal>
-  )
-}
-
-/** «Xodim oyligi» — reestrda hali qatori yo'q akkaunt (masalan admin/superadmin) uchun oylik kiritish. */
-function PersonPickModal({ onClose, onPick }: { onClose: () => void; onPick: (p: PayrollPerson) => void }) {
-  const [people, setPeople] = useState<PayrollPerson[] | null>(null)
-  const [error, setError] = useState('')
-  const [q, setQ] = useState('')
-  useEffect(() => {
-    let active = true
-    getPayrollPeople()
-      .then((p) => { if (active) setPeople(p) })
-      .catch((e) => { if (active) setError(apiErrorMessage(e, "Ro'yxatni yuklab bo'lmadi")) })
-    return () => { active = false }
-  }, [])
-  const shown = (people ?? []).filter((p) => p.fullName.toLowerCase().includes(q.trim().toLowerCase()))
-  return (
-    <Modal open onClose={onClose} size="sm" title="Kimning oyligi" footer={<Button variant="secondary" onClick={onClose}>Yopish</Button>}>
-      <input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Qidirish..."
-        className="mb-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400"
-      />
-      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-      {!people && !error ? <Loader /> : (
-        <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-100">
-          {shown.map((p) => (
-            <button key={p.id} type="button" onClick={() => onPick(p)} className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-slate-50">
-              <span className="truncate text-sm text-slate-700">{p.fullName}</span>
-              <span className="shrink-0 text-xs text-slate-400">{p.position || p.role}</span>
-            </button>
-          ))}
-          {shown.length === 0 && <p className="px-3 py-4 text-center text-sm text-slate-400">Topilmadi</p>}
-        </div>
-      )}
-    </Modal>
   )
 }
 

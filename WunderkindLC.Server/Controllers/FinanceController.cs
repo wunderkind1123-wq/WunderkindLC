@@ -1059,7 +1059,8 @@ public partial class FinanceController(AppDbContext db, AuditService audit, Auto
 
     /// <summary>Tanlangan davr bo'yicha umumiy moliyaviy xulosa.</summary>
     [HttpGet("summary")]
-    public async Task<ActionResult<FinanceSummaryDto>> Summary([FromQuery] string? from, [FromQuery] string? to)
+    public async Task<ActionResult<FinanceSummaryDto>> Summary(
+        [FromQuery] string? from, [FromQuery] string? to, [FromQuery] string? expenseBy)
     {
         var query = db.FinanceTransactions.AsQueryable();
         if (!string.IsNullOrEmpty(from)) query = query.Where(t => string.Compare(t.Date, from) >= 0);
@@ -1068,6 +1069,20 @@ public partial class FinanceController(AppDbContext db, AuditService audit, Auto
 
         var income = txs.Where(t => t.Direction == "income").ToList();
         var expense = txs.Where(t => t.Direction == "expense").ToList();
+        // «Kirim-chiqim» (2026-11-12, egasi: «xarajatlar qaysi oy uchun yozilgan bo'lsa o'sha oy uchun»): `expenseBy=month` —
+        // chiqim «qaysi oy uchun» (`Month`) davr oylariga tushsa olinadi (to'lov kuni qayerda bo'lsa ham); oyi yo'q eski
+        // chiqim — sana bo'yicha. Parametrsiz — avvalgidek (bu endpointni boshqa sahifalar ham o'qiydi; kassa — sana bo'yicha).
+        if (expenseBy == "month")
+        {
+            var fromM = string.IsNullOrEmpty(from) || from.Length < 7 ? null : from[..7];
+            var toM = string.IsNullOrEmpty(to) || to.Length < 7 ? null : to[..7];
+            var eq = db.FinanceTransactions.Where(t => t.Direction == "expense");
+            var tagged = await eq.Where(t => t.Month != null && t.Month.Length == 7
+                    && (fromM == null || string.Compare(t.Month, fromM) >= 0)
+                    && (toM == null || string.Compare(t.Month, toM) <= 0))
+                .ToListAsync();
+            expense = expense.Where(t => t.Month is not { Length: 7 }).Concat(tagged).ToList();
+        }
 
         var totalIncome = income.Sum(t => t.Amount);
         var totalExpense = expense.Sum(t => t.Amount);

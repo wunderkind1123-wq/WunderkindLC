@@ -334,7 +334,11 @@ public static partial class PnlEngine
         var period = new PeriodCollectionDto(owed, coll, outstanding, Pct(coll, owed), exp, paidN, partial, unpaid);
 
         // ---- Xarajatlar ----
-        var expenses = Expenses(d, month, monthEnd, win);
+        // 2026-11-12 (egasi: «xarajatlarning hammasi qaysi oy uchun deb yozilgan bo'lsa o'sha oy uchun hisoblansin»): chiqim
+        // «QAYSI OY UCHUN» (`FinanceTransaction.Month`) bo'yicha shu oyga tegishli bo'lsa — to'lov KUNI qaysi oyda bo'lishidan
+        // qat'i nazar. Oyi yo'q (eski) chiqim — avvalgidek to'lov kuni bo'yicha (shu oy oynasida).
+        var acctExpenses = d.Txs.Where(t => t.Direction == "expense" && ExpenseInMonth(t, month, InWin)).ToList();
+        var expenses = Expenses(d, month, monthEnd, acctExpenses);
 
         // ---- Natija ----
         var revenueTotalCur = netCurrent + otherCurrent;
@@ -350,13 +354,19 @@ public static partial class PnlEngine
             .Sum(t => t.Direction == "income" ? t.Amount : -t.Amount);
         // ⚠️ Xarajat farqi QISILMAYDI (hisoblangan − to'langan): avans yoki keyingi oy uchun oldindan to'langan pul manfiy
         // bo'lib kiradi — KPI dagi «To'lanmagan» (Unpaid) esa ≥ 0 qatorlar yig'indisi (D33).
-        var expenseGap = expenses.Current - expenses.Paid;
+        // Ko'prik KASSA bo'yicha: «to'langan» = shu oy KUNLARIDA kassadan chiqqan xarajat/maosh puli (oy tegidan qat'i nazar) —
+        // aks holda «qaysi oy uchun» bo'yicha olingan xarajat ko'prikni yolg'on «yopilmadi» qilardi.
+        var cashExpensePaid = win.Where(t => t.Direction == "expense"
+                                             && t.Entry.Treatment is FinanceCategoryRules.Expense or FinanceCategoryRules.Salary
+                                                 or FinanceCategoryRules.SalaryAdvance)
+            .Sum(t => t.Amount);
+        var expenseGap = expenses.Current - cashExpensePaid;
         var bridgeCash = profitCur + expenseGap - uncollected + forPrior + forFuture + outside;
         var actual = win.Where(t => t.Entry.Activity != FinanceCategoryRules.ExcludedActivity)
             .Sum(t => t.Direction == "income" ? t.Amount : -t.Amount);
         var bridge = isForecast
             ? new CashBridgeDto(profitCur, 0, 0, 0, 0, 0, 0, 0, 0, 0, true, true)
-            : new CashBridgeDto(profitCur, expenseGap, expenses.Paid, uncollected, forPrior, forFuture, outside,
+            : new CashBridgeDto(profitCur, expenseGap, cashExpensePaid, uncollected, forPrior, forFuture, outside,
                 bridgeCash, actual, actual - bridgeCash, true, actual - bridgeCash == 0);
 
         var total = new BranchDto("all", "Markaz",
@@ -378,11 +388,18 @@ public static partial class PnlEngine
     public static string TemplateKey(PlannedExpenseTemplate t) =>
         FinanceCategoryRules.KeyOf(t.TypeId, "expense", string.IsNullOrWhiteSpace(t.Category) ? "other" : t.Category);
 
-    private static ExpensesDto Expenses(Data d, string month, string monthEnd, List<Tx> win)
+    /// <summary>
+    /// Chiqim shu oyga tegishlimi: «qaysi oy uchun» (`Month`, "yyyy-MM") bo'lsa — AYNAN shu oy; bo'lmasa (eski yozuv) —
+    /// to'lov kuni shu oy oynasida (<paramref name="inWin"/>). Sof — `PnlExpenseMonthTests`.
+    /// </summary>
+    public static bool ExpenseInMonth(Tx t, string month, Func<string, bool> inWin) =>
+        t.Month is { Length: 7 } m ? string.Equals(m, month, StringComparison.Ordinal) : inWin(t.Date);
+
+    /// <param name="expenseTx">Shu oyga tegishli chiqimlar (<see cref="ExpenseInMonth"/>).</param>
+    private static ExpensesDto Expenses(Data d, string month, string monthEnd, List<Tx> expenseTx)
     {
         var m01 = month + "-01";
         var lines = new List<ExpenseLineDto>();
-        var expenseTx = win.Where(t => t.Direction == "expense").ToList();
 
         // 1) Rejali shablonlar — oy 1-kunida TO'LIQ summada (to'langan-to'lanmaganidan qat'i nazar).
         var active = d.Templates.Where(t => TemplateActive(t, m01, monthEnd)).ToList();

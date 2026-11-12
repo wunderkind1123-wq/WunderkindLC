@@ -1205,6 +1205,29 @@ tanlovi yo'q edi — to'lov reestrda ochiq turgan oyga (standart — JORIY) yozi
 - ⚠️ Pul oqimi, Kirim-chiqim, Kassalar — AVVALGIDEK to'lov KUNI bo'yicha (pul kassadan qachon chiqqan).
 - Testlar: `PnlSalaryMonthTests`.
 
+### OYLIK FAQAT KASSADAN · XARAJAT — «QAYSI OY UCHUN» (2026-11-12, egasi)
+
+Egasi: «oylik berish faqat kassada amal qo'shish bilan chiqsin; oylik chiqarish joyida — kim qancha olishi, xodimlar
+jarima/bonusi; oyligi xodim yaratishda kiritilsin; xarajatlarning hammasi qaysi oy uchun yozilgan bo'lsa o'sha oy uchun».
+
+- **To'lov — FAQAT Kassa → «Yangi amal» → Chiqim → Maosh** (`TransactionFormModal`): «Kimga» tanlovida o'qituvchilar VA
+  panel xodimlari (`GET payroll/people`; ruxsati yo'q kassirda faqat o'qituvchilar), «To'lov turi» (avans/yakuniy), «qaysi
+  oy uchun»; xodim tanlansa reestr qatori (hisoblangan = oylik + bonus − jarima / berilgan / qoldiq), summa = qoldiq.
+  Server o'zgarmadi (`Create` `StaffUserId`ni avvaldan qabul qiladi). Tahrirda oluvchi almashtirilmaydi.
+- **«Oylik chiqarish» (`PayrollTab`)** — faqat O'QISH + «Bonus / jarima»: «To'lash», «Oylik», «Xodim oyligi» oynalari OLIB
+  TASHLANDI (endpointlar qoldi). Ustunlar: hisoblangan · avans · yakuniy · qoldiq · holat (kassadan berilgani).
+- **Xodim oyligi — xodim kartasida** (`StaffPage`: yaratish va tahrirlash, «Qaysi oydan boshlab» tahrirda):
+  `PUT payroll/staff/{id}/salary` — faqat `finance.main:edit` bo'lsa ko'rinadi, o'zgarmagan bo'lsa yuborilmaydi. Yaratishda
+  oylik xato bersa forma YOPILADI (xodim yaratilgan — qayta saqlash ikkinchisini yaratardi) va sabab alert bilan aytiladi.
+- **Barcha chiqimda «Qaysi oy uchun»** (maosh/vozvratdan boshqasida ham; bo'sh — sana oyi, sanaga ergashadi) → `Month`.
+  - **P&L** (`PnlEngine.ExpenseInMonth`, yillik ham): chiqim `Month` bo'lsa AYNAN shu oyga, yo'q (eski) — to'lov kuni oyiga.
+    ⚠️ P&L → pul KO'PRIGI kassa bo'yicha: `ExpensePaid` = shu oy KUNLARIDA chiqqan xarajat+maosh puli (oy tegidan qat'i nazar),
+    aks holda ko'prik yolg'on «yopilmadi» bo'lardi.
+  - **«Kirim-chiqim»** — `GET finance/summary?expenseBy=month` (faqat shu sahifa): chiqim oy tegi davr oylariga tushsa;
+    parametrsiz — avvalgidek sana bo'yicha (endpointni boshqa sahifalar o'qiydi). Kirim — sana bo'yicha.
+  - ⚠️ Kassa qoldig'i, ko'chirma, pul oqimi — AVVALGIDEK to'lov KUNI bo'yicha (pul qachon chiqqan). Eski yozuvlar backfill YO'Q.
+- Testlar: `PnlExpenseMonthTests`.
+
 ### KUNLIK DAVOMAT JARIMASI (2026-11-10, migratsiya `AddDailyAttendanceFines`)
 
 Egasi: «o'qituvchi har kuni 19:30 gacha davomat qilmasa — avtomatik 50 000 so'm jarima; bir kunda bir nechta guruh davomati
