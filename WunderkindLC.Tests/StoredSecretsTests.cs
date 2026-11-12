@@ -31,6 +31,7 @@ public class StoredSecretsTests
     [InlineData(AppSecrets.EnvKeys.InstagramVerifyToken, "has space token", false)]
     [InlineData(AppSecrets.EnvKeys.MetaVerifyToken, "abc.def-ghi~123", true)]
     [InlineData(AppSecrets.EnvKeys.GeminiApiKey, "AIzaSyD-abcdefghijklmnopqrstuvwxyz12345", true)]
+    [InlineData(AppSecrets.EnvKeys.GeminiApiKey, "AQ.Ab8RN6KxYzAbCdEfGhIjKlMnOpQrStUvWxYz012345", true)]   // yangi AI Studio kaliti (nuqtali)
     [InlineData(AppSecrets.EnvKeys.GeminiApiKey, "AIza short", false)]
     [InlineData(AppSecrets.EnvKeys.GeminiApiKey, "AIzaSy'; DROP TABLE x; --aaaaaaaaaaaaaaa", false)]
     public void Validate__format(string key, string value, bool ok)

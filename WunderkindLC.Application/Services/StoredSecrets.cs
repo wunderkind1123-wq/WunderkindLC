@@ -53,7 +53,9 @@ public static class StoredSecrets
 
     private static readonly Regex Hex32 = new("^[0-9a-fA-F]{32}$", RegexOptions.Compiled);
     private static readonly Regex TokenChars = new(@"^[A-Za-z0-9_\-.~]{8,128}$", RegexOptions.Compiled);
-    private static readonly Regex GeminiKey = new(@"^[A-Za-z0-9_-]{30,200}$", RegexOptions.Compiled);
+    /// <summary>Gemini kaliti: eski «AIza…» (39 belgi) VA yangi AI Studio kalitlari («AQ.Ab8…», nuqtali) — shuning uchun
+    /// faqat «bo'sh joysiz, ko'rinadigan ASCII, 20–500 belgi» (2026-11-13: nuqtali yangi kalit rad etilgan edi).</summary>
+    private static readonly Regex GeminiKey = new(@"^[!-~]{20,500}$", RegexOptions.Compiled);
 
     /// <summary>
     /// Kiritilgan qiymatni tekshiradi (bo'sh qiymat — "o'chirish", xato emas). Xato bo'lsa o'zbekcha sabab.
@@ -69,7 +71,7 @@ public static class StoredSecrets
         if (envName == AppSecrets.EnvKeys.GeminiApiKey)
             return GeminiKey.IsMatch(v)
                 ? null
-                : "Gemini API kaliti noto'g'ri ko'rinishda: odatda «AIza» bilan boshlanadi, bo'sh joysiz (lotin harflari, raqamlar, _ va -). "
+                : "Gemini API kaliti noto'g'ri ko'rinishda: odatda «AIza…» yoki «AQ.…» ko'rinishida, bo'sh joy va qator ko'chishisiz. "
                   + "Google AI Studio'dan to'liq ko'chirib oling.";
         if (info.IsAppSecret)
             return Hex32.IsMatch(v)
