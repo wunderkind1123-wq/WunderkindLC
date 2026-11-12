@@ -256,14 +256,81 @@ public class SettingsController(AppDbContext db, TelegramService telegram, IWebH
     }
 
     // ---------- AI Tahlil (Google Gemini) ----------
-    // Kalit .env dan (GEMINI_API_KEY), model ham env'dan (GEMINI_MODEL).
+    // Kalit .env dan (GEMINI_API_KEY) YOKI 2026-11-13 dan CRM'dan (superadmin, bazada SHIFRLANGAN — StoredSecrets);
+    // .env dagi qiymat har doim ustun. Model env'dan (GEMINI_MODEL).
 
     [HttpGet("gemini")]
-    public ActionResult<GeminiSettingsDto> GetGemini() =>
-        new GeminiSettingsDto(
+    public async Task<ActionResult<GeminiSettingsDto>> GetGemini()
+    {
+        var key = AppSecrets.EnvKeys.GeminiApiKey;
+        var row = await db.StoredSecrets.AsNoTracking().Where(s => s.Key == key)
+            .Select(s => new { s.UpdatedAt, s.UpdatedBy }).FirstOrDefaultAsync();
+        var vault = HttpContext.RequestServices.GetRequiredService<WunderkindLC.Application.Services.Accounts.CredentialVault>();
+        return new GeminiSettingsDto(
             GeminiService.ResolveModel(config),
             AppSecrets.GeminiConfigured,
-            new EnvSecretDto(AppSecrets.EnvKeys.GeminiApiKey, AppSecrets.GeminiConfigured));
+            new EnvSecretDto(key, AppSecrets.GeminiConfigured),
+            Source: AppSecrets.SourceOf(key),
+            StoredInCrm: row is not null,
+            UpdatedAt: row?.UpdatedAt ?? "",
+            UpdatedBy: row?.UpdatedBy ?? "",
+            CanEdit: User.IsInRole(Roles.SuperAdmin),
+            VaultConfigured: vault.Configured);
+    }
+
+    /// <summary>
+    /// Gemini API kalitini CRM'dan kiritish / almashtirish (<c>value</c> bo'sh — CRM'dagisini o'chirish). FAQAT superadmin
+    /// (hard rol): kalit pulli API'ga kirish beradi. Qiymat bazaga SHIFRLANGAN holda yoziladi, javobga va auditga tushmaydi.
+    /// Saqlangach darhol ishlaydi (restart shart emas — <see cref="AppSecrets.GeminiApiKey"/> har chaqiruvda o'qiladi).
+    /// </summary>
+    [HttpPut("gemini/key")]
+    public async Task<ActionResult<GeminiSettingsDto>> SetGeminiKey([FromBody] SetGeminiKeyRequest body)
+    {
+        if (!User.IsInRole(Roles.SuperAdmin))
+            return StatusCode(403, new { message = "API kalitini faqat tizim egasi (superadmin) kirita oladi." });
+
+        var key = AppSecrets.EnvKeys.GeminiApiKey;
+        var vault = HttpContext.RequestServices.GetRequiredService<WunderkindLC.Application.Services.Accounts.CredentialVault>();
+        if (!vault.Configured)
+            return BadRequest(new
+            {
+                message = $"Kalitlarni shifrlash o'chiq: serverdagi .env da {AppSecrets.EnvKeys.CredentialVaultKey} yo'q. "
+                    + $"Hozircha {key} ni .env ga yozing.",
+            });
+        if (AppSecrets.SourceOf(key) == "env")
+            return BadRequest(new
+            {
+                message = $"{key} serverdagi .env faylida allaqachon bor va u ustun — CRM'dagi qiymat ishlamaydi. "
+                    + "Almashtirish uchun .env dagini o'zgartiring yoki olib tashlang.",
+            });
+
+        var value = (body.Value ?? "").Trim();
+        if (StoredSecrets.Validate(key, value) is { } error) return BadRequest(new { message = error });
+
+        var row = await db.StoredSecrets.FirstOrDefaultAsync(s => s.Key == key);
+        string verb;
+        if (value.Length == 0)
+        {
+            if (row is null) return await GetGemini();
+            db.StoredSecrets.Remove(row);
+            verb = "o'chirildi";
+        }
+        else
+        {
+            verb = row is null ? "kiritildi" : "almashtirildi";
+            row ??= db.StoredSecrets.Add(new StoredSecret { Key = key }).Entity;
+            row.Cipher = vault.Protect(value);
+            row.UpdatedAt = AppClock.Iso();
+            row.UpdatedBy = User.Identity?.Name ?? User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "Admin";
+        }
+
+        // ⚠️ Qiymat auditga YOZILMAYDI — faqat nima bo'lgani.
+        audit.Record("CenterMeta", "gemini-key", value.Length == 0 ? "delete" : "update",
+            $"Gemini API kaliti CRM orqali {verb}");
+        await db.SaveChangesAsync();
+        StoredSecrets.Apply(key, value);   // faqat saqlash muvaffaqiyatli bo'lgach
+        return await GetGemini();
+    }
 
     [HttpPut("gemini")]
     [AdminPerm("settings.gemini")]

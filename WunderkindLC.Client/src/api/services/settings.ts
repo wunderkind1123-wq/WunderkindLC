@@ -182,6 +182,15 @@ export interface GeminiConfig {
   configured: boolean
   /** API kaliti holati (.env: GEMINI_API_KEY) */
   key?: EnvSecret
+  /** Kalit qayerdan: "env" (.env, ustun) · "crm" (Sozlamalardan kiritilgan, shifrlangan) · "" (yo'q). Qiymat QAYTMAYDI. */
+  source?: 'env' | 'crm' | ''
+  storedInCrm?: boolean
+  updatedAt?: string
+  updatedBy?: string
+  /** Faqat superadmin kirita oladi. */
+  canEdit?: boolean
+  /** Serverda shifrlash kaliti (CREDENTIAL_VAULT_KEY) bor — busiz CRM'dan kiritib bo'lmaydi. */
+  vaultConfigured?: boolean
 }
 export async function getGeminiSettings(): Promise<GeminiConfig> {
   if (USE_MOCK) {
@@ -189,6 +198,12 @@ export async function getGeminiSettings(): Promise<GeminiConfig> {
     return { model: 'gemini-3.1-flash-lite', configured: false }
   }
   const { data } = await api.get<GeminiConfig>('/admin/settings/gemini')
+  return data
+}
+
+/** Gemini API kalitini kiritish / almashtirish (bo'sh — CRM'dagisini o'chirish). Faqat superadmin. */
+export async function setGeminiKey(value: string): Promise<GeminiConfig> {
+  const { data } = await api.put<GeminiConfig>('/admin/settings/gemini/key', { value })
   return data
 }
 

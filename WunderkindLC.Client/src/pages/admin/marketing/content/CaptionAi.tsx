@@ -83,7 +83,7 @@ export function CaptionAi({
           <Icon name="warn" style={{ width: 18, height: 18, flexShrink: 0, marginTop: 2 }} />
           <div style={{ fontSize: 12.5 }}>
             <div className="mk-alert-title">Gemini API kaliti sozlanmagan</div>
-            Kalit yo‘q (<code>.env</code> → <code>GEMINI_API_KEY</code>) — AI matn yoza olmaydi.
+            Kalit yo‘q — AI matn yoza olmaydi. Superadmin uni Sozlamalar → AI Tahlil (Gemini) bo‘limidan kiritadi.
             Kalit qo‘shilgach bu tugma o‘zi ishlay boshlaydi.
           </div>
         </div>

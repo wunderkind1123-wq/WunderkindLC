@@ -26,7 +26,7 @@ public partial class InstagramController
             .Select(s => new { s.Key, s.UpdatedAt, s.UpdatedBy })
             .ToListAsync(ct);
 
-        var items = StoredSecrets.Keys.Select(k =>
+        var items = StoredSecrets.Keys.Where(k => k.Section == StoredSecrets.SectionInstagram).Select(k =>
         {
             var row = rows.FirstOrDefault(r => r.Key == k.EnvName);
             return new IgSecretItemDto(
@@ -56,7 +56,7 @@ public partial class InstagramController
             return StatusCode(403, new { message = "Tizim kalitlarini faqat tizim egasi (superadmin) kirita oladi." });
 
         var info = StoredSecrets.Find(key);
-        if (info is null) return BadRequest(new { message = "Bu kalitni CRM'dan kiritib bo'lmaydi." });
+        if (info is null || info.Section != StoredSecrets.SectionInstagram) return BadRequest(new { message = "Bu kalitni CRM'dan kiritib bo'lmaydi." });
 
         var vault = HttpContext.RequestServices.GetRequiredService<CredentialVault>();
         if (!vault.Configured)

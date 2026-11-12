@@ -11,7 +11,7 @@ namespace WunderkindLC.Application.Services;
 /// va SQL kirishi orqali kalit sizib chiqmasin). Yangi kalit qo'shilganda ham shu yerga qo'shiladi,
 /// <c>CenterMeta</c>ga EMAS.</para>
 ///
-/// <para>⚠️ <b>YAGONA ISTISNO (2026-11-04):</b> Instagram/Meta kalitlarini (<see cref="StoredSecrets.Keys"/>) superadmin
+/// <para>⚠️ <b>YAGONA ISTISNO (2026-11-04):</b> Instagram/Meta va Gemini kalitlarini (<see cref="StoredSecrets.Keys"/>) superadmin
 /// CRM'dan ham kirita oladi — bazaga faqat SHIFRLANGAN holda (<see cref="StoredSecrets"/>, seyf kaliti `.env` da),
 /// `.env` dagi qiymat esa baribir USTUN. Boshqa kalitlar uchun bu yo'l OCHILMAYDI.</para>
 ///

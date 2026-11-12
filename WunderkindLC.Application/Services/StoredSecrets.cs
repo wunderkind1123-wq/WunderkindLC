@@ -24,9 +24,15 @@ public static class StoredSecrets
     /// <param name="Label">Sahifadagi nom.</param>
     /// <param name="IsAppSecret">Meta App Secret (32 belgili hex) — aks holda verify token (o'zimiz o'ylab topamiz).</param>
     /// <param name="Hint">Qayerdan olinadi.</param>
-    public sealed record KeyInfo(string EnvName, string Label, bool IsAppSecret, string Hint);
+    /// <param name="Section">Qaysi sahifada ko'rsatiladi: <c>instagram</c> (Marketing → Instagram → Sozlamalar) yoki
+    /// <c>gemini</c> (Sozlamalar → AI Tahlil).</param>
+    public sealed record KeyInfo(string EnvName, string Label, bool IsAppSecret, string Hint, string Section = SectionInstagram);
 
-    /// <summary>Ruxsat etilgan kalitlar — FAQAT shular. Telegram/Gemini kabi qolganlari avvalgidek faqat `.env` da.</summary>
+    public const string SectionInstagram = "instagram";
+    public const string SectionGemini = "gemini";
+
+    /// <summary>Ruxsat etilgan kalitlar — FAQAT shular. Telegram kabi qolganlari avvalgidek faqat `.env` da.
+    /// Gemini — 2026-11-13 dan (egasi: «Gemini API kalitini sozlamalardan kiritsam bo'ladigan qilib ber»).</summary>
     public static readonly IReadOnlyList<KeyInfo> Keys =
     [
         new(AppSecrets.EnvKeys.InstagramAppSecret, "Instagram App Secret", true,
@@ -37,6 +43,8 @@ public static class StoredSecrets
             "Faqat reklama boshqa Meta ilovasida bo'lsa. Bo'sh — Instagram kaliti ishlatiladi"),
         new(AppSecrets.EnvKeys.MetaVerifyToken, "Reklama lidlari: Verify token", false,
             "Faqat reklama boshqa Meta ilovasida bo'lsa. Bo'sh — Instagram tokeni ishlatiladi"),
+        new(AppSecrets.EnvKeys.GeminiApiKey, "Gemini API kaliti", false,
+            "Google AI Studio → Get API key (aistudio.google.com/apikey) → «Create API key»", SectionGemini),
     ];
 
     public static bool IsAllowed(string? envName) => envName is not null && Keys.Any(k => k.EnvName == envName);
@@ -45,6 +53,7 @@ public static class StoredSecrets
 
     private static readonly Regex Hex32 = new("^[0-9a-fA-F]{32}$", RegexOptions.Compiled);
     private static readonly Regex TokenChars = new(@"^[A-Za-z0-9_\-.~]{8,128}$", RegexOptions.Compiled);
+    private static readonly Regex GeminiKey = new(@"^[A-Za-z0-9_-]{30,200}$", RegexOptions.Compiled);
 
     /// <summary>
     /// Kiritilgan qiymatni tekshiradi (bo'sh qiymat — "o'chirish", xato emas). Xato bo'lsa o'zbekcha sabab.
@@ -57,6 +66,11 @@ public static class StoredSecrets
         if (info is null) return "Bu kalitni CRM'dan kiritib bo'lmaydi.";
         var v = (value ?? "").Trim();
         if (v.Length == 0) return null;
+        if (envName == AppSecrets.EnvKeys.GeminiApiKey)
+            return GeminiKey.IsMatch(v)
+                ? null
+                : "Gemini API kaliti noto'g'ri ko'rinishda: odatda «AIza» bilan boshlanadi, bo'sh joysiz (lotin harflari, raqamlar, _ va -). "
+                  + "Google AI Studio'dan to'liq ko'chirib oling.";
         if (info.IsAppSecret)
             return Hex32.IsMatch(v)
                 ? null

@@ -30,6 +30,9 @@ public class StoredSecretsTests
     [InlineData(AppSecrets.EnvKeys.InstagramVerifyToken, "short", false)]
     [InlineData(AppSecrets.EnvKeys.InstagramVerifyToken, "has space token", false)]
     [InlineData(AppSecrets.EnvKeys.MetaVerifyToken, "abc.def-ghi~123", true)]
+    [InlineData(AppSecrets.EnvKeys.GeminiApiKey, "AIzaSyD-abcdefghijklmnopqrstuvwxyz12345", true)]
+    [InlineData(AppSecrets.EnvKeys.GeminiApiKey, "AIza short", false)]
+    [InlineData(AppSecrets.EnvKeys.GeminiApiKey, "AIzaSy'; DROP TABLE x; --aaaaaaaaaaaaaaa", false)]
     public void Validate__format(string key, string value, bool ok)
     {
         var err = StoredSecrets.Validate(key, value);
@@ -38,7 +41,6 @@ public class StoredSecretsTests
 
     [Theory]
     [InlineData(AppSecrets.EnvKeys.TelegramBotToken)]
-    [InlineData(AppSecrets.EnvKeys.GeminiApiKey)]
     [InlineData(AppSecrets.EnvKeys.CredentialVaultKey)]
     [InlineData("SOMETHING_ELSE")]
     public void Faqat_Instagram_Meta_kalitlari_CRMdan_kiritiladi(string key)

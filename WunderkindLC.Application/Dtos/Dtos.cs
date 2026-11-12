@@ -2600,7 +2600,11 @@ public record AzureSpeechSettingsDto(
 public record SaveAzureSpeechRequest(string? Key, string? Region);
 
 /// <summary>Gemini AI sozlamasi holati (kalit .env dan — GEMINI_API_KEY; model — GEMINI_MODEL).</summary>
-public record GeminiSettingsDto(string Model, bool Configured, EnvSecretDto? Key = null);
+/// <param name="Source">Kalit qayerdan: <c>"env"</c> · <c>"crm"</c> · <c>""</c>. QIYMAT YO'Q.</param>
+public record GeminiSettingsDto(string Model, bool Configured, EnvSecretDto? Key = null, string Source = "",
+    bool StoredInCrm = false, string UpdatedAt = "", string UpdatedBy = "", bool CanEdit = false, bool VaultConfigured = false);
+
+public record SetGeminiKeyRequest(string? Value);
 /// <summary>ESKI so'rov — endi qabul qilinmaydi (kalit .env da); bo'sh bo'lmasa xato qaytadi.</summary>
 public record SaveGeminiRequest(string? Key);
 /// <summary>AI tahlilidagi sohaviy baholar (0-100) — radar/diagramma uchun.</summary>
