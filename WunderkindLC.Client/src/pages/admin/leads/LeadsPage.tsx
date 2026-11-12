@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import {
   DndContext,
   DragOverlay,
@@ -9,7 +9,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { IconLayoutColumns, IconList, IconPlus, IconSearch } from '@tabler/icons-react'
+import { IconPlus, IconSearch } from '@tabler/icons-react'
 import type { Lead, LeadSource, Stage } from '@/types'
 import {
   createLead,
@@ -35,7 +35,6 @@ import { FilterDateRange } from '@/components/ui/list/FilterDateRange'
 import { ListToolbar } from '@/components/ui/list/ListToolbar'
 import { PhoneChip } from '@/components/ui/list/PhoneChip'
 import { TotalPill } from '@/components/ui/list/TotalPill'
-import { ViewToggle } from '@/components/ui/list/ViewToggle'
 import { TablePagination, usePagination } from '@/components/ui/TablePagination'
 import { Loader } from '@/components/ui/Loader'
 import { apiErrorMessage } from '@/lib/utils'
@@ -50,11 +49,13 @@ import { isLeadLost, leadCallNumbers, leadMatchesStatus, shortLeadId, tableDateT
 import { useUrlFilters } from './useUrlFilters'
 
 /**
- * LIDLAR → «Buyurtmalar ro'yxati» (edutizim `/orders/order-list/table` va `/kanban`).
- *
- * Standart ko'rinish — JADVAL (edutizimdagidek), `?view=kanban` — bosqichlar taxtasi. Filtrlar
- * ikkala ko'rinishga ham qo'llanadi va manzilda saqlanadi (`useUrlFilters`). Lid bosilsa — lid
- * SAHIFASI (`/admin/leads/:id`, edutizimdagi `/orders/info/:id`).
+ * LIDLAR → «Call Center» (kanban) va «Buyurtmalar ro'yxati» (jadval) — BITTA komponent, ikki rejim
+ * (2026-11-12, egasi: «buyurtmalardagi kanbanni Call Center'ga ko'chiramiz, buyurtmalar — faqat markazga kelganlar»):
+ * - `mode="callcenter"` (`/admin/leads/call-center`) — FAQAT kanban, `inCallCenter` lidlar (forma, daraja testi,
+ *   landing, Instagram, Meta). «Markazga keldi» — lid sahifasida.
+ * - standart (`/admin/leads`) — FAQAT jadval, markazga kelganlar (`!inCallCenter`, 2026-11-12 gacha bo'lgan hamma lid).
+ *   Eski `?view=kanban` havolasi Call Center'ga yo'naltiriladi.
+ * Filtrlar manzilda saqlanadi (`useUrlFilters`). Lid bosilsa — lid SAHIFASI (`/admin/leads/:id`).
  *
  * ⚠️ Filtrlash KLIENTDA (avvalgidek): ro'yxat bitta so'rovda keladi, taxta ham shu ro'yxatdan
  * quriladi — server so'rovi har harfda yuborilmaydi.
@@ -86,11 +87,14 @@ function uniquePairs(items: { id?: string | null; name?: string | null }[]): { i
  * `archive` — O'quvchilar → «Arxiv o'quvchilar» → «Lidlar» tabi (`/admin/students/arxiv/lidlar`, egasi 2026-11-04): faqat ARXIVLANGAN (yo'qotilgan) lidlar,
  * faqat jadval. Lid o'chirilmaydi — sahifasidan «Tiklash» bilan «Buyurtmalar»ga qaytadi.
  */
-export function LeadsPage({ archive = false }: { archive?: boolean } = {}) {
+export function LeadsPage({ archive = false, mode }: { archive?: boolean; mode?: 'callcenter' } = {}) {
   const { can } = usePerm()
   const navigate = useNavigate()
   const { values: f, set, clear, active: filtersActive, params } = useUrlFilters(FILTER_KEYS)
-  const view: View = !archive && params.get('view') === 'kanban' ? 'kanban' : 'table'
+  const callCenter = !archive && mode === 'callcenter'
+  const view: View = callCenter ? 'kanban' : 'table'
+  /** Eski «Buyurtmalar → Kanban» havolasi (`?view=kanban`) — kanban endi Call Center'da. */
+  const legacyKanban = !archive && !callCenter && params.get('view') === 'kanban'
 
   const [leads, setLeads] = useState<Lead[]>([])
   const [stages, setStages] = useState<Stage[]>([])
@@ -139,7 +143,6 @@ export function LeadsPage({ archive = false }: { archive?: boolean } = {}) {
   }, [params, navigate])
 
   const openLead = (lead: Lead) => navigate(`/admin/leads/${lead.id}`)
-  const setView = (v: View) => set({ view: v === 'kanban' ? 'kanban' : '' })
 
   /* ---------- Karta drag-and-drop ---------- */
   const handleDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id))
@@ -204,7 +207,8 @@ export function LeadsPage({ archive = false }: { archive?: boolean } = {}) {
   ) => {
     const stageId = stages[0]?.id ?? 'new'
     // Shu raqamli lid bo'lsa server 409 qaytaradi — modal "Bu raqamli lid allaqachon bor" ni ko'rsatadi.
-    const lead = await createLead(values, stageId, answers, opts?.force ?? false)
+    // Call Center'da kiritilgan (qo'ng'iroq qilgan) lid — navbatga; Buyurtmalarda — markazga kelgan.
+    const lead = await createLead(values, stageId, answers, opts?.force ?? false, callCenter)
     setLeads((prev) => [lead, ...prev])
   }
 
@@ -309,6 +313,8 @@ export function LeadsPage({ archive = false }: { archive?: boolean } = {}) {
 
   /** Status'dan TASHQARI barcha filtrlar — jadval ostidagi "yashirilganlar" sanog'i uchun ham. */
   const matchesOthers = (l: Lead) => {
+    // CALL CENTER ↔ BUYURTMALAR (2026-11-12): lid faqat bittasida. Arxiv — ikkalasining yo'qotilganlari.
+    if (!archive && (callCenter ? !l.inCallCenter : !!l.inCallCenter)) return false
     const d = dayOf(l)
     if ((f.from || f.to || f.day) && !d) return false
     if (f.from && d < f.from) return false
@@ -442,18 +448,9 @@ export function LeadsPage({ archive = false }: { archive?: boolean } = {}) {
   // ⚠️ Memo: `PhoneCallModal` raqamlar massivi o'zgarganda holatini tozalaydi — har renderda
   // yangi massiv berilsa oyna ochiq turganda tanlov o'z-o'zidan bekor bo'lib qolardi.
   const callNumbers = useMemo(() => (callLead ? leadCallNumbers(callLead) : []), [callLead])
-  const canCreate = can('leads.list', 'create')
+  const canCreate = can(callCenter ? 'leads.callcenter' : 'leads.list', 'create')
 
-  const viewToggle = (
-    <ViewToggle<View>
-      value={view}
-      onChange={setView}
-      options={[
-        { value: 'table', label: "Jadval ko'rinishi", icon: <IconList className="h-5 w-5" /> },
-        { value: 'kanban', label: "Kanban ko'rinishi", icon: <IconLayoutColumns className="h-5 w-5" /> },
-      ]}
-    />
-  )
+  if (legacyKanban) return <Navigate to="/admin/leads/call-center" replace />
 
   return (
     <div>
@@ -470,8 +467,29 @@ export function LeadsPage({ archive = false }: { archive?: boolean } = {}) {
                   «Buyurtmalar ro'yxati»dan shu yerga o'tadi. Lid sahifasida «Tiklash» — buyurtmalarga qaytaradi.
                 </p>
               </div>
+            ) : callCenter ? (
+              <div>
+                <p className="text-[15px] font-semibold text-black">Call Center</p>
+                <p className="text-[12px] text-[#757575]">
+                  Instagram, Telegram, target, forma va daraja testidan kelgan lidlar. Odam markazga kelsa — lid sahifasida
+                  «Markazga keldi».
+                </p>
+              </div>
             ) : (
-              viewToggle
+              <div>
+                <p className="text-[15px] font-semibold text-black">Buyurtmalar</p>
+                <p className="text-[12px] text-[#757575]">
+                  O'quv markazga kelganlar. Qo'ng'iroq/ijtimoiy tarmoq lidlari —{' '}
+                  {can('leads.callcenter', 'view') ? (
+                    <Link to="/admin/leads/call-center" className="font-medium text-brand-600 hover:underline">
+                      Call Center
+                    </Link>
+                  ) : (
+                    'Call Center'
+                  )}
+                  .
+                </p>
+              </div>
             )}
             {/* Kanbanda edutizimdagidek keng "Qidirish" maydoni asboblar qatorida. */}
             {view === 'kanban' && (
@@ -489,7 +507,7 @@ export function LeadsPage({ archive = false }: { archive?: boolean } = {}) {
         }
         filtersOpen={filtersOpen}
         onToggleFilters={() => setFiltersOpen((o) => !o)}
-        addLabel={canCreate && !archive ? (view === 'kanban' ? "Qo'shish" : "Buyurtma qo'shish") : undefined}
+        addLabel={canCreate && !archive ? (callCenter ? "Lid qo'shish" : "Buyurtma qo'shish") : undefined}
         onAdd={() => setLeadFormOpen(true)}
       />
 

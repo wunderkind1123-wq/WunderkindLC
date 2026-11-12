@@ -219,6 +219,7 @@ public static class LeadConversion
             MembershipLifecycle.ClosePeriod(existing, todayIso);
             existing.IsActive = true;
             existing.LeftAt = null;
+            existing.ReturnedToTrial = false; // qayta qo'shildi — «sinovga qaytarilgan» yopilish belgisi endi tegishli emas
             existing.JoinedAt = joinedAt;
             existing.Status = "trial";
             existing.ActivatedAt = string.Empty;

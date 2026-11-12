@@ -678,7 +678,7 @@ Kerak bo'lsa "Parolni tiklash" orqali yangi parol bering.`)
               : reasonAction.kind === 'yearFreeze'
                 ? `${reasonAction.m.fullName} — shu sanadan muzlatiladi va «yangi o'quv yiliga o'tish» deb belgilanadi. Hisob-kitob oddiy muzlatish bilan bir xil.`
                 : reasonAction.kind === 'return'
-                  ? `${reasonAction.m.fullName} — sinov holatiga qaytariladi (oylik to'lov hisoblanmaydi).`
+                  ? `${reasonAction.m.fullName} guruhdan chiqadi va «Birinchi darsga yozilganlar» → «Sinovdan qaytganlar»ga o'tadi. Joriy oy hisobi bekor qilinadi (o'tgan oylar qoladi), ketish hisoblanmaydi, tarixda qoladi.`
                   : reasonAction.m.status === 'active'
                     ? `${reasonAction.m.fullName} guruhdan chiqariladi — shu sanagacha qatnashgan darslari hisoblanadi, keyingi oylar hisobi bekor qilinadi.`
                     : `${reasonAction.m.fullName} ni guruhdan chiqarasizmi?`

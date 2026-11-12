@@ -1103,6 +1103,13 @@ public class StudentGroup
     /// <para>FAQAT superadmin qo'yadi. Aktivlashtirish/sinovga qaytarish/qayta qo'shishda
     /// <c>FrozenAt</c> bilan BIRGA tozalanadi.</para></summary>
     public bool YearFreeze { get; set; }
+    /// <summary>
+    /// «SINOVGA QAYTARILGAN» (2026-11-13, egasi): a'zolik «Sinovga qaytarish» bilan YOPILGAN — o'quvchi guruhdan chiqib
+    /// «Birinchi darsga yozilganlar»ga o'tgan (<see cref="StudentTrialReturn"/>). Faqat YOPILGAN (<c>IsActive=false</c>)
+    /// a'zolikda <c>true</c>. Yagona vazifasi — bu yopilish KETISH (churn) bo'lib sanalmasin
+    /// (<c>DashboardSummary.LeftEvents</c> uni sertifikat bilan tugatish kabi o'tkazadi). Guruhga qayta qo'shilganda tozalanadi.
+    /// </summary>
+    public bool ReturnedToTrial { get; set; }
     /// <summary>Joriy holat (JoinedAt/ActivatedAt) HAQIQATDA tizimga kiritilgan sana (ISO, ORQAGA SANALMAYDI —
     /// har doim shu amal bajarilgan kundagi AppClock.Today). JoinedAt/ActivatedAt orqaga sanalgan bo'lishi mumkin
     /// (masalan o'quvchi o'tgan oydan aktivlashtirilsa) — jurnaldagi "dars o'tildi + yozuv yo'q = keldi"
@@ -1422,6 +1429,19 @@ public class Lead
     /// o'z savollariga ega (bo'sh = qo'shimcha savol berilmagan).</para>
     /// </summary>
     public string AnswersJson { get; set; } = string.Empty;
+
+    // ---- CALL CENTER (2026-11-12, egasi: «Instagram/Telegram/targetdan tushgan lidlar Call Center'ga, buyurtmalar —
+    // faqat o'quv markazga kelganlar») — `.claude/rules/crm-leads.md` «CALL CENTER» ----
+
+    /// <summary>
+    /// Lid CALL CENTER navbatida (hali markazga kelmagan). <c>true</c> — avtomatik kelgan lid (forma, daraja testi,
+    /// landing, Instagram, Meta) yoki Call Center sahifasida qo'lda kiritilgan; «Markazga keldi» (yoki o'quvchiga
+    /// aylantirish) uni <c>false</c> qiladi. <c>false</c> — «Buyurtmalar»da. ⚠️ Standart <c>false</c>: 2026-11-12 gacha
+    /// bo'lgan lidlar Buyurtmalarda QOLADI (egasining qarori, backfill YO'Q).
+    /// </summary>
+    public bool InCallCenter { get; set; }
+    /// <summary>«Markazga keldi» vaqti (ISO, markaz vaqti) — Call Center'dan Buyurtmalarga o'tgan payt; kim — tarixda (`LeadEvent`).</summary>
+    public string? ArrivedAt { get; set; }
 
     // ---- KPI (xodimlar samaradorligi) uchun MA'LUMOT YIG'ISH ----
     // KPI moduli lid yaratmaydi va bosqichlarga aralashmaydi — u faqat "kim ishladi" va "kim

@@ -1881,7 +1881,7 @@ export function ClassDetailPage() {
                   ? rosterTarget.status === 'active'
                     ? `${rosterTarget.fullName} guruhdan chiqariladi — shu sanagacha qatnashgan darslari hisoblanadi, keyingi oylar hisobi bekor qilinadi.`
                     : `${rosterTarget.fullName} ni guruhdan chiqarasizmi?`
-                  : `${rosterTarget.fullName} — sinov holatiga qaytariladi (oylik to'lov hisoblanmaydi).`
+                  : `${rosterTarget.fullName} guruhdan chiqadi va «Birinchi darsga yozilganlar» → «Sinovdan qaytganlar»ga o'tadi. Joriy oy hisobi bekor qilinadi (o'tgan oylar qoladi), ketish hisoblanmaydi, tarixda qoladi.`
             : undefined
         }
         confirmLabel={

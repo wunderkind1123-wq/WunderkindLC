@@ -49,14 +49,22 @@ export function duplicateLeadsOf(err: unknown): DuplicateLead[] | null {
  */
 export async function createLead(
   payload: LeadPayload, stage: string, answers: LeadAnswersPayload = {}, force = false,
+  /** true — Call Center sahifasidan (qo'ng'iroq qilgan odam); false — «Buyurtmalar»dan (markazga kelgan). */
+  callCenter = false,
 ): Promise<Lead> {
   if (USE_MOCK) {
     await delay(300)
-    return { ...payload, id: uid(), stage }
+    return { ...payload, id: uid(), stage, inCallCenter: callCenter }
   }
-  const { data } = await api.post<Lead>('/admin/leads', { ...payload, stage, answers }, {
+  const { data } = await api.post<Lead>('/admin/leads', { ...payload, stage, answers, callCenter }, {
     params: force ? { force: true } : undefined,
   })
+  return data
+}
+
+/** «MARKAZGA KELDI» — Call Center'dagi lid «Buyurtmalar»ga o'tadi (tarix, audit, Telegram kartasi serverda). */
+export async function markLeadArrived(id: string): Promise<{ inCallCenter: boolean; arrivedAt: string | null }> {
+  const { data } = await api.post<{ inCallCenter: boolean; arrivedAt: string | null }>(`/admin/leads/${id}/arrived`)
   return data
 }
 

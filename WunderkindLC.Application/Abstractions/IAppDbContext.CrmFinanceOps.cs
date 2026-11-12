@@ -9,4 +9,6 @@ public partial interface IAppDbContext
     DbSet<ExpenseRequest> ExpenseRequests { get; }
     DbSet<StaffSalary> StaffSalaries { get; }
     DbSet<StaffSalaryAdjustment> StaffSalaryAdjustments { get; }
+    /// <summary>«Sinovga qaytarish» yozuvlari (2026-11-13) — «Birinchi darsga yozilganlar» → «Sinovdan qaytganlar».</summary>
+    DbSet<StudentTrialReturn> StudentTrialReturns { get; }
 }

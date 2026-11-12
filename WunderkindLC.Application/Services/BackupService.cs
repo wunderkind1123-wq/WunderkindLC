@@ -195,6 +195,8 @@ public static class BackupService
         await Add("expenseRequests", db.ExpenseRequests);
         await Add("staffSalaries", db.StaffSalaries);
         await Add("staffSalaryAdjustments", db.StaffSalaryAdjustments);
+        // «Sinovga qaytarish» yozuvlari (2026-11-13) — o'quvchi tarixi va bekor qilingan hisob summasi.
+        await Add("studentTrialReturns", db.StudentTrialReturns);
         // Davomat jarimalari (U3c) — maoshdan ushlanadi, ya'ni PUL.
         await Add("teacherAttendanceFines", db.TeacherAttendanceFines);
         await Add("teacherFines", db.TeacherFines);

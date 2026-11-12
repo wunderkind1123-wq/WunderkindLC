@@ -966,6 +966,7 @@ public partial class ClassesController(AppDbContext db, AuditService audit, ILog
             MembershipLifecycle.ClosePeriod(existing, recordedAt);
             existing.IsActive = true;
             existing.LeftAt = null;
+            existing.ReturnedToTrial = false; // qayta qo'shildi — «sinovga qaytarilgan» yopilish belgisi endi tegishli emas
             existing.JoinedAt = joinedAt;
             // Qayta qo'shilganda — yana sinov holatiga qaytadi.
             existing.Status = "trial";
@@ -1148,29 +1149,33 @@ public partial class ClassesController(AppDbContext db, AuditService audit, ILog
                              select c.Name).FirstOrDefaultAsync() ?? "";
     }
 
-    /// <summary>A'zolikni SINOVGA qaytarish (active/frozen → trial). Oylik to'lov hisoblanmaydi (trial).</summary>
+    /// <summary>
+    /// SINOVGA QAYTARISH (2026-11-13, egasi): o'quvchi GURUHDAN CHIQADI va «Birinchi darsga yozilganlar» → «Sinovdan
+    /// qaytganlar»ga o'tadi; JORIY oy va keyingi oylar hisobi bekor qilinadi (o'tgan oylar tegilmaydi); KETISH hisoblanmaydi.
+    /// Qoidalar — <see cref="TrialReturnService"/> (`membership-periods.md` §12). Ilgari a'zolik guruhda «sinov» holatida
+    /// QOLARDI (jurnal, o'rin, ro'yxat) va qaytarilganlarni bir joyda topib bo'lmasdi.
+    /// </summary>
     [HttpPost("{id}/members/{studentId}/return-trial")]
     public async Task<IActionResult> ReturnToTrial(string id, string studentId, MembershipStatusRequest req)
     {
+        var cls = await db.Classes.FindAsync(id);
+        var student = await db.Students.FindAsync(studentId);
+        if (cls is null || student is null) return NotFound(new { message = "Guruh yoki o'quvchi topilmadi" });
+
+        // Pul amali (hisob bekor qilinadi) — o'quvchi qulfi, balans qulf ICHIDA qayta o'qiladi (`RemoveMember` naqshi).
+        using var gate = await PaymentIdempotency.LockAsync("student:" + studentId);
         var sg = await db.StudentGroups
             .FirstOrDefaultAsync(x => x.GroupId == id && x.StudentId == studentId && x.IsActive);
         if (sg is null) return NotFound(new { message = "Faol a'zolik topilmadi" });
-        // ActivatedAt tozalanishidan OLDIN joriy faol davrni tarixga ko'chiramiz: o'quvchi sinovga
-        // qaytdi degani "u hech qachon pullik bo'lmagan" degani EMAS.
-        MembershipLifecycle.ClosePeriod(sg, AppClock.Today.ToString("yyyy-MM-dd"));
-        sg.Status = "trial";
-        sg.ActivatedAt = string.Empty;
-        sg.FrozenAt = string.Empty;
-        // Muzlatish bekor bo'ldi — «aktiv muzlatish» belgisi ham qolmaydi (faqat KO'RSATUV belgisi).
-        sg.YearFreeze = false;
+        if (sg.Status == "trial")
+            return BadRequest(new { message = "O'quvchi bu guruhda hali sinovda — guruhdan chiqarish uchun «Guruhdan chiqarish»" });
+        await StudentBalanceSync.ReloadAsync(db, student);
 
         var reason = await ReasonLabelAsync(req.ReasonId);
-        var cls = await db.Classes.FindAsync(id);
-        audit.Record("Membership", $"{id}:{studentId}", "update",
-            $"Sinovga qaytarildi (guruh: {cls?.Name ?? id})" + (reason.Length > 0 ? $" — sabab: {reason}" : ""),
-            studentId: studentId);
+        var result = await TrialReturnService.ReturnAsync(db, audit, student, cls, sg, req.ReasonId, reason, ActorId, Actor);
+        await ReleasePrimaryGroupNameAsync(student, cls);
         await db.SaveChangesAsync();
-        return Ok(new { ok = true });
+        return Ok(new { ok = true, canceled = result.Canceled, months = result.Months });
     }
 
     /// <summary>A'zolikni AKTIVLASHTIRISH (sinov → faol). Birinchi (qisman) oy to'lovi avtomatik hisoblanadi:
@@ -1846,6 +1851,7 @@ public partial class ClassesController(AppDbContext db, AuditService audit, ILog
             MembershipLifecycle.ClosePeriod(toSg, activateDate);
             toSg.IsActive = true;
             toSg.LeftAt = null;
+            toSg.ReturnedToTrial = false;
             toSg.JoinedAt = activateDate;
         }
         else

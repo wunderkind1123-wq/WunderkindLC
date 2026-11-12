@@ -18,7 +18,7 @@ namespace WunderkindLC.Server.Controllers;
 /// </summary>
 [ApiController]
 [Authorize]
-[AdminPerm("leads.list")]
+[AdminPerm("leads.list", "leads.callcenter")]
 [Route("api/admin/lead-stages")]
 public class LeadStagesController(AppDbContext db, AuditService audit) : ControllerBase
 {

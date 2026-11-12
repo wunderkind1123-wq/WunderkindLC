@@ -19,6 +19,30 @@ paths:
 
 # CRM / lidlar qoidalari
 
+## CALL CENTER ↔ BUYURTMALAR (2026-11-12, egasi, migratsiya `AddLeadCallCenter`)
+
+Egasi: «Instagram/Telegram/targetdan tushgan lidlar Call Center'ga; buyurtmalar — faqat o'quv markazga kelganlar; markazga
+kelgan yangi odamni buyurtmaga to'g'ridan-to'g'ri qo'shish mumkin; hozirgi holat o'zgarmasin».
+
+- **`Lead.InCallCenter`** (bool) + **`ArrivedAt`**. `true` — Call Center navbatida; `false` — «Buyurtmalar»da.
+  ⚠️ Standart `false`, backfill YO'Q: 2026-11-12 gacha bo'lgan HAMMA lid Buyurtmalarda qoladi.
+- **Kim `true` yozadi:** avtomatik kelgan lid — `LeadFormService` (forma), `LevelTestService`, `PublicLandingController`,
+  `InstagramLeadBridge`, `MetaLeadBridge` (target); qo'lda — Call Center sahifasidagi «Lid qo'shish» (`LeadCreateRequest.CallCenter`).
+  «Buyurtmalar»dagi «Buyurtma qo'shish» — `false` (markazga kelgan odam). ⚠️ Yangi lid yaratish yo'li qo'shsangiz — qaysi
+  tomonga tushishini HAL QILING. Takroriy murojaat (`LeadIntake`) lidni ko'chirmaydi.
+- **`false` ga o'tish:** «Markazga keldi» (`POST leads/{id}/arrived`, lid sahifasidagi ko'k panel; idempotent, arxivdagi
+  lid — 400; hodisa `arrived`, audit `Lead`, Telegram kartasi, mas'ul bo'sh bo'lsa — shu xodim) va **o'quvchiga aylantirish**
+  (`convert` — aylantirilgan odam markazga kelgan; hodisa `arrived`). Orqaga (Buyurtmalardan Call Center'ga) yo'l YO'Q.
+- **Klient — bitta `LeadsPage`, ikki rejim:** `/admin/leads/call-center` (`mode="callcenter"`, FAQAT kanban, `inCallCenter`
+  lidlar, ustun boshqaruvi shu yerda) va `/admin/leads` (FAQAT jadval, `!inCallCenter`; eski `?view=kanban` → Call Center).
+  Arxiv tabi — ikkalasining yo'qotilganlari. «Birinchi darsga yozilganlar» — ikkalasidan.
+- **Bosh sahifa «Buyurtmalar»** (`DashboardSummary.OpenLeads`) Call Center lidlarini SANAMAYDI (jadval bilan bir xil).
+  Analitika, KPI, voronka, Telegram kartalari — o'zgarishsiz (hamma lid).
+- **Ruxsat — `leads.callcenter`** (sahifa kaliti). Lid controllerlari sinfda `[AdminPerm("leads.list", "leads.callcenter")]`:
+  ikkalasidan biri lid amallarini ochadi (server ma'lumotni ajratmaydi — ajratish sahifa darajasida). Lid sahifasi va
+  «Birinchi dars» marshrutlari ham ikkalasidan biri bilan. Yalang `leads` (eski xodimlar) — ikkala sahifa (pastga meros).
+- Testlar: `LeadCallCenterTests`.
+
 - **CRM:** `Lead`(Source/InterestSubject/CreatedAt/ConvertedStudentId), `LeadEvent`(tarix),
   `TrialLesson`(sinov). Endpointlar `LeadsController`da: events, trials, `/{id}/convert`, `/stats`.
 

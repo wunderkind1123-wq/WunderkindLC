@@ -143,7 +143,7 @@ turmaydi.
 | Bo'lim | Sahifalar | Controller(lar) |
 |---|---|---|
 | `marketing` | `.dashboard` `.inbox` `.rules` `.knowledge` `.analytics` `.settings` | `InstagramController` (metod darajasida) |
-| `leads` | `.list` `.stats` `.forms` | `LeadsController` · `LeadStagesController` · `LeadFormsController` |
+| `leads` | `.callcenter` `.list` `.stats` `.forms` | `LeadsController` · `LeadStagesController` · `LeadTasksController` · `LeadLossController` — sinfda `[AdminPerm("leads.list", "leads.callcenter")]` (ikkalasidan biri; sahifa ajratilishi UI'da, `crm-leads.md` «CALL CENTER») · `LeadFormsController` |
 | `students` | `.list` `.notes` `.attendance` `.notices` `.turnstile` `.face` | `StudentsController` · `StudentAttendanceController` · `AttendanceNoticesController` (`.notices`, RRP — Nazorat → «Davomat xabarlari», `journal.md`) · `StudentTurnstileController` · `AdminFaceController` · `CertificatesController` |
 | `teachers` | `.list` `.attendance` `.substitutions` `.retention` | `TeachersController` · `TeacherAttendanceController` · `SubstituteTeachersController` · `RetentionLossController` (RRP, `retention-loss.md`) |
 | `schedule` | `.courses` `.analytics` `.curricula` `.grading` `.levelTests` | `SubjectsController` · `CourseAnalyticsController` · `CurriculumController` · `GradingController` · `LevelTestsController` |

@@ -135,14 +135,18 @@ const CROSS_INVALIDATION: Record<string, string[]> = {
   // yozuvi, navbatdagi snapshot, portal ko'rinishi (login blok, sertifikat) — hammasi.
   '/admin/students': ['/admin/classes', '/admin/finance', '/admin/kassa', '/admin/journal',
     '/admin/student-attendance', '/admin/contacts', '/admin/archive', '/admin/grading',
-    '/admin/course-analytics', '/admin/test-results', '/admin/parents', '/student'],
+    '/admin/course-analytics', '/admin/test-results', '/admin/parents', '/student', '/admin/trial-returns'],
   // A'zolik amallari (qo'shish/chiqarish/muzlatish/ko'chirish/yopish) IKKI tomonni ham
   // o'zgartiradi va `billing.md` bo'yicha oylik hisobni qayta yozadi; jadval, xona bandligi
   // va o'qituvchi maoshi ham guruhdan kelib chiqadi.
   '/admin/classes': ['/admin/students', '/admin/finance', '/admin/kassa', '/admin/journal',
     '/admin/student-attendance', '/admin/grading', '/admin/course-analytics', '/admin/schedule',
     '/admin/rooms', '/admin/teachers', '/admin/archive', '/admin/curriculum',
-    '/admin/retention-bonus', '/admin/retention-loss', '/student', '/teacher'],
+    '/admin/retention-bonus', '/admin/retention-loss', '/student', '/teacher',
+    // «Sinovga qaytarish» va guruhga qayta qo'shish «Sinovdan qaytganlar» ro'yxatini o'zgartiradi (2026-11-13).
+    '/admin/trial-returns'],
+  // Eski qaytarilganlarni o'tkazish a'zolikni yopadi.
+  '/admin/trial-returns': ['/admin/classes', '/admin/students'],
   // Umumiy arxiv uchta ro'yxatga qaytaradi.
   '/admin/archive': ['/admin/students', '/admin/teachers', '/admin/classes'],
   '/admin/parents': ['/admin/students'],
@@ -196,7 +200,7 @@ const CROSS_INVALIDATION: Record<string, string[]> = {
   // suhbati/reklama lidining lid bog'lanishi tozalanadi.
   '/admin/leads': ['/admin/students', '/admin/classes', '/admin/lead-forms', '/admin/lead-sources',
     '/admin/lead-stages', '/admin/level-tests', '/admin/journal',
-    '/admin/course-analytics', '/admin/instagram', '/admin/lead-tasks', '/admin/hr', '/hr'],
+    '/admin/course-analytics', '/admin/instagram', '/admin/lead-tasks', '/admin/hr', '/hr', '/admin/trial-returns'],
   // Lid TOPSHIRIG'I — «Topshiriqlar» (HR) bo'limidagi oddiy topshiriq: kanban indikatorida (`/admin/leads`
   // javobida `nextTaskAt`), HR panelida va «Mening topshiriqlarim»da ko'rinadi. Teskarisi: lid yo'qotilsa/
   // aylantirilsa ochiq topshiriqlari avtomatik bekor bo'ladi (yuqorida); HR mutatsiyalari jadvalda yo'q →

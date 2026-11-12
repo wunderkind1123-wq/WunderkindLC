@@ -676,6 +676,13 @@ export interface Lead {
   nextTaskAllDay?: boolean
   /** Ochiq topshiriqlar soni. */
   openTasks?: number
+  /**
+   * CALL CENTER navbatida (hali markazga kelmagan, 2026-11-12). true — «Call Center» kanbanida; false — «Buyurtmalar»da.
+   * «Markazga keldi» (yoki o'quvchiga aylantirish) uni false qiladi.
+   */
+  inCallCenter?: boolean
+  /** «Markazga keldi» vaqti (Call Center'dan o'tgan bo'lsa). */
+  arrivedAt?: string | null
 }
 
 /**

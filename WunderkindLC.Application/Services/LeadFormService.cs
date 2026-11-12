@@ -333,6 +333,8 @@ public static class LeadFormService
             var firstStage = await LeadIntake.FirstStageIdAsync(db);
             lead = new Lead
             {
+                // CALL CENTER navbatiga — avtomatik kelgan lid (crm-leads.md «CALL CENTER», 2026-11-12).
+                InCallCenter = true,
                 FullName = fullName,
                 Phone = phoneNorm,
                 FatherPhone = parentPhone,

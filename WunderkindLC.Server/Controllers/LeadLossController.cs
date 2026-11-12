@@ -19,7 +19,7 @@ namespace WunderkindLC.Server.Controllers;
 /// </summary>
 [ApiController]
 [Authorize]
-[AdminPerm("leads.list")]
+[AdminPerm("leads.list", "leads.callcenter")]
 [Route("api/admin/leads")]
 public class LeadLossController(
     AppDbContext db, AuditService audit, TelegramService telegram,

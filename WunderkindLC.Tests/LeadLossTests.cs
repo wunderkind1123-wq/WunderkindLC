@@ -512,7 +512,8 @@ public class LeadLossTests
         var src = Source("LeadLossController.cs");
         var header = src[..src.IndexOf("public class LeadLossController", StringComparison.Ordinal)];
         Assert.Contains("[Authorize]", header);
-        Assert.Contains("[AdminPerm(\"leads.list\")]", header);
+        // 2026-11-12: Call Center sahifa kaliti ham shu controllerni ochadi (crm-leads.md «CALL CENTER»).
+        Assert.Contains("[AdminPerm(\"leads.list\", \"leads.callcenter\")]", header);
         Assert.DoesNotContain("AllowAnonymous", src);
 
         foreach (var route in new[] { "[HttpPatch(\"{id}/lost\")]", "[HttpPatch(\"{id}/restore\")]" })

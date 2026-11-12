@@ -1043,6 +1043,7 @@ public partial class StudentsController(
                 MembershipLifecycle.ClosePeriod(old, today);
                 old.IsActive = true;
                 old.LeftAt = null;
+                old.ReturnedToTrial = false;
                 old.JoinedAt = today;
                 old.Status = "trial";
                 old.ActivatedAt = string.Empty;

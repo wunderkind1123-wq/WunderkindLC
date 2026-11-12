@@ -317,6 +317,8 @@ public static class LevelTestService
             var firstStage = await LeadIntake.FirstStageIdAsync(db);
             lead = new Lead
             {
+                // CALL CENTER navbatiga — avtomatik kelgan lid (crm-leads.md «CALL CENTER», 2026-11-12).
+                InCallCenter = true,
                 FullName = string.IsNullOrWhiteSpace(req.FullName) ? LeadIntake.LevelTestAnonymousName : req.FullName.Trim(),
                 Phone = phone,
                 Source = "Daraja testi",

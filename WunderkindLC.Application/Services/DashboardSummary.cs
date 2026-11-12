@@ -28,7 +28,8 @@ public static class DashboardSummary
     /// <summary>Lid: aylantirilganmi (o'quvchi bo'lganmi) va YO'QOTILGANmi (<see cref="LeadLoss"/>).
     /// <see cref="IsOpen"/> — OCHIQ lid (faol ish): ikkalasi ham emas. Bosh sahifa kartochkalari,
     /// «Birinchi darsga yozilganlar» va sinov eslatmasi AYNAN shu ta'rifdan foydalanadi.</summary>
-    public readonly record struct LeadRow(string Id, bool Converted, bool Lost = false)
+    /// <para><c>InCallCenter</c> — Call Center navbatida (2026-11-12): «Buyurtmalar» sanog'iga KIRMAYDI.</para>
+    public readonly record struct LeadRow(string Id, bool Converted, bool Lost = false, bool InCallCenter = false)
     {
         public bool IsOpen => !Converted && !Lost;
     }
@@ -54,8 +55,8 @@ public static class DashboardSummary
         var month = today.ToString("yyyy-MM");
 
         var leads = (await db.Leads.AsNoTracking()
-                .Select(l => new { l.Id, l.ConvertedStudentId, l.LostAt }).ToListAsync(ct))
-            .Select(l => new LeadRow(l.Id, l.ConvertedStudentId != null, !string.IsNullOrWhiteSpace(l.LostAt)))
+                .Select(l => new { l.Id, l.ConvertedStudentId, l.LostAt, l.InCallCenter }).ToListAsync(ct))
+            .Select(l => new LeadRow(l.Id, l.ConvertedStudentId != null, !string.IsNullOrWhiteSpace(l.LostAt), l.InCallCenter))
             .ToList();
         var trials = (await db.TrialLessons.AsNoTracking()
                 .Where(t => t.Result == TrialPending)
@@ -189,7 +190,8 @@ public static class DashboardSummary
         var list = leads as IReadOnlyCollection<LeadRow> ?? leads.ToList();
         var inFirstLesson = LeadFirstLesson.Select(list,
             trials.Select(t => new LeadFirstLesson.TrialRow("", t.LeadId, "", t.Result, t.ScheduledAt)), today);
-        return list.Count(l => l.IsOpen && !inFirstLesson.ContainsKey(l.Id));
+        // «Buyurtmalar ro'yxati» jadvali bilan bir xil: Call Center navbatidagilar SANALMAYDI (2026-11-12).
+        return list.Count(l => l.IsOpen && !l.InCallCenter && !inFirstLesson.ContainsKey(l.Id));
     }
 
     /// <summary>
@@ -418,7 +420,9 @@ public static class DashboardSummary
     public static string CourseKey(string groupId, IReadOnlyDictionary<string, string> courseByGroup) =>
         courseByGroup.TryGetValue(groupId, out var c) && !string.IsNullOrEmpty(c) ? c : "group:" + groupId;
 
+    // «SINOVGA QAYTARISH» bilan yopilgan a'zolik (2026-11-13) KETISH EMAS — o'quvchi «Birinchi darsga»ga o'tgan:
+    // oraliq sertifikat bilan tugatish kabi «completed» deb o'qiladi (`TrialReturnService`, membership-periods.md §12).
     private static CourseAnalytics.MembershipRow ToRow(StudentGroup m, string course) => new(
         m.StudentId, course, m.JoinedAt ?? "", m.ActivatedAt ?? "", m.LeftAt, m.FrozenAt ?? "",
-        m.Status ?? "", m.IsActive, 0m, m.PastPeriods);
+        m is { ReturnedToTrial: true, IsActive: false } ? "completed" : m.Status ?? "", m.IsActive, 0m, m.PastPeriods);
 }

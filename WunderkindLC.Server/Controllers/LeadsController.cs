@@ -11,7 +11,7 @@ namespace WunderkindLC.Server.Controllers;
 
 [ApiController]
 [Authorize]
-[AdminPerm("leads.list")]
+[AdminPerm("leads.list", "leads.callcenter")]
 [Route("api/admin/leads")]
 // ⚠️ `logger` — lid KARTASI (Telegram) uchun: `LeadNotifier` xatoni yutadi (karta CRM amalini
 // buza olmaydi), lekin sababi logda qolishi kerak — aks holda "nega bu lid kartasi
@@ -108,7 +108,8 @@ public class LeadsController(
             LostAt: lead.LostAt, LostReasonId: lead.LostReasonId, LostReason: lead.LostReason,
             LostComment: lead.LostComment, LostByName: lead.LostByName,
             NextTaskAt: nextTask?.DueAt, NextTaskType: nextTask?.Type, NextTaskText: nextTask?.Text,
-            NextTaskAllDay: nextTask?.AllDay ?? false, OpenTasks: nextTask?.OpenCount ?? 0);
+            NextTaskAllDay: nextTask?.AllDay ?? false, OpenTasks: nextTask?.OpenCount ?? 0,
+            InCallCenter: lead.InCallCenter, ArrivedAt: lead.ArrivedAt);
         }).ToList();
     }
 
@@ -288,6 +289,8 @@ public class LeadsController(
             // BIRIKTIRILMAGAN (null) qoladi — KPI'da "biriktirilmagan" alohida sanaladi va
             // botning ishini xodimning hisobiga yozib qo'yish o'lchovni yolg'on qilardi.
             AssigneeUserId = UserId(),
+            // CALL CENTER sahifasidan kiritilgan (qo'ng'iroq qilgan) lid — navbatda; «Buyurtmalar»dan — markazga kelgan.
+            InCallCenter = p.CallCenter,
         };
         // ⚠️ Tekshiruv `db.Leads.Add` dan OLDIN: rad etilgan lid kontekstda osilib qolmasin.
         // Yaratishda javoblar lug'ati BO'SH bo'lsa ham uzatiladi (null EMAS) — ya'ni majburiy
@@ -398,6 +401,31 @@ public class LeadsController(
         // eski lidga esa hech narsa yuborilmaydi (`SyncCardAsync` izohiga qarang).
         await LeadNotifier.SyncCardAsync(db, telegram, lead.Id, logger: logger);
         return NoContent();
+    }
+
+    /// <summary>
+    /// «MARKAZGA KELDI» (2026-11-12, egasi): Call Center'dagi lid «Buyurtmalar»ga o'tadi. Bosqich, mas'ul va boshqa
+    /// maydonlar TEGILMAYDI; tarixda «Markazga keldi» hodisasi (kim — `ActorUserId`), audit va Telegram kartasi.
+    /// Idempotent: allaqachon Buyurtmalarda bo'lsa — hech narsa yozilmaydi.
+    /// </summary>
+    [HttpPost("{id}/arrived")]
+    public async Task<ActionResult<object>> Arrived(string id)
+    {
+        var lead = await db.Leads.FindAsync(id);
+        if (lead is null) return NotFound(new { message = "Lid topilmadi" });
+        if (LeadLoss.IsLost(lead))
+            return BadRequest(new { message = "Lid arxivda — avval lid sahifasidan «Tiklash»" });
+        if (!lead.InCallCenter) return new { inCallCenter = false, arrivedAt = lead.ArrivedAt };
+
+        lead.InCallCenter = false;
+        lead.ArrivedAt = Now();
+        // Kim birinchi bo'lib ishlagani — `ChangeStage` dagi qoida: bo'sh bo'lsa shu xodim mas'ul bo'ladi.
+        if (string.IsNullOrWhiteSpace(lead.AssigneeUserId)) lead.AssigneeUserId = UserId();
+        AddEvent(id, "arrived", "Markazga keldi — Call Center'dan «Buyurtmalar»ga o'tdi");
+        audit.Record("Lead", id, "update", $"Lid markazga keldi ({lead.FullName}) — Call Center'dan «Buyurtmalar»ga o'tdi");
+        await db.SaveChangesAsync();
+        await LeadNotifier.SyncCardAsync(db, telegram, lead.Id, logger: logger);
+        return new { inCallCenter = false, arrivedAt = lead.ArrivedAt };
     }
 
     /// <summary>Lidni boshqa bosqichga (ustunga) ko'chirish.</summary>
@@ -706,6 +734,14 @@ public class LeadsController(
             .FirstOrDefaultAsync();
         if (alreadyConverted is not null)
             return BadRequest(new { message = "Lid allaqachon o'quvchiga aylantirilgan" });
+
+        // CALL CENTER: o'quvchiga aylantirilgan odam markazga kelgan — Call Center navbatidan chiqadi (2026-11-12).
+        if (lead.InCallCenter)
+        {
+            lead.InCallCenter = false;
+            lead.ArrivedAt ??= Now();
+            AddEvent(id, "arrived", "Markazga keldi — o'quvchiga aylantirilgani uchun Call Center'dan chiqdi");
+        }
 
         await db.SaveChangesAsync();
 

@@ -11,6 +11,7 @@ import { TablePagination, usePagination } from '@/components/ui/TablePagination'
 import { WD_FULL, leadCallNumbers, shortLeadId, tableDateTime } from './leadLabels'
 import { useUrlFilters } from './useUrlFilters'
 import { LeadConvertPanel } from './LeadPanels'
+import { TrialReturnsSection } from './TrialReturnsSection'
 import { useLeadGroupOptions } from './useLeadDetail'
 import { Modal } from '@/components/ui/Modal'
 import { usePerm } from '@/lib/permissions'
@@ -264,6 +265,9 @@ export function FirstLessonLeadsPage() {
         emptyHint="Lid sahifasidagi «⋮» menyudan «Sinov darsiga yozish» orqali qo'shiladi."
         footer={<TablePagination {...pg} />}
       />
+
+      {/* «Sinovga qaytarish» bilan guruhdan chiqqan O'QUVCHILAR (2026-11-13) — lidlar emas, alohida ro'yxat. */}
+      <TrialReturnsSection />
 
       <Modal
         open={!!enrollRow}

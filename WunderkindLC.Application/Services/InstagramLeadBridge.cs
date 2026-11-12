@@ -106,6 +106,8 @@ public static class InstagramLeadBridge
 
         var fresh = new Lead
         {
+            // CALL CENTER navbatiga — avtomatik kelgan lid (crm-leads.md «CALL CENTER», 2026-11-12).
+            InCallCenter = true,
             FullName = name,
             Phone = phone,
             Source = source,

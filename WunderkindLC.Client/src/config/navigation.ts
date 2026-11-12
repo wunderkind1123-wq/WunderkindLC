@@ -130,8 +130,10 @@ export const navByRole: Record<Role, NavItem[]> = {
       to: '#lidlar',
       icon: IconClipboardList,
       children: [
-        { label: "Buyurtmalar ro'yxati", to: '/admin/leads', perm: 'leads.list' },
-        { label: 'Birinchi darsga yozilganlar', to: '/admin/leads/birinchi-dars', perm: 'leads.list' },
+        // CALL CENTER (2026-11-12, egasi): Instagram/Telegram/target/forma lidlari — kanban; «Markazga keldi» → Buyurtmalar.
+        { label: 'Call Center', to: '/admin/leads/call-center', perm: 'leads.callcenter' },
+        { label: "Buyurtmalar ro'yxati", to: '/admin/leads', end: true, perm: 'leads.list' },
+        { label: 'Birinchi darsga yozilganlar', to: '/admin/leads/birinchi-dars', permAny: ['leads.list', 'leads.callcenter'] },
       ],
     },
     {

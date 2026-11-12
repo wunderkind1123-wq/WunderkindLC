@@ -289,11 +289,13 @@ export default function App() {
             <Route path="marketing/javob-sifati" element={<RequirePerm perm="marketing.quality"><InstagramQuality /></RequirePerm>} />
             <Route path="marketing/settings" element={<RequirePerm perm="marketing.settings"><InstagramSettings /></RequirePerm>} />
             <Route path="leads" element={<RequirePerm perm="leads.list"><LeadsPage /></RequirePerm>} />
+            {/* CALL CENTER (2026-11-12, egasi): avtomatik kelgan lidlar kanbani; «Markazga keldi» — Buyurtmalarga. */}
+            <Route path="leads/call-center" element={<RequirePerm perm="leads.callcenter"><LeadsPage mode="callcenter" /></RequirePerm>} />
             {/* edutizim: "Birinchi darsga yozilganlar" va lid sahifasi (`/orders/info/:id`). */}
-            <Route path="leads/birinchi-dars" element={<RequirePerm perm="leads.list"><FirstLessonLeadsPage /></RequirePerm>} />
+            <Route path="leads/birinchi-dars" element={<RequirePerm perm="leads.list" anyOf={['leads.callcenter']}><FirstLessonLeadsPage /></RequirePerm>} />
             {/* Eski manzil — arxivlangan lidlar O'quvchilar → «Arxiv o'quvchilar» → «Lidlar» tabida (egasi, 2026-11-04). */}
             <Route path="leads/arxiv" element={<Navigate to="/admin/students/arxiv/lidlar" replace />} />
-            <Route path="leads/:id" element={<RequirePerm perm="leads.list"><LeadDetailPage /></RequirePerm>} />
+            <Route path="leads/:id" element={<RequirePerm perm="leads.list" anyOf={['leads.callcenter']}><LeadDetailPage /></RequirePerm>} />
             {/* Call Center (bulutli, keyin Local Call / CTI) olib tashlandi (2026-10) — eski havola/xatcho'p
                 bosh sahifaga tushadi. */}
             <Route path="calls" element={<Navigate to="/admin" replace />} />

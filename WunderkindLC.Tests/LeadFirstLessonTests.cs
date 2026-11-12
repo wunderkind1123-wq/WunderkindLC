@@ -261,7 +261,8 @@ public class LeadFirstLessonTests
 
         // Sinf darajasi: login + `leads.list` (lidlar ro'yxati `GET api/admin/leads` bilan bir xil).
         Assert.Contains("[Authorize]", header);
-        Assert.Contains("[AdminPerm(\"leads.list\")]", header);
+        // 2026-11-12: Call Center sahifa kaliti ham shu controllerni ochadi (crm-leads.md «CALL CENTER»).
+        Assert.Contains("[AdminPerm(\"leads.list\", \"leads.callcenter\")]", header);
         Assert.DoesNotContain("AllowAnonymous", src);
 
         // Metod darajasida BOSHQA kalit qo'yilmagan (u sinfdagisini bekor qilardi — permissions.md §4).

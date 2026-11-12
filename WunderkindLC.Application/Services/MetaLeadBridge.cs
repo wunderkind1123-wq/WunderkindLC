@@ -80,6 +80,8 @@ public static class MetaLeadBridge
         var stage = await LeadIntake.FirstStageIdAsync(db, ct);
         var fresh = new Lead
         {
+            // CALL CENTER navbatiga — avtomatik kelgan lid (crm-leads.md «CALL CENTER», 2026-11-12).
+            InCallCenter = true,
             FullName = name.Length > 0 ? name : LeadIntake.AdAnonymousName,
             Phone = phone,
             Source = source,

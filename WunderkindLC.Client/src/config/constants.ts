@@ -107,7 +107,9 @@ export const adminPermissions: AdminPermSection[] = [
     key: 'leads',
     label: 'Lidlar',
     pages: [
-      { key: 'leads.list', label: 'Lidlar (Kanban)' },
+      // 2026-11-12: kanban «Call Center»ga ko'chdi; «Buyurtmalar» — markazga kelganlar jadvali.
+      { key: 'leads.callcenter', label: 'Call Center (kanban)' },
+      { key: 'leads.list', label: "Buyurtmalar ro'yxati" },
       { key: 'leads.stats', label: 'CRM statistika' },
       { key: 'leads.forms', label: 'Lid formalari' },
     ],

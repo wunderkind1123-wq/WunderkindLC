@@ -290,3 +290,30 @@ ma'lumot) — §11: u bilan qaytgan o'quvchilarning tirik a'zoliklari arxiv sana
 - «Tugatish»da faqat `active` a'zo `completed` bo'ladi; sinov/muzlatilgani `LeaveGroupAsync` bilan
   chiqadi (§3: bu yerda ham davr qatori YOZILMAYDI — joriy davr `ActivatedAt`+`FrozenAt`/`LeftAt` dan o'qiladi).
 
+
+## 12. «SINOVGA QAYTARISH» = GURUHDAN CHIQISH + «BIRINCHI DARS» (2026-11-13, egasi, migratsiya `AddStudentTrialReturns`)
+
+Egasi: «sinovga qaytarilgan o'quvchi guruhda qolmasin va birinchi darsga o'tsin; puli hisoblanmasin; tarixda qolsin».
+Ilgari `ReturnToTrial` a'zolikni guruhda «sinov» holatida QOLDIRARDI (jurnal, o'rin, ro'yxat) — qaytarilganlarni topib bo'lmasdi.
+
+Qoida — `TrialReturnService` (Application, testlar `TrialReturnTests`); `ClassesController.ReturnToTrial` — o'quvchi qulfi ostida:
+- **A'zolik YOPILADI:** `IsActive=false`, `LeftAt`=bugun, `Status="trial"`, `ActivatedAt`/`FrozenAt` tozalanadi, **`ReturnedToTrial=true`**;
+  «asosiy guruh» yorlig'i bo'shatiladi. Faqat `active`/`frozen` a'zolik (sinovdagi — 400, «Guruhdan chiqarish»).
+- **PUL — joriy oydan hisoblanmaydi:** `PurgeChargesAfterMonthAsync(joriy oy, inclusive)` — joriy va keyingi oylar hisobi bekor,
+  balansga qaytadi (qo'lda tahrirlangan `Locked` qator tegilmaydi). ⚠️ O'TGAN oylar TEGILMAYDI (maosh/hisobot yopilgan).
+  Faol davr `PastPeriods` ga **o'tgan oy oxirigacha** yoziladi (`PeriodEnd`; joriy oyda aktivlashgan — davr YO'Q), ya'ni
+  `BillableInMonth` joriy oyni pullik demaydi. To'langan pul o'quvchi balansida AVANS bo'lib qoladi.
+- **KETISH EMAS:** `MembershipReasons` (`remove`) YOZILMAYDI; `DashboardSummary.LeftEvents` (`ToRow`) `ReturnedToTrial` yopilishni
+  `completed` kabi o'qiydi — bosh sahifa, KPI, rahbariyat analitikasi, «Ketish sabablari» hammasi shu funksiyadan.
+- **`StudentTrialReturn`** (guruh nomi, sabab, kim — SNAPSHOT, `CanceledAmount`) → «Birinchi darsga yozilganlar» → **«Sinovdan
+  qaytganlar»** (`TrialReturnsController`, `api/admin/trial-returns`, ruxsat `leads.list`|`leads.callcenter`, RRP). OCHIQ
+  (`IsOpen`): `ResolvedAt` yo'q, o'quvchi arxivda emas va qaytarishdan KEYIN (`RecordedAt` ≥ kun) hech qaysi guruhga qo'shilmagan
+  — qo'shish qaysi yo'l bilan bo'lmasin, ro'yxatdan O'ZI chiqadi (hook YO'Q). Qo'lda: «Ro'yxatdan olish» (`PUT {id}/resolve`).
+- Tarix: audit `Membership` «Sinovga qaytarildi — guruhdan chiqdi, «Birinchi darsga yozilganlar»ga o'tdi (guruh: …) — hisob bekor
+  qilindi: … — sabab: …» (prefiks «Sinovga qaytarildi» eski yozuvlar bilan bir xil).
+- ⚠️ `ReturnedToTrial` a'zolik QAYTA ishlatilganda tozalanadi — 4 joy: `AddMember`, `TransferMember` (maqsad), `LeadConversion`,
+  `StudentsController` (import/forma). Yangi «`LeftAt = null`» joyi qo'shsangiz — shu yerda ham `ReturnedToTrial = false`.
+- **ESKI qaytarilganlar** (2026-11-13 gacha, guruhida sinovda qolib ketgan): «Sinovdan qaytganlar» → «Eski qaytarilganlarni
+  o'tkazish» (FAQAT superadmin, hard rol; `GET/POST trial-returns/legacy`). Nomzod — tirik `trial` a'zolik va shu (guruh, o'quvchi)
+  ning ENG OXIRGI a'zolik yozuvi «Sinovga qaytarildi (guruh: …»; a'zolik yopiladi + yozuv (asl sana/sabab/kim tarixdan).
+  ⚠️ PULGA TEGILMAYDI (sinovda hisob yo'q).

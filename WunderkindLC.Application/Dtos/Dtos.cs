@@ -835,7 +835,9 @@ public record LeadCreateRequest(
     string? Phone, string? FatherFullName, string? FatherPhone,
     string? MotherFullName, string? MotherPhone, string? Note, string Stage,
     string? Source = null, string? InterestSubject = null,
-    Dictionary<string, List<string>>? Answers = null);
+    Dictionary<string, List<string>>? Answers = null,
+    /// <summary>true — Call Center sahifasidan (qo'ng'iroq qilgan odam); false — «Buyurtmalar»dan (markazga kelgan).</summary>
+    bool CallCenter = false);
 /// <summary>Lid (bo'lajak o'quvchi) tahrirlash so'rovi.
 /// TELEFON VALIDATSIYA (PhoneUtil.Normalize orqali standartlashtirilib saqlanadi):
 /// - <paramref name="Phone"/> — lidning o'z raqami (ixtiyoriy, max 32 belgi); format: +998-XX-XXX-XX-XX
@@ -924,7 +926,11 @@ public record LeadWithAttendanceDto(
     string? NextTaskText = null,
     bool NextTaskAllDay = false,
     /// <summary>Ochiq topshiriqlar soni.</summary>
-    int OpenTasks = 0);
+    int OpenTasks = 0,
+    /// <summary>CALL CENTER navbatida (hali markazga kelmagan) — `Lead.InCallCenter`. false — «Buyurtmalar»da.</summary>
+    bool InCallCenter = false,
+    /// <summary>«Markazga keldi» vaqti (Call Center'dan o'tgan bo'lsa).</summary>
+    string? ArrivedAt = null);
 
 /// <summary>
 /// «Birinchi darsga yozilganlar» qatori (<c>GET api/admin/leads/first-lesson</c>). Tanlov qoidasi —

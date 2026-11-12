@@ -11,6 +11,7 @@ public partial class AppDbContext
     public DbSet<ExpenseRequest> ExpenseRequests => Set<ExpenseRequest>();
     public DbSet<StaffSalary> StaffSalaries => Set<StaffSalary>();
     public DbSet<StaffSalaryAdjustment> StaffSalaryAdjustments => Set<StaffSalaryAdjustment>();
+    public DbSet<StudentTrialReturn> StudentTrialReturns => Set<StudentTrialReturn>();
 
     partial void ConfigureCrmFinanceOps(ModelBuilder b)
     {
@@ -55,6 +56,21 @@ public partial class AppDbContext
             e.Property(x => x.CreatedBy).HasMaxLength(64);
             e.Property(x => x.CreatedByName).HasMaxLength(200);
             e.HasIndex(x => new { x.Month, x.UserId });
+        });
+
+        // «Sinovga qaytarish» (2026-11-13): guruhdan chiqib «Birinchi darsga yozilganlar»ga o'tgan o'quvchilar.
+        b.Entity<StudentTrialReturn>(e =>
+        {
+            e.Property(x => x.StudentId).HasMaxLength(64);
+            e.Property(x => x.GroupId).HasMaxLength(64);
+            e.Property(x => x.GroupName).HasMaxLength(200);
+            e.Property(x => x.ReasonId).HasMaxLength(64);
+            e.Property(x => x.Reason).HasMaxLength(300);
+            e.Property(x => x.CreatedById).HasMaxLength(64);
+            e.Property(x => x.CreatedByName).HasMaxLength(200);
+            e.Property(x => x.CanceledAmount).HasPrecision(18, 2);
+            e.Property(x => x.ResolvedNote).HasMaxLength(300);
+            e.HasIndex(x => new { x.StudentId, x.ResolvedAt });
         });
     }
 }

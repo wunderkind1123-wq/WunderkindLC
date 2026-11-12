@@ -113,6 +113,8 @@ public class PublicLandingController(AppDbContext db, TelegramService telegram) 
 
             lead = new Lead
             {
+                // CALL CENTER navbatiga — avtomatik kelgan lid (crm-leads.md «CALL CENTER», 2026-11-12).
+                InCallCenter = true,
                 FullName = fullName,
                 Phone = normalizedPhone,
                 Stage = firstStageId,

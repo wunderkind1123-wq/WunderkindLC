@@ -9,6 +9,7 @@ import {
   UserX,
   Archive,
   RotateCcw,
+  PhoneCall,
 } from 'lucide-react'
 import {
   IconArrowLeft,
@@ -23,6 +24,7 @@ import {
   addLeadEvent,
   deleteLead,
   getLeads,
+  markLeadArrived,
   setTrialResult,
   updateLead,
   updateLeadStage,
@@ -120,12 +122,15 @@ export function LeadDetailPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const { can } = usePerm()
-  const canEdit = can('leads.list', 'edit')
+  // Lid sahifasi Buyurtmalar uchun ham, CALL CENTER uchun ham (2026-11-12) — ikkala kalitdan biri yetadi (server ham shunday).
+  const canEdit = can('leads.list', 'edit') || can('leads.callcenter', 'edit')
+  const canCreateLead = can('leads.list', 'create') || can('leads.callcenter', 'create')
+  const [arriving, setArriving] = useState(false)
   // Lidni BUTUNLAY o'chirish — superadmin va direktor (admin), FAQAT arxivlangan liddan (2026-11-10); serverdagi `LeadDeleteRights` bilan bir xil.
   const role = useAuth().user?.role
   const canDelete = role === 'superadmin' || role === 'admin'
   // Aylantirish O'QUVCHI yaratadi — server lid ruxsatidan tashqari o'quvchi qo'shish huquqini ham talab qiladi.
-  const canConvert = can('leads.list', 'create') && can('students.list', 'create')
+  const canConvert = canCreateLead && can('students.list', 'create')
 
   const [lead, setLead] = useState<Lead | null>(null)
   // Forma MANBASI alohida: bosqich/aylantirish kabi o'zgarishlarda `lead` yangilanadi, lekin
@@ -259,6 +264,21 @@ export function LeadDetailPage() {
       alert(apiErrorMessage(err, "Lidni tiklab bo'lmadi"))
     } finally {
       setRestoring(false)
+    }
+  }
+
+  /** «MARKAZGA KELDI» — Call Center'dan Buyurtmalarga (server javobidan KEYIN yangilanadi, optimistik emas). */
+  const doArrived = async () => {
+    if (arriving) return
+    setArriving(true)
+    try {
+      const r = await markLeadArrived(lead.id)
+      setLead((l) => (l ? { ...l, inCallCenter: r.inCallCenter, arrivedAt: r.arrivedAt } : l))
+      activity.refresh()
+    } catch (err) {
+      alert(apiErrorMessage(err, "Lidni Buyurtmalarga o'tkazib bo'lmadi"))
+    } finally {
+      setArriving(false)
     }
   }
 
@@ -426,6 +446,30 @@ export function LeadDetailPage() {
                 )}
               </div>
             </div>
+          )}
+          {/* CALL CENTER (2026-11-12): lid hali markazga kelmagan — «Markazga keldi» uni Buyurtmalarga o'tkazadi. */}
+          {lead.inCallCenter && !lost && (
+            <div className="mt-2 flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-[13px] text-sky-900">
+              <PhoneCall className="h-4 w-4 shrink-0" />
+              <p className="min-w-0 flex-1">
+                <span className="font-semibold">Call Center</span> — hali markazga kelmagan.
+              </p>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => void doArrived()}
+                  disabled={arriving}
+                  className="shrink-0 rounded-md bg-brand-600 px-2.5 py-1 text-[12px] font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 disabled:opacity-50"
+                >
+                  {arriving ? '...' : 'Markazga keldi'}
+                </button>
+              )}
+            </div>
+          )}
+          {!lead.inCallCenter && lead.arrivedAt && (
+            <p className="mx-2 mt-1.5 text-[12px] text-[#757575]">
+              Markazga keldi: {formatDateTime(lead.arrivedAt)} (Call Center'dan o'tgan)
+            </p>
           )}
           <div className="mt-2 flex items-center gap-1 rounded-lg bg-[#F0F2F2] p-1">
             <PillTab active={leftTab === 'main'} onClick={() => setLeftTab('main')}>
@@ -723,7 +767,7 @@ export function LeadDetailPage() {
               leadId={lead.id}
               leadOpen={isOpen}
               leadAssigneeId={lead.assigneeUserId}
-              canCreate={can('leads.list', 'create')}
+              canCreate={canCreateLead}
               canEdit={canEdit}
               onChanged={() => {
                 activity.refresh()
