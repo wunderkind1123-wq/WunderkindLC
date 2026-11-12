@@ -334,10 +334,10 @@ public class SettingsController(AppDbContext db, TelegramService telegram, IWebH
 
     [HttpPut("gemini")]
     [AdminPerm("settings.gemini")]
-    public ActionResult<GeminiSettingsDto> SaveGemini(SaveGeminiRequest req)
+    public async Task<ActionResult<GeminiSettingsDto>> SaveGemini(SaveGeminiRequest req)
     {
         if (EnvOnly(req.Key, AppSecrets.EnvKeys.GeminiApiKey) is { } err) return err;
-        return GetGemini();
+        return await GetGemini();
     }
 
     // ---------- To'lov cheki (termal kvitansiya) sozlamalari ----------
