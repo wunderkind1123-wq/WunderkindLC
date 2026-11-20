@@ -473,6 +473,10 @@ namespace WunderkindLC.Infrastructure.Migrations
                     b.Property<int>("ScheduleDayOfMonth")
                         .HasColumnType("integer");
 
+                    b.Property<string>("ScheduleDays")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("ScheduleTime")
                         .IsRequired()
                         .HasColumnType("text");

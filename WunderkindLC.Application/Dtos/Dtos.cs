@@ -495,14 +495,18 @@ public record AutoMessageRuleDto(
     int OffsetMinutes, string SendScope, string ScheduleType, string ScheduleTime, int ScheduleDayOfMonth,
     string CreatedAt,
     // CRM upgrade P2.5: «✅ Qabul qildim» button + optional media of every message of the rule.
-    bool AckButton = false, string? AttachmentId = null, MessageAttachmentDto? Attachment = null);
+    bool AckButton = false, string? AttachmentId = null, MessageAttachmentDto? Attachment = null,
+    // 2026-11-16: oyning bir nechta kuni (payment_debt) — bo'sh emas, kamida [ScheduleDayOfMonth].
+    int[]? ScheduleDays = null);
 /// <summary>Avto-xabar qoidasini saqlash (yaratish/tahrirlash).</summary>
 public record SaveAutoMessageRuleRequest(
     string Trigger, string Name, bool Enabled,
     bool SendTelegram, string Audience, string Template,
     int OffsetMinutes = 5, string SendScope = "lesson_start",
     string ScheduleType = "daily", string ScheduleTime = "09:00", int ScheduleDayOfMonth = 1,
-    bool AckButton = false, string? AttachmentId = null);
+    bool AckButton = false, string? AttachmentId = null,
+    // null — eski mijoz (tegilmaydi: bitta kun ScheduleDayOfMonth dan); faqat payment_debt da o'qiladi.
+    int[]? ScheduleDays = null);
 
 /// <summary>Moliyada o'quvchi qatori. Charged = jami to'liq oylik (chegirmasiz);
 /// Discount = jami berilgan chegirma; Paid = haqiqiy naqd to'lovlar yig'indisi (turli oylar uchun);

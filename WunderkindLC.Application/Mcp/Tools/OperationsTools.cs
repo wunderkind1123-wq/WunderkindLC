@@ -395,7 +395,7 @@ public sealed class OperationsTools(McpToolContext t)
             .Select(r => new
             {
                 r.Id, r.Name, r.Trigger, r.Enabled, SendTelegram = r.SendTelegram || r.SendSms, r.Audience, r.Template,
-                r.ScheduleType, r.ScheduleTime, r.ScheduleDayOfMonth, r.OffsetMinutes, r.SendScope, r.CreatedAt,
+                r.ScheduleType, r.ScheduleTime, r.ScheduleDayOfMonth, r.ScheduleDays, r.OffsetMinutes, r.SendScope, r.CreatedAt,
                 r.AckButton, HasAttachment = r.AttachmentId != null && r.AttachmentId != "",
             }).ToListAsync(ct);
         var truncated = rows.Count > McpToolContext.MaxPageSize;
@@ -427,6 +427,9 @@ public sealed class OperationsTools(McpToolContext t)
                     // custom (custom_schedule) · none (event-driven) — AutoMessageSchedule.ModeOf.
                     mode = AutoMessageSchedule.ModeOf(x.r.Trigger),
                     type = x.r.ScheduleType, time = x.r.ScheduleTime, dayOfMonth = x.r.ScheduleDayOfMonth,
+                    // Qarzdorlik eslatmasi — oyning BIR NECHTA kuni (2026-11-16); boshqalarda [dayOfMonth].
+                    daysOfMonth = AutoMessageSchedule.DaysOf(new AutoMessageRule
+                        { Trigger = x.r.Trigger, ScheduleDays = x.r.ScheduleDays, ScheduleDayOfMonth = x.r.ScheduleDayOfMonth }),
                     offsetMinutes = x.r.OffsetMinutes, scope = x.r.SendScope,
                     usesSchedule = x.info?.SupportsSchedule ?? false,
                     usesSendScope = x.info?.SupportsSendScope ?? false,

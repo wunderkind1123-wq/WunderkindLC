@@ -55,12 +55,53 @@ public static class AutoMessageSchedule
         var today = DateOnly.FromDateTime(now);
         return mode switch
         {
-            MonthlyDayTime => CustomReminderService.IsScheduledDay(
-                                  new AutoMessageRule { ScheduleType = "monthly", ScheduleDayOfMonth = rule.ScheduleDayOfMonth },
-                                  today)
-                              && now.TimeOfDay >= TimeOf(rule),
+            MonthlyDayTime => IsScheduledDay(rule, today) && now.TimeOfDay >= TimeOf(rule),
             DailyTime => now.TimeOfDay >= TimeOf(rule),
             _ => false,
         };
+    }
+
+    /// <summary>Ko'pi bilan shuncha kun (oyning har kuni).</summary>
+    public const int MaxDays = 31;
+
+    /// <summary>Bir nechta kun qabul qiladigan hodisalar (hozircha faqat qarzdorlik eslatmasi).</summary>
+    public static bool SupportsMultipleDays(string? trigger) => trigger == AutoMessageTriggers.PaymentDebt;
+
+    /// <summary>
+    /// Qoidaning oy kunlari (o'sib boruvchi, takrorsiz, 1..31): <see cref="AutoMessageRule.ScheduleDays"/> bo'sh bo'lmasa
+    /// va hodisa bir nechta kunni qabul qilsa — o'sha ro'yxat, aks holda eski bitta kun (<c>ScheduleDayOfMonth</c>).
+    /// </summary>
+    public static IReadOnlyList<int> DaysOf(AutoMessageRule rule)
+    {
+        if (SupportsMultipleDays(rule.Trigger) && ParseDays(rule.ScheduleDays) is { Count: > 0 } days) return days;
+        return new[] { Math.Clamp(rule.ScheduleDayOfMonth, 1, 31) };
+    }
+
+    /// <summary>"1, 5,10" → [1,5,10]; noto'g'ri bo'lak va 1..31 dan tashqarisi tashlanadi.</summary>
+    public static List<int> ParseDays(string? value) =>
+        (value ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(p => int.TryParse(p, out var d) ? d : 0)
+            .Where(d => d is >= 1 and <= 31)
+            .Distinct().OrderBy(d => d).ToList();
+
+    /// <summary>Saqlash shakli: [10,1,5] → "1,5,10".</summary>
+    public static string FormatDays(IEnumerable<int> days) =>
+        string.Join(",", days.Where(d => d is >= 1 and <= 31).Distinct().OrderBy(d => d));
+
+    /// <summary>Bugun qoidaning kunlaridan birimi. 29–31 qisqa oyda OYNING OXIRGI KUNIGA tushadi (o'tkazib yuborilmaydi;
+    /// bir nechtasi bir kunga tushsa — bitta yuborish, ish belgisi kun bo'yicha).</summary>
+    public static bool IsScheduledDay(AutoMessageRule rule, DateOnly today)
+    {
+        var dim = DateTime.DaysInMonth(today.Year, today.Month);
+        return DaysOf(rule).Any(d => Math.Min(d, dim) == today.Day);
+    }
+
+    /// <summary>Foydalanuvchiga: "Har oyning 1, 5, 10-kunlari, 09:00 (oyiga 3 marta)".</summary>
+    public static string DescribeMonthly(AutoMessageRule rule)
+    {
+        var days = DaysOf(rule);
+        return days.Count == 1
+            ? $"Har oyning {days[0]}-kuni, {rule.ScheduleTime}"
+            : $"Har oyning {string.Join(", ", days)}-kunlari, {rule.ScheduleTime} (oyiga {days.Count} marta)";
     }
 }

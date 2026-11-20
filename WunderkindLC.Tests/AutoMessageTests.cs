@@ -1,6 +1,7 @@
 using System.Reflection;
 using WunderkindLC.Application.Abstractions;
 using WunderkindLC.Application.Services;
+using WunderkindLC.Application.Services.Messaging;
 using WunderkindLC.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -890,6 +891,44 @@ public class AutoMessageTests
         Assert.True(WunderkindLC.Application.Services.Messaging.AutoMessageSchedule.IsDue(rule, new DateTime(2026, 10, 10, 9, 0, 0)));
         Assert.False(WunderkindLC.Application.Services.Messaging.AutoMessageSchedule.IsDue(rule, new DateTime(2026, 10, 3, 9, 0, 0)));   // odd day — no longer
         Assert.False(WunderkindLC.Application.Services.Messaging.AutoMessageSchedule.IsDue(rule, new DateTime(2026, 10, 11, 9, 0, 0)));
+    }
+
+    [Fact]
+    public void Qarzdorlik_BIR_NECHTA_kun__har_biri_oz_soatida_qolganlari_yoq()
+    {
+        // 2026-11-16: bitta qoida — oyiga N marta (belgilangan kunlar), har biri qoidaning soatidan keyin.
+        var rule = new AutoMessageRule
+        {
+            Trigger = AutoMessageTriggers.PaymentDebt, ScheduleDays = "20, 5,1,5,abc,40", ScheduleDayOfMonth = 7, ScheduleTime = "10:30",
+        };
+        Assert.Equal(new[] { 1, 5, 20 }, AutoMessageSchedule.DaysOf(rule));   // tartiblangan, takrorsiz, noto'g'ri tashlandi
+        Assert.True(AutoMessageSchedule.IsDue(rule, new DateTime(2026, 12, 1, 10, 30, 0)));
+        Assert.True(AutoMessageSchedule.IsDue(rule, new DateTime(2026, 12, 5, 18, 0, 0)));
+        Assert.True(AutoMessageSchedule.IsDue(rule, new DateTime(2026, 12, 20, 10, 31, 0)));
+        Assert.False(AutoMessageSchedule.IsDue(rule, new DateTime(2026, 12, 5, 10, 29, 0)));   // soatidan oldin
+        Assert.False(AutoMessageSchedule.IsDue(rule, new DateTime(2026, 12, 7, 11, 0, 0)));    // eski bitta kun — endi emas
+        Assert.False(AutoMessageSchedule.IsDue(rule, new DateTime(2026, 12, 10, 11, 0, 0)));
+    }
+
+    [Fact]
+    public void Qarzdorlik_kunlari__31_qisqa_oyda_oxirgi_kunga__bosh_royxat_eski_kun()
+    {
+        var rule = new AutoMessageRule { Trigger = AutoMessageTriggers.PaymentDebt, ScheduleDays = "15,31", ScheduleTime = "09:00" };
+        Assert.True(AutoMessageSchedule.IsScheduledDay(rule, new DateOnly(2027, 2, 28)));    // fevral — 31 → 28
+        Assert.False(AutoMessageSchedule.IsScheduledDay(rule, new DateOnly(2027, 2, 27)));
+        Assert.True(AutoMessageSchedule.IsScheduledDay(rule, new DateOnly(2026, 12, 31)));
+
+        var legacy = new AutoMessageRule { Trigger = AutoMessageTriggers.PaymentDebt, ScheduleDays = "", ScheduleDayOfMonth = 10 };
+        Assert.Equal(new[] { 10 }, AutoMessageSchedule.DaysOf(legacy));
+
+        // Boshqa oylik hodisa (TOP/BOTTOM) ro'yxatni O'QIMAYDI — oyiga bir marta qoladi.
+        var top = new AutoMessageRule { Trigger = AutoMessageTriggers.RatingTop, ScheduleDays = "1,2,3", ScheduleDayOfMonth = 3 };
+        Assert.Equal(new[] { 3 }, AutoMessageSchedule.DaysOf(top));
+
+        Assert.Equal("1,5,10", AutoMessageSchedule.FormatDays(new[] { 10, 1, 5, 5, 0, 32 }));
+        Assert.Equal("Har oyning 1, 5-kunlari, 09:00 (oyiga 2 marta)",
+            AutoMessageSchedule.DescribeMonthly(new AutoMessageRule
+                { Trigger = AutoMessageTriggers.PaymentDebt, ScheduleDays = "1,5", ScheduleTime = "09:00" }));
     }
 
     /// <summary>Qarzdor o'quvchining BITTA fandagi a'zoligi: kurs + guruh + shu oyga hisob (qarz).

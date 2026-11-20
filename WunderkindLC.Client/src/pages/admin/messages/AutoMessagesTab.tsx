@@ -54,10 +54,53 @@ function triggerCategory(t: AutoMessageTrigger): string {
   return (CATEGORY_ORDER as readonly string[]).includes(c) ? c : 'Boshqa'
 }
 
+/** Oyning bir nechta kunini qabul qiladigan hodisa (server: `AutoMessageSchedule.SupportsMultipleDays`). */
+const MULTI_DAY_TRIGGER = 'payment_debt'
+
+/** "Har oyning 1, 5, 10-kunlari, 09:00 (oyiga 3 marta)" — server `DescribeMonthly` bilan bir xil matn. */
+function monthlySummary(days: number[], time: string): string {
+  const sorted = [...new Set(days)].sort((a, b) => a - b)
+  return sorted.length === 1
+    ? `Har oyning ${sorted[0]}-kuni, ${time}`
+    : `Har oyning ${sorted.join(', ')}-kunlari, ${time} (oyiga ${sorted.length} marta)`
+}
+
+/** Oy kunlari tanlagichi (1..31): bosilgan kun belgilanadi/olib tashlanadi. */
+function MonthDaysPicker({ value, onChange }: { value: number[]; onChange: (days: number[]) => void }) {
+  const toggle = (d: number) =>
+    onChange(value.includes(d) ? value.filter((x) => x !== d) : [...value, d].sort((a, b) => a - b))
+  return (
+    <div>
+      <p className="mb-1 text-sm font-medium text-slate-700 dark:text-slate-200">Oyning qaysi kunlari</p>
+      <div className="grid grid-cols-7 gap-1">
+        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => {
+          const on = value.includes(d)
+          return (
+            <button
+              key={d}
+              type="button"
+              aria-pressed={on}
+              onClick={() => toggle(d)}
+              className={cn(
+                'h-8 rounded-md border text-sm tabular-nums transition-colors',
+                on
+                  ? 'border-blue-600 bg-blue-600 font-semibold text-white'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300',
+              )}
+            >
+              {d}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 /** Ro'yxatdagi jadval izohi: "Har oyning 10-kuni, 09:00" / "Har kuni 09:00". */
 function scheduleSummary(t: AutoMessageTrigger | undefined, r: AutoMessageRule): string {
   if (!t) return ''
-  if (t.scheduleMode === 'monthly_day_time') return `Har oyning ${r.scheduleDayOfMonth}-kuni, ${r.scheduleTime}`
+  if (t.scheduleMode === 'monthly_day_time') return monthlySummary(r.scheduleDays?.length ? r.scheduleDays : [r.scheduleDayOfMonth], r.scheduleTime)
   if (t.scheduleMode === 'daily_time') return `Har kuni ${r.scheduleTime}`
   return ''
 }
@@ -337,6 +380,8 @@ function toInput(r: AutoMessageRule): AutoMessageRuleInput {
     scheduleType: r.scheduleType,
     scheduleTime: r.scheduleTime,
     scheduleDayOfMonth: r.scheduleDayOfMonth,
+    // ⚠️ SHART: ro'yxatdagi yoqish/o'chirish shu yo'l bilan saqlaydi — usiz bir nechta kun bitta kunga tushib qolardi.
+    scheduleDays: r.trigger === MULTI_DAY_TRIGGER ? r.scheduleDays : undefined,
     ackButton: r.ackButton ?? false,
     attachmentId: r.attachmentId ?? null,
   }
@@ -376,6 +421,10 @@ function RuleFormModal({
   const [scheduleType, setScheduleType] = useState(rule?.scheduleType || 'daily')
   const [scheduleTime, setScheduleTime] = useState(rule?.scheduleTime || initialTrigger?.defaultTime || '09:00')
   const [scheduleDay, setScheduleDay] = useState<number | null>(rule?.scheduleDayOfMonth ?? initialTrigger?.defaultDay ?? 1)
+  // Qarzdorlik eslatmasi — oyning bir nechta kuni (necha kun belgilansa, oyiga shuncha marta).
+  const [scheduleDays, setScheduleDays] = useState<number[]>(
+    rule?.scheduleDays?.length ? rule.scheduleDays : [rule?.scheduleDayOfMonth ?? initialTrigger?.defaultDay ?? 1],
+  )
   const [ack, setAck] = useState<boolean>(rule ? !!rule.ackButton : !!initialTrigger?.defaultAck)
   const [attachment, setAttachment] = useState<PickedAttachment | null>(rule?.attachment ?? null)
   const [saving, setSaving] = useState(false)
@@ -383,6 +432,7 @@ function RuleFormModal({
 
   const trigger = triggers.find((t) => t.key === triggerKey)
   const mode = trigger?.scheduleMode ?? 'none'
+  const multiDay = mode === 'monthly_day_time' && triggerKey === MULTI_DAY_TRIGGER
   const { preview, loading } = useMessagePreview({
     template: body,
     trigger: triggerKey,
@@ -409,6 +459,7 @@ function RuleFormModal({
     setScheduleType('daily')
     setScheduleTime(t.defaultTime ?? '09:00')
     setScheduleDay(t.defaultDay ?? 1)
+    setScheduleDays([t.defaultDay ?? 1])
     setAck(!!t.defaultAck)
   }
 
@@ -425,7 +476,11 @@ function RuleFormModal({
       setError('Xabar matni kerak')
       return
     }
-    if (mode === 'monthly_day_time' && (scheduleDay == null || scheduleDay < 1 || scheduleDay > 31)) {
+    if (multiDay && scheduleDays.length === 0) {
+      setError('Kamida bitta kun tanlang')
+      return
+    }
+    if (mode === 'monthly_day_time' && !multiDay && (scheduleDay == null || scheduleDay < 1 || scheduleDay > 31)) {
       setError("Oyning kuni 1–31 oralig'ida bo'lsin")
       return
     }
@@ -448,7 +503,8 @@ function RuleFormModal({
         sendScope: trigger.supportsSendScope ? sendScope : '',
         scheduleType: mode === 'monthly_day_time' ? 'monthly' : trigger.supportsSchedule ? scheduleType : 'daily',
         scheduleTime: scheduled ? scheduleTime : '09:00',
-        scheduleDayOfMonth: scheduleDay ?? 1,
+        scheduleDayOfMonth: multiDay ? scheduleDays[0] : (scheduleDay ?? 1),
+        scheduleDays: multiDay ? scheduleDays : undefined,
         ackButton: ack,
         attachmentId: attachment?.id ?? null,
       }
@@ -541,7 +597,19 @@ function RuleFormModal({
           </div>
 
           {/* Jadval — rejimga qarab */}
-          {mode === 'monthly_day_time' && (
+          {multiDay && (
+            <div className="space-y-2">
+              <MonthDaysPicker value={scheduleDays} onChange={setScheduleDays} />
+              <div className="grid grid-cols-2 gap-2">
+                <Input label="Soat" type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} />
+              </div>
+              <p className="text-xs text-slate-500">
+                {scheduleDays.length > 0 ? monthlySummary(scheduleDays, scheduleTime) : 'Kun tanlanmagan'}. Qarzini to'lagan
+                o'quvchiga keyingi eslatma ketmaydi; 29–31 qisqa oylarda oyning oxirgi kuniga tushadi.
+              </p>
+            </div>
+          )}
+          {mode === 'monthly_day_time' && !multiDay && (
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <NumberInput

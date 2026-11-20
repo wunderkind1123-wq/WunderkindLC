@@ -2459,6 +2459,12 @@ public partial class AutoMessageRule
     public string ScheduleType { get; set; } = "daily";   // daily|monthly (custom_schedule)
     public string ScheduleTime { get; set; } = "09:00";
     public int ScheduleDayOfMonth { get; set; } = 1;
+    /// <summary>
+    /// Oyning BIR NECHTA kuni (vergul bilan, "1,5,10,20") — hozircha faqat <c>payment_debt</c>: necha kun belgilansa
+    /// oyiga shuncha eslatma, har biri <see cref="ScheduleTime"/> da. Bo'sh — eski bitta kun (<see cref="ScheduleDayOfMonth"/>).
+    /// Qoida — <c>AutoMessageSchedule.DaysOf</c>.
+    /// </summary>
+    public string ScheduleDays { get; set; } = "";
     public DateTime CreatedAt { get; set; } = AppClock.Now;
 }
 

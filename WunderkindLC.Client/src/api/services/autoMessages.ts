@@ -74,6 +74,9 @@ export interface AutoMessageRule {
   scheduleTime: string
   /** Oylik rejada — oyning nechanchi kuni (1-31; 31 — qisqa oyda oyning oxirgi kuni) */
   scheduleDayOfMonth: number
+  /** Oyning BIR NECHTA kuni (hozircha faqat qarzdorlik eslatmasi, 2026-11-16): har biri scheduleTime da.
+   *  Serverdan har doim keladi (eski qoidada — [scheduleDayOfMonth]); yuborishda faqat payment_debt uchun. */
+  scheduleDays?: number[]
   createdAt: string
   /** «✅ Qabul qildim» tugmasi har Telegram xabarida. */
   ackButton?: boolean

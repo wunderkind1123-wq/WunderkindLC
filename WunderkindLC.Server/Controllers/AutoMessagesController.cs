@@ -166,8 +166,16 @@ public class AutoMessagesController(AppDbContext db, AuditService audit) : Contr
         rule.ScheduleType = req.ScheduleType == "monthly" ? "monthly" : "daily";
         rule.ScheduleTime = req.ScheduleTime;
         rule.ScheduleDayOfMonth = req.ScheduleDayOfMonth is >= 1 and <= 31 ? req.ScheduleDayOfMonth : 1;
-        // monthly_day_time (debt, rating_*) — the day is used through CustomReminderService.IsScheduledDay.
+        // monthly_day_time (debt, rating_*) — the day(s) are used through AutoMessageSchedule.IsScheduledDay.
         if (info.ScheduleMode == AutoMessageSchedule.MonthlyDayTime) rule.ScheduleType = "monthly";
+        // 2026-11-16: qarzdorlik eslatmasi — oyning BIR NECHTA kuni. ScheduleDayOfMonth = birinchi kun (eski o'quvchilar
+        // — MCP, ro'yxat — ma'noli qiymat ko'rsin). null (eski mijoz) / boshqa hodisa — bitta kun rejimi.
+        if (AutoMessageSchedule.SupportsMultipleDays(info.Key) && req.ScheduleDays is { Length: > 0 } days)
+        {
+            rule.ScheduleDays = AutoMessageSchedule.FormatDays(days);
+            rule.ScheduleDayOfMonth = AutoMessageSchedule.ParseDays(rule.ScheduleDays)[0];
+        }
+        else rule.ScheduleDays = "";
     }
 
     private static string? Validate(SaveAutoMessageRuleRequest req, AutoMessageTriggers.TriggerInfo? info)
@@ -193,6 +201,14 @@ public class AutoMessagesController(AppDbContext db, AuditService audit) : Contr
         {
             if (req.ScheduleDayOfMonth is < 1 or > 31) return "Oyning kuni 1-31 oralig'ida bo'lishi kerak";
             if (!AutoMessageSchedule.TryParseTime(req.ScheduleTime, out _)) return "Vaqt formati noto'g'ri (HH:mm)";
+            if (req.ScheduleDays is not null)
+            {
+                if (!AutoMessageSchedule.SupportsMultipleDays(info.Key) && req.ScheduleDays.Length > 1)
+                    return "Bu xabar oyiga faqat bir marta yuboriladi — bitta kun tanlang";
+                if (AutoMessageSchedule.SupportsMultipleDays(info.Key) && req.ScheduleDays.Length == 0)
+                    return "Kamida bitta kun tanlang";
+                if (req.ScheduleDays.Any(d => d is < 1 or > 31)) return "Oyning kuni 1-31 oralig'ida bo'lishi kerak";
+            }
         }
         else if (info.ScheduleMode == AutoMessageSchedule.DailyTime)
         {
@@ -219,7 +235,8 @@ public class AutoMessagesController(AppDbContext db, AuditService audit) : Contr
         new(r.Id, r.Trigger, r.Name, r.Enabled, AutoMessageChannels.Telegram(r), r.Audience, r.Template,
             r.OffsetMinutes, r.SendScope, r.ScheduleType, r.ScheduleTime, r.ScheduleDayOfMonth,
             r.CreatedAt.ToString("o"), r.AckButton, r.AttachmentId,
-            a is null ? null : new MessageAttachmentDto(a.Id, a.Kind, a.FileName, a.SizeBytes, a.ContentType));
+            a is null ? null : new MessageAttachmentDto(a.Id, a.Kind, a.FileName, a.SizeBytes, a.ContentType),
+            AutoMessageSchedule.DaysOf(r).ToArray());
 
     private Task<MessageAttachment?> AttachmentAsync(string? id) =>
         id is null ? Task.FromResult<MessageAttachment?>(null)
@@ -233,6 +250,10 @@ public class AutoMessagesController(AppDbContext db, AuditService audit) : Contr
     private static string Describe(AutoMessageRule r)
     {
         var label = AutoMessageTriggers.Get(r.Trigger)?.Label ?? r.Trigger;
-        return string.IsNullOrWhiteSpace(r.Name) || r.Name == label ? label : $"{r.Name} ({label})";
+        var name = string.IsNullOrWhiteSpace(r.Name) || r.Name == label ? label : $"{r.Name} ({label})";
+        // Jadvalli oylik xabarda tarixda QACHON yuborilishi ham ko'rinsin («1, 5, 10-kunlari, 09:00»).
+        return AutoMessageSchedule.ModeOf(r.Trigger) == AutoMessageSchedule.MonthlyDayTime
+            ? $"{name} — {AutoMessageSchedule.DescribeMonthly(r)}"
+            : name;
     }
 }

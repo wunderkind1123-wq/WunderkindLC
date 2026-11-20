@@ -9,9 +9,14 @@ namespace WunderkindLC.Application.Services;
 /// Avtomatik to'lov eslatmasi (fon xizmati, trigger <c>payment_debt</c>).
 ///
 /// <para>⚠️ <b>JADVAL — HAR QOIDANING O'ZIDAN</b> (CRM upgrade 2026-10-12, P2.5): har yoqilgan qoida oyning
-/// O'Z kunida (<c>ScheduleDayOfMonth</c>, 31 → qisqa oyda oxirgi kun) va O'Z soatida (<c>ScheduleTime</c>)
-/// ishlaydi (<see cref="AutoMessageSchedule.IsDue"/>). Ko'proq kun kerak bo'lsa — ko'proq qoida. Eski "1-sanada
-/// hamma, keyin har 2 kunda (toq kunlar) 09:00" jadvali OLIB TASHLANDI. Xizmat har 10 daqiqada uyg'onadi.</para>
+/// O'Z kunlarida (2026-11-16 dan BIR NECHTA kun — <c>ScheduleDays</c> "1,5,10,20", bo'sh bo'lsa eski
+/// <c>ScheduleDayOfMonth</c>; 31 → qisqa oyda oxirgi kun) va O'Z soatida (<c>ScheduleTime</c>) ishlaydi
+/// (<see cref="AutoMessageSchedule.IsDue"/>). Har kun alohida yugurish (ish belgisi sana bo'yicha) — qarzini to'lagan
+/// o'quvchi keyingi kunda o'z-o'zidan tushib qoladi. Xizmat har 10 daqiqada uyg'onadi.</para>
+///
+/// <para>⚠️ <b>AVVAL OYLIK HISOB</b> (<see cref="TuitionAccrualService.RunOnceAsync"/>): yangi oyning qarzi 12 soatlik
+/// fon siklida yoziladi; u eslatma soatidan keyin ishlasa qarzdorlar "yo'q" bo'lib, kun bajarildi deb belgilanardi
+/// (prod, 2026-11-01 — birorta eslatma ketmagan).</para>
 ///
 /// <para>⚠️ XABAR HAR FAN (kurs/guruh) UCHUN ALOHIDA ketadi (<see cref="DebtMessages"/>): o'quvchi ikki fanda o'qisa
 /// ota-onaga ikkita alohida eslatma boradi.</para>
@@ -122,8 +127,7 @@ public class PaymentReminderService(
         var ok = true;
         foreach (var rule in rules)
         {
-            var monthly = new AutoMessageRule { ScheduleType = "monthly", ScheduleDayOfMonth = rule.ScheduleDayOfMonth };
-            if (!CustomReminderService.IsScheduledDay(monthly, today)) continue;
+            if (!AutoMessageSchedule.IsScheduledDay(rule, today)) continue;
             ok &= await RunRuleAsync(rule.Id, today, ct);
         }
         return ok;
@@ -142,6 +146,17 @@ public class PaymentReminderService(
             .FirstOrDefaultAsync(r => r.Id == ruleId && r.Enabled && r.Trigger == AutoMessageTriggers.PaymentDebt, ct);
         if (rule is null) return true;
         var ruleKey = JobRunMarker.For(JobKey, rule.Id);
+
+        // Yangi oy qarzi hali yozilmagan bo'lishi mumkin (12 soatlik sikl) — avval hisob (idempotent, alohida scope:
+        // accrual har o'quvchini o'z qulfi ostida saqlaydi, bu kontekstga aralashmasin).
+        // Accrual xatosi eslatmani TO'XTATMAYDI (mavjud qarzlar bo'yicha baribir yuboriladi) — faqat log.
+        try
+        {
+            using var accrualScope = services.CreateScope();
+            await TuitionAccrualService.RunOnceAsync(accrualScope.ServiceProvider, logger);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex) { logger.LogError(ex, "To'lov eslatmasi: oylik hisobni yangilab bo'lmadi — mavjud qarzlar bo'yicha davom etiladi"); }
         var meta = await db.CenterMeta.FirstOrDefaultAsync(ct);
         var centerName = meta?.Name ?? "";
 
