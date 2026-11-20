@@ -139,9 +139,10 @@ public class SubjectPriceBandBillingTests
         AddMembership(ctx, s, g, $"{M(-2)}-01");
         await ctx.SaveChangesAsync();
 
-        Assert.True(await TuitionService.EnsureChargeAsync(ctx, s, g.Id, M(1)));
+        // Kelgusi oy hisobini avans endi ochmaydi (2026-11-20) — joriy oyda narx oraliqdan olinishi tekshiriladi.
+        Assert.True(await TuitionService.EnsureChargeAsync(ctx, s, g.Id, M(0)));
         await ctx.SaveChangesAsync();
-        Assert.Equal(MidFee, await ChargeOf(ctx, s, M(1)));
+        Assert.Equal(MidFee, await ChargeOf(ctx, s, M(0)));
     }
 
     // ============================ Qisman oy ============================

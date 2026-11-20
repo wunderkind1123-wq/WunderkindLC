@@ -299,7 +299,28 @@ public class AuditFixT3Tests
         var partial = ctx.MonthlyCharges.Local.Single(c => c.StudentId == late.Id && c.Month == M(0));
         Assert.Equal((DateTime.DaysInMonth(AppClock.Today.Year, AppClock.Today.Month) - 27) * 25_000m, partial.Amount);
         Assert.True(partial.Amount < Fee);
-        Assert.True(await TuitionService.EnsureChargeAsync(ctx, late, g.Id, M(1)));    // keyingi oy — odatdagi avans
+        // Keyingi oy — 2026-11-20 dan AVANS hisob ochmaydi (oy kelganda accrual yozadi).
+        Assert.False(await TuitionService.EnsureChargeAsync(ctx, late, g.Id, M(1)));
+    }
+
+    [Fact]
+    public async Task Joriy_oy_TOLIQ_va_kelgusi_oyga_OZGINA_tolansa__kelgusi_hisob_ochilmaydi_QARZDOR_emas()
+    {
+        // 2026-11-20 (egasi, prod: 335 000 → «noyabr 295 000 + dekabr 40 000», oila −295 000 "qarzdor" ko'rinardi).
+        using var db = TestDb.Sqlite();
+        var ctx = db.Context;
+        var (s, g) = Setup(ctx);
+        ctx.MonthlyCharges.Add(new MonthlyCharge { StudentId = s.Id, GroupId = g.Id, Month = M(0), Amount = Fee, Date = $"{M(0)}-01" });
+        s.Balance = -Fee;
+        await ctx.SaveChangesAsync();
+
+        var res = await Pay(ctx, s, g.Id, M(0), Fee + 40_000m);
+
+        Assert.Null(res.Error);
+        Assert.Null(await ChargeOf(ctx, s, g.Id, M(1)));                // kelgusi oy hisobi OCHILMADI
+        Assert.Equal(40_000m, await Balance(ctx, s));                   // avans, qarz emas
+        var ahead = (await ctx.FinanceTransactions.AsNoTracking().Where(t => t.Month == M(1)).ToListAsync()).Sum(t => t.Amount);
+        Assert.Equal(40_000m, ahead);                                    // pul kelgusi oy tegi bilan turibdi
     }
 
     // ============================ FIN-4 — avans bekor qilinsa ============================
@@ -310,6 +331,9 @@ public class AuditFixT3Tests
         using var db = TestDb.Sqlite();
         var ctx = db.Context;
         var (s, g) = Setup(ctx);
+        // ESKI ma'lumot: 2026-11-20 gacha avans kelgusi oy hisobini ochardi — bunday qator bazada qolgan bo'lishi mumkin.
+        ctx.MonthlyCharges.Add(new MonthlyCharge { StudentId = s.Id, GroupId = g.Id, Month = M(1), Amount = Fee, Date = $"{M(1)}-01" });
+        s.Balance = -Fee;
         await ctx.SaveChangesAsync();
         var res = await Pay(ctx, s, g.Id, M(1));
         Assert.NotNull(await ChargeOf(ctx, s, g.Id, M(1)));
@@ -332,6 +356,9 @@ public class AuditFixT3Tests
         using var db = TestDb.Sqlite();
         var ctx = db.Context;
         var (s, g) = Setup(ctx);
+        // ESKI ma'lumot (yuqoridagi test bilan bir xil): avans ochgan kelgusi oy hisobi.
+        ctx.MonthlyCharges.Add(new MonthlyCharge { StudentId = s.Id, GroupId = g.Id, Month = M(1), Amount = Fee, Date = $"{M(1)}-01" });
+        s.Balance = -Fee;
         await ctx.SaveChangesAsync();
         var first = await Pay(ctx, s, g.Id, M(1), 100_000m);
         await ctx.FinanceTransactions.ExecuteUpdateAsync(x => x.SetProperty(t => t.CreatedAt, DateTime.UtcNow.AddMinutes(-1)));

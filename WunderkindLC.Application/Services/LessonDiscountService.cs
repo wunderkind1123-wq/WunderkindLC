@@ -191,12 +191,13 @@ public static class LessonDiscountService
         IAppDbContext db, Student s, Group g, string month, int lessons, int? attended, decimal lessonPrice, decimal amount,
         string why, string actorId, string actorName, CancellationToken ct)
     {
-        // Hisob qatori kerak: yo'q bo'lsa (masalan kelgusi oy) avans to'lovdagi kabi yaratiladi.
+        // Hisob qatori kerak: yo'q bo'lsa (masalan kelgusi oy) yaratiladi. ⚠️ Kelgusi oy hisobini endi AVANS to'lov
+        // ochmaydi (2026-11-20), bu yerda esa ATAYIN ochiladi (`allowFuture`): chegirma qatorga yoziladi va u qulflanadi.
         var charge = await db.MonthlyCharges
             .FirstOrDefaultAsync(c => c.StudentId == s.Id && c.GroupId == g.Id && c.Month == month, ct);
         if (charge is null)
         {
-            await TuitionService.EnsureChargeAsync(db, s, g.Id, month);
+            await TuitionService.EnsureChargeAsync(db, s, g.Id, month, allowFuture: true);
             charge = db.MonthlyCharges.Local.FirstOrDefault(c => c.StudentId == s.Id && c.GroupId == g.Id && c.Month == month)
                      ?? throw new InvalidOperationException($"{month} oyi uchun hisob yaratib bo'lmadi");
         }

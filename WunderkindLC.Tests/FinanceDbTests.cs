@@ -326,7 +326,7 @@ public class FinanceDbTests
     // ==================== EnsureChargeAsync (avans) ====================
 
     [Fact]
-    public async Task EnsureCharge_kelajak_oy_hisobini_ochadi_va_IDEMPOTENT()
+    public async Task EnsureCharge_JORIY_oy_hisobini_ochadi_va_IDEMPOTENT()
     {
         // Hisob faqat FAOL a'zolikning accrual yozadigan oyiga ochiladi (2026-10-07, FIN-5) — shuning
         // uchun o'quvchi guruhda aktiv (ilgari a'zoliksiz o'quvchiga ham guruh hisobi ochilardi).
@@ -337,15 +337,70 @@ public class FinanceDbTests
         AddMembership(ctx, s, g, activatedAt: $"{M(-2)}-01");
         await ctx.SaveChangesAsync();
 
-        Assert.True(await TuitionService.EnsureChargeAsync(ctx, s, g.Id, M(2)));
+        Assert.True(await TuitionService.EnsureChargeAsync(ctx, s, g.Id, M(0)));
         await ctx.SaveChangesAsync();
-        Assert.False(await TuitionService.EnsureChargeAsync(ctx, s, g.Id, M(2)));
+        Assert.False(await TuitionService.EnsureChargeAsync(ctx, s, g.Id, M(0)));
         await ctx.SaveChangesAsync();
 
         var row = Assert.Single(ctx.MonthlyCharges);
-        Assert.Equal(M(2), row.Month);
+        Assert.Equal(M(0), row.Month);
         Assert.Equal(600_000m, row.Amount);
         Assert.Equal(-600_000m, s.Balance);   // ikki marta yechilmaydi
+    }
+
+    [Fact]
+    public async Task EnsureCharge_KELGUSI_oy_hisobini_OCHMAYDI__pul_avans_qarzdor_korinmaydi()
+    {
+        // 2026-11-20 (egasi): joriy oyini to'liq to'lab, kelgusi oyga ozgina bergan oila "qarzdor" ko'rinmasin.
+        using var db = TestDb.Sqlite();
+        var ctx = db.Context;
+        var g = AddGroup(ctx, 600_000m);
+        var s = AddStudent(ctx);
+        AddMembership(ctx, s, g, activatedAt: $"{M(-2)}-01");
+        await ctx.SaveChangesAsync();
+
+        Assert.False(await TuitionService.EnsureChargeAsync(ctx, s, g.Id, M(1)));
+        Assert.False(await TuitionService.EnsureChargeAsync(ctx, s, g.Id, M(2)));
+        await ctx.SaveChangesAsync();
+        Assert.Empty(ctx.MonthlyCharges);
+        Assert.Equal(0m, s.Balance);
+
+        // Kelmagan darslar chegirmasi uchun ATAYIN ochiladi.
+        Assert.True(await TuitionService.EnsureChargeAsync(ctx, s, g.Id, M(1), allowFuture: true));
+    }
+
+    [Fact]
+    public async Task Eski_KELGUSI_oy_avans_hisoblari_BIR_MARTA_bekor_qilinadi__qisman_va_qulfli_qoladi()
+    {
+        using var db = TestDb.Sqlite();
+        var ctx = db.Context;
+        var g = AddGroup(ctx, 600_000m);
+        var paidAhead = AddStudent(ctx);              // joriy oyni yopgan + kelgusi oyga 40 000
+        AddMembership(ctx, paidAhead, g, activatedAt: $"{M(-2)}-01");
+        var futureAct = AddStudent(ctx);              // kelgusi oyda aktivlashadi — QISMAN hisob accrual yozmaydi
+        AddMembership(ctx, futureAct, g, activatedAt: $"{M(1)}-15");
+        var locked = AddStudent(ctx);                 // qo'lda tahrirlangan kelgusi oy
+        AddMembership(ctx, locked, g, activatedAt: $"{M(-2)}-01");
+        ctx.MonthlyCharges.AddRange(
+            new MonthlyCharge { StudentId = paidAhead.Id, GroupId = g.Id, Month = M(0), Amount = 600_000m, Date = $"{M(0)}-01" },
+            new MonthlyCharge { StudentId = paidAhead.Id, GroupId = g.Id, Month = M(1), Amount = 600_000m, Date = $"{M(1)}-01" },
+            new MonthlyCharge { StudentId = futureAct.Id, GroupId = g.Id, Month = M(1), Amount = 300_000m, Date = $"{M(1)}-15" },
+            new MonthlyCharge { StudentId = locked.Id, GroupId = g.Id, Month = M(1), Amount = 0m, Date = $"{M(1)}-01", Locked = true });
+        paidAhead.Balance = 640_000m - 1_200_000m;    // to'langan 640 000, hisoblar 1 200 000 → −560 000 ("qarzdor")
+        futureAct.Balance = -300_000m;
+        await ctx.SaveChangesAsync();
+
+        Assert.Equal(1, await TuitionService.DropFutureAdvanceChargesOnceAsync(ctx));
+        Assert.Null(await TuitionService.DropFutureAdvanceChargesOnceAsync(ctx));   // bir martalik
+
+        Assert.Equal(40_000m, (await ctx.Students.AsNoTracking().SingleAsync(s => s.Id == paidAhead.Id)).Balance);
+        Assert.False(await ctx.MonthlyCharges.AnyAsync(c => c.StudentId == paidAhead.Id && c.Month == M(1)));
+        Assert.True(await ctx.MonthlyCharges.AnyAsync(c => c.StudentId == paidAhead.Id && c.Month == M(0)));
+        Assert.True(await ctx.MonthlyCharges.AnyAsync(c => c.StudentId == futureAct.Id && c.Month == M(1)));
+        Assert.True(await ctx.MonthlyCharges.AnyAsync(c => c.StudentId == locked.Id && c.Month == M(1)));
+        var log = Assert.Single(ctx.AuditLogs.AsNoTracking());
+        Assert.Equal(paidAhead.Id, log.StudentId);
+        Assert.Contains("kelgusi oy hisobi bekor qilindi", log.Summary);
     }
 
     [Fact]

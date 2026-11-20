@@ -873,6 +873,20 @@ Boshqa kirim**; filial xarajatlari ALOHIDA — **Ijara · Kommunal · Internet �
 
 ### AVANS HISOBI — faqat accrual YOZADIGAN oyga (`EnsureChargeAsync`)
 
+⚠️ **2026-11-20 dan KELGUSI OY HISOBI AVANSDAN OCHILMAYDI** (egasining talabi). Ilgari kelgusi oyga ozgina pul
+tushsa o'sha oyning TO'LIQ hisobi darhol ochilar va joriy oyini to'liq yopgan oila balansi manfiy — "qarzdor" bo'lib
+ko'rinar edi (prod: 335 000 → «noyabr 295 000 + dekabr 40 000», balans −295 000; to'lov eslatmasining zaxira yo'li
+«qarzdorlik: 295 000» yuborardi). Endi joriy oydan keyingi oy uchun `EnsureChargeAsync` hisob OCHMAYDI: pul (guruh,
+oy) tegi bilan AVANS (+balans), oy kelganda `AccrueMonth` hisobni odatdagidek yozadi va avans uni yopadi. Qarzdor =
+faqat joriy va o'tgan oylar. To'lov oynasi kelgusi oylarni avvalgidek narxdan PREVIEW qiladi (`StudentGroupLedger`),
+oylarga taqsimlash ham shu bo'yicha. ISTISNO — kelmagan darslar chegirmasi (`allowFuture: true`): admin kelgusi oyga
+ATAYIN chegirma qo'yadi, qator `Locked`. Aktivlashtirish oyining qisman hisobi (pastdagi istisno) o'zgarmadi.
+ESKI kelgusi oy hisoblari startupda BIR MARTA bekor qilindi (`TuitionService.DropFutureAdvanceChargesOnceAsync`,
+SeedMarker `future-advance-charges-drop-2026-11`, `CrmSetup`): faqat accrual AYNAN qayta yozadigan qator (faol
+a'zolik, `AccruableMonth`, arxivsiz, `Locked` emas) — balansga qaytadi, har o'quvchiga `StudentDiscount` audit qatori.
+Testlar: `AuditFixT3Tests.Joriy_oy_TOLIQ_va_kelgusi_oyga_OZGINA_tolansa…`, `FinanceDbTests.EnsureCharge_KELGUSI…`,
+`Eski_KELGUSI_oy_avans_hisoblari…`.
+
 To'lov (`PaymentIntake`), to'lovni tahrirlash (`UpdatePayment`) va kelmagan darslar chegirmasi hisob
 ochishi mumkin — endi AYNAN `AccrueMonth` shartida: a'zolik `active` + `IsActive` va oy `AccruableMonth`
 (aktivlashtirish oyidan KEYIN, muzlatish oyidan OLDIN), o'quvchi arxivlanmagan. Guruhsiz (null) hisob —

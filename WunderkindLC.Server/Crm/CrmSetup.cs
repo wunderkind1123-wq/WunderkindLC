@@ -14,5 +14,20 @@ public static class CrmSetup
         await CrmRatingSetup.RunStartupAsync(services);
         await CrmWorkspaceSetup.RunStartupAsync(services);
         await CrmAccountsSetup.RunStartupAsync(services);
+        await DropFutureAdvanceChargesAsync(services);
+    }
+
+    /// <summary>Bir martalik: avans ochgan KELGUSI oy hisoblari bekor qilinadi (`billing.md` «AVANS HISOBI»).</summary>
+    private static async Task DropFutureAdvanceChargesAsync(IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WunderkindLC.Application.Abstractions.IAppDbContext>();
+        var log = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Billing");
+        try
+        {
+            var n = await WunderkindLC.Application.Services.TuitionService.DropFutureAdvanceChargesOnceAsync(db);
+            if (n is not null) log.LogInformation("[billing] kelgusi oy avans hisoblari bekor qilindi: {Count} ta", n);
+        }
+        catch (Exception ex) { log.LogWarning(ex, "[billing] kelgusi oy avans hisoblarini tozalab bo'lmadi"); }
     }
 }
