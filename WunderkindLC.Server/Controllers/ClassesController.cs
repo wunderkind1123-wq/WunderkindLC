@@ -1133,6 +1133,74 @@ public partial class ClassesController(AppDbContext db, AuditService audit, ILog
     }
 
     /// <summary>
+    /// YAKKA «KURSNI TUGATDI» (2026-11-25, mijoz: "o'quvchini bitirdi deb belgilasa o'qituvchi samaradorligiga
+    /// ta'sir qilmasin va statistikasi hisobotlarda ko'rinsin"). Guruh davom etadi — faqat shu o'quvchi chiqadi.
+    /// <para>Guruhni «Tugatish» (<see cref="CompleteAndTransfer"/>) dagi bitta a'zo bilan AYNAN bir xil holat:
+    /// hisob <see cref="MembershipBilling.LeaveGroupAsync"/> bilan yopiladi (chiqish oyi qisman, keyingi oylar
+    /// bekor — «Guruhdan chiqarish» bilan bir xil pul), so'ng <c>Status="completed"</c>, <c>FrozenAt=LeftAt</c>.
+    /// Shu holat tufayli <see cref="DashboardSummary.LeftEvents"/> uni KETISH deb sanamaydi — bosh sahifa,
+    /// «Ketish sabablari» (o'qituvchi foizi), KPI, kurs analitikasi o'zgarishsiz to'g'ri ishlaydi.</para>
+    /// <para>FAQAT faol (<c>active</c>) a'zolik va arxivda bo'lmagan o'quvchi (<see cref="GroupCompletionRules.Completes"/>):
+    /// sinovdagi/muzlatilgan o'quvchini "bitirdi" deb haqiqiy ketishni yashirib bo'lmasin. Sertifikat BERILMAYDI
+    /// (mijoz: "berish shart emas"). Sabab (<c>MembershipReasons</c>) YOZILMAYDI — ketish emas.</para>
+    /// <para>Ruxsat — boshqa a'zolik amallari (aktivlashtirish, muzlatish, sinovga qaytarish) bilan bir xil:
+    /// <c>classes.list</c>, POST → <c>create</c> (administratorlar, servis menejerlar va boshqaruv).</para>
+    /// </summary>
+    [HttpPost("{id}/members/{studentId}/complete")]
+    public async Task<IActionResult> CompleteMember(string id, string studentId, CompleteMemberRequest req)
+    {
+        var (noteText, noteError) = LeaveNotes.Clean(req.Note);
+        if (noteError is not null) return BadRequest(new { message = noteError });
+
+        var today = AppClock.Today;
+        var leftAt = today.ToString("yyyy-MM-dd");
+        if (!string.IsNullOrWhiteSpace(req.Date))
+        {
+            if (!DateOnly.TryParse(req.Date.Trim(), out var d)) return BadRequest(new { message = "Sana noto'g'ri" });
+            if (d > today) return BadRequest(new { message = "Sana kelajakda bo'lishi mumkin emas" });
+            leftAt = d.ToString("yyyy-MM-dd");
+        }
+
+        var cls = await db.Classes.FindAsync(id);
+        var student = await db.Students.FindAsync(studentId);
+        if (cls is null || student is null) return NotFound(new { message = "Guruh yoki o'quvchi topilmadi" });
+
+        // Pul amali — o'quvchi qulfi, balans qulf ICHIDA qayta o'qiladi (`RemoveMember` naqshi).
+        using var gate = await PaymentIdempotency.LockAsync("student:" + studentId);
+        var sg = await db.StudentGroups
+            .FirstOrDefaultAsync(x => x.GroupId == id && x.StudentId == studentId && x.IsActive);
+        if (sg is null) return NotFound(new { message = "Faol a'zolik topilmadi" });
+        if (student.IsArchived)
+            return BadRequest(new { message = "O'quvchi arxivda — avval arxivdan qaytaring" });
+        if (sg.Status != "active")
+            return BadRequest(new
+            {
+                message = sg.Status == "trial"
+                    ? "Sinovdagi o'quvchi kursni tugatgan bo'la olmaydi — «Guruhdan chiqarish»dan foydalaning"
+                    : "Muzlatilgan o'quvchi kursni tugatgan bo'la olmaydi — avval aktivlashtiring yoki «Guruhdan chiqarish»",
+            });
+        if ((sg.ActivatedAt ?? "").Length >= 10 && string.CompareOrdinal(leftAt, sg.ActivatedAt) < 0)
+            return BadRequest(new { message = $"Sana aktivlashtirilgan kundan ({sg.ActivatedAt[..10]}) oldin bo'lishi mumkin emas" });
+
+        await StudentBalanceSync.ReloadAsync(db, student);
+        var restored = (await MembershipBilling.LeaveGroupAsync(db, student, cls, sg, leftAt)).Restored;
+        // Hisob chegarasi — guruhni «Tugatish» bilan bir xil (ledger/maosh/bonus FrozenAt'ga ham qaraydi).
+        sg.FrozenAt = leftAt;
+        sg.Status = "completed";
+        await ReleasePrimaryGroupNameAsync(student, cls);
+
+        audit.Record("Membership", $"{id}:{studentId}", "update",
+            $"Kursni tugatdi: {student.FullName} — {cls.Name} ({leftAt})"
+                + (restored > 0 ? $" — keyingi oylar hisobi bekor qilindi: {AuditService.Money(restored)} so'm" : ""),
+            studentId: studentId);
+        if (noteText is not null)
+            LeaveNotes.Add(db, studentId, $"Kursni tugatdi ({cls.Name}, {leftAt}): {noteText}", ActorId, Actor);
+
+        await db.SaveChangesAsync();
+        return Ok(new { ok = true, restored });
+    }
+
+    /// <summary>
     /// O'quvchining «asosiy guruh» yorlig'i (<see cref="Student.ClassName"/>) chiqqan guruh nomida
     /// qolmasin: boshqa TIRIK guruhi bo'lsa o'sha, bo'lmasa bo'sh. ⚠️ Ilgari chiqarilgan o'quvchi yorliq
     /// orqali guruhda "qolib ketardi": portalda guruh darslari va chati, ro'yxatda guruh belgisi va

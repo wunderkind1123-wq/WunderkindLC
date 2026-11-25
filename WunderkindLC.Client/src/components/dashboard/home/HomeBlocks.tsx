@@ -135,6 +135,7 @@ export function RedListBlock() {
 const DEBT_KIND_STYLE: Record<OtherDebtKind, string> = {
   left: 'bg-rose-50 text-rose-700',
   archived: 'bg-slate-100 text-slate-700',
+  completed: 'bg-emerald-50 text-emerald-700',
   trial: 'bg-violet-50 text-violet-700',
   frozen: 'bg-sky-50 text-sky-700',
 }

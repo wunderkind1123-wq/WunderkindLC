@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Trash2, UserPlus, Search, CheckCircle2, Snowflake, CalendarClock, Plus, RotateCcw, ArrowLeftRight, X } from 'lucide-react'
+import { Trash2, UserPlus, Search, CheckCircle2, Snowflake, CalendarClock, Plus, RotateCcw, ArrowLeftRight, X, Award } from 'lucide-react'
 import type { Group, GroupMember, Student } from '@/types'
 import {
   getGroupMembers,
@@ -8,6 +8,7 @@ import {
   activateMember,
   freezeMember,
   returnMemberToTrial,
+  completeMember,
   bulkFreezeMembers,
   bulkActivateMembers,
   bulkMembershipSummary,
@@ -60,7 +61,7 @@ export function ClassMembersModal({ group, onClose }: Props) {
    *  (oddiy "admin" ham ko'rmaydi; server tomonda ham AYNAN shu qoida tekshiriladi). */
   const canSetBonus = useSuperOrGranted('retentionBonus')
   /** Sabab bilan amal (muzlatish/chiqarish/sinovga qaytarish). */
-  const [reasonAction, setReasonAction] = useState<{ kind: 'freeze' | 'yearFreeze' | 'remove' | 'return'; m: GroupMember } | null>(null)
+  const [reasonAction, setReasonAction] = useState<{ kind: 'freeze' | 'yearFreeze' | 'remove' | 'return' | 'complete'; m: GroupMember } | null>(null)
   /** "Yangi o'quvchi" yaratish formasi ochiqmi — yaratilgach shu guruhga qo'shiladi. */
   const [newStudentOpen, setNewStudentOpen] = useState(false)
   /** Guruhni almashtirish modali — tanlangan a'zo. */
@@ -243,6 +244,10 @@ Kerak bo'lsa "Parolni tiklash" orqali yangi parol bering.`)
       else if (kind === 'remove') {
         const res = await removeGroupMember(group.id, m.studentId, reasonId, date, note, archive)
         if (res.archived) toast.success("O'quvchi arxivga o'tkazildi", m.fullName)
+      } else if (kind === 'complete') {
+        // Yakka «Kursni tugatdi» — ketish EMAS (o'qituvchi samaradorligiga ta'sir qilmaydi), sabab yo'q.
+        await completeMember(group.id, m.studentId, date, note)
+        toast.success('Kursni tugatdi deb belgilandi', m.fullName)
       } else await returnMemberToTrial(group.id, m.studentId, reasonId)
       const fresh = await getGroupMembers(group.id)
       setMembers(fresh)
@@ -526,6 +531,18 @@ Kerak bo'lsa "Parolni tiklash" orqali yangi parol bering.`)
                               <RotateCcw className="h-3.5 w-3.5" /> Sinovga
                             </button>
                           )}
+                          {/* Yakka «Kursni tugatdi» — faqat AKTIV a'zo (ketish emas, o'qituvchiga ta'sir qilmaydi). */}
+                          {m.status === 'active' && (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              title="Kursni tugatdi — ketish hisoblanmaydi"
+                              onClick={() => setReasonAction({ kind: 'complete', m })}
+                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+                            >
+                              <Award className="h-3.5 w-3.5" /> Tugatdi
+                            </button>
+                          )}
                           <button
                             type="button"
                             disabled={busy}
@@ -663,12 +680,19 @@ Kerak bo'lsa "Parolni tiklash" orqali yangi parol bering.`)
         category={
           reasonAction?.kind === 'freeze' || reasonAction?.kind === 'yearFreeze' ? 'freeze'
           : reasonAction?.kind === 'return' ? 'return_trial'
+          : reasonAction?.kind === 'complete' ? 'complete'
           : removeCategory(reasonAction?.m.status ?? 'trial')
         }
+        hideReason={reasonAction?.kind === 'complete'}
+        // Qarz bo'lsa — ogohlantirish (to'smaydi; yechim keyinroq, mijoz 2026-11-25). Balans — SHU guruh bo'yicha.
+        warning={reasonAction?.kind === 'complete' && reasonAction.m.balance < 0
+          ? `Diqqat: o'quvchining shu guruh bo'yicha ${formatMoney(-reasonAction.m.balance)} qarzi bor — u balansda qoladi.`
+          : undefined}
         title={
           reasonAction?.kind === 'freeze' ? 'Muzlatish'
           : reasonAction?.kind === 'yearFreeze' ? 'Aktiv muzlatish'
           : reasonAction?.kind === 'return' ? 'Sinovga qaytarish'
+          : reasonAction?.kind === 'complete' ? 'Kursni tugatdi'
           : "Guruhdan chiqarish"
         }
         message={
@@ -679,6 +703,8 @@ Kerak bo'lsa "Parolni tiklash" orqali yangi parol bering.`)
                 ? `${reasonAction.m.fullName} — shu sanadan muzlatiladi va «yangi o'quv yiliga o'tish» deb belgilanadi. Hisob-kitob oddiy muzlatish bilan bir xil.`
                 : reasonAction.kind === 'return'
                   ? `${reasonAction.m.fullName} guruhdan chiqadi va «Birinchi darsga yozilganlar» → «Sinovdan qaytganlar»ga o'tadi. Joriy oy hisobi bekor qilinadi (o'tgan oylar qoladi), ketish hisoblanmaydi, tarixda qoladi.`
+                  : reasonAction.kind === 'complete'
+                  ? `${reasonAction.m.fullName} kursni tugatgan deb belgilanadi va guruhdan chiqadi. Shu sanagacha qatnashgan darslari hisoblanadi, keyingi oylar hisobi bekor qilinadi. Bu ketish hisoblanmaydi — o'qituvchi samaradorligiga ta'sir qilmaydi, hisobotlarda «Tugatganlar» qatorida ko'rinadi.`
                   : reasonAction.m.status === 'active'
                     ? `${reasonAction.m.fullName} guruhdan chiqariladi — shu sanagacha qatnashgan darslari hisoblanadi, keyingi oylar hisobi bekor qilinadi.`
                     : `${reasonAction.m.fullName} ni guruhdan chiqarasizmi?`
@@ -688,12 +714,15 @@ Kerak bo'lsa "Parolni tiklash" orqali yangi parol bering.`)
           reasonAction?.kind === 'freeze' ? 'Muzlatish'
           : reasonAction?.kind === 'yearFreeze' ? 'Aktiv muzlatish'
           : reasonAction?.kind === 'return' ? 'Sinovga qaytarish'
+          : reasonAction?.kind === 'complete' ? 'Tugatdi deb belgilash'
           : 'Chiqarish'
         }
-        tone={reasonAction?.kind === 'freeze' || reasonAction?.kind === 'yearFreeze' ? 'sky' : reasonAction?.kind === 'return' ? 'brand' : 'red'}
+        tone={reasonAction?.kind === 'freeze' || reasonAction?.kind === 'yearFreeze' ? 'sky'
+          : reasonAction?.kind === 'return' || reasonAction?.kind === 'complete' ? 'brand' : 'red'}
         showDate={reasonAction?.kind === 'freeze' || reasonAction?.kind === 'yearFreeze'
+          || reasonAction?.kind === 'complete'
           || (reasonAction?.kind === 'remove' && reasonAction.m.status === 'active')}
-        showNote={reasonAction?.kind === 'remove'}
+        showNote={reasonAction?.kind === 'remove' || reasonAction?.kind === 'complete'}
         showArchive={reasonAction?.kind === 'remove' && canArchive}
         onConfirm={confirmReasonAction}
         onClose={() => setReasonAction(null)}

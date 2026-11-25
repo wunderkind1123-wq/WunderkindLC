@@ -29,9 +29,11 @@ public record RetentionLossReportDto(
 /// ketish foizining maxraji.</param>
 /// <param name="LossRate">Aktivdan ketganlar / <paramref name="ActiveBase"/> × 100; maxraj 0 bo'lsa null.</param>
 /// <param name="Retention">100 − <paramref name="LossRate"/> (ushlab qolish foizi).</param>
+/// <param name="Completed">Davrda KURSNI TUGATGANLAR — a'zolik <c>completed</c> (guruhni «Tugatish» yoki
+/// yakka «Kursni tugatdi»), chiqish sanasi davrda. Ketish EMAS: foizga kirmaydi, faqat ma'lumot (2026-11-25).</param>
 public record RetentionLossTotalsDto(
     int Left, int LeftActive, int LeftTrial, int Students, int OutOfControl, int NoReason,
-    int ActiveBase, double? LossRate, double? Retention);
+    int ActiveBase, double? LossRate, double? Retention, int Completed = 0);
 
 /// <summary>Sabab kesimi (doiraviy diagramma). <paramref name="OutOfControl"/> — "nazoratdan tashqari" sabab.</summary>
 public record RetentionLossReasonDto(string Label, int Count, bool OutOfControl);
@@ -40,9 +42,10 @@ public record RetentionLossReasonDto(string Label, int Count, bool OutOfControl)
 /// (<c>GroupTeacherHistory</c>), hozirgisiga emas.</summary>
 /// <param name="Left">Tanlangan <c>Kind</c> bo'yicha ketishlar.</param>
 /// <param name="LossRate">Aktivdan ketganlar / <paramref name="ActiveBase"/> × 100.</param>
+/// <param name="Completed">Shu o'qituvchidan kursni TUGATGANLAR (<see cref="RetentionLossTotalsDto.Completed"/>).</param>
 public record RetentionLossTeacherDto(
     string TeacherId, string TeacherName, int Left, int LeftActive, int LeftTrial,
-    int ActiveBase, double? LossRate);
+    int ActiveBase, double? LossRate, int Completed = 0);
 
 /// <summary>Oylik dinamika (ustunli diagramma) — ikkala tur ham.</summary>
 public record RetentionLossMonthDto(string Month, int LeftActive, int LeftTrial);

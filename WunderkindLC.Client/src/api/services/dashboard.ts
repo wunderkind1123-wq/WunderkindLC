@@ -52,8 +52,8 @@ export interface DashboardSummary {
   archived: number
 }
 
-/** «Boshqa qarzdorlar» toifasi: guruhdan ketgan · arxivdagi · sinovdagi · muzlatilgan (server `DashboardSummary.OtherDebtKinds`). */
-export type OtherDebtKind = 'left' | 'archived' | 'trial' | 'frozen'
+/** «Boshqa qarzdorlar» toifasi: guruhdan ketgan · arxivdagi · kursni tugatgan (2026-11-25) · sinovdagi · muzlatilgan (server `DashboardSummary.OtherDebtKinds`). */
+export type OtherDebtKind = 'left' | 'archived' | 'completed' | 'trial' | 'frozen'
 
 export interface OtherDebtGroup {
   kind: OtherDebtKind

@@ -8,7 +8,7 @@ import {
   CalendarDays, Clock, MapPin, Wallet, Snowflake, CheckCircle2,
   ListChecks, ChevronRight, ChevronDown, Plus, Minus, Repeat, CalendarClock, Flag, TrendingUp, Trophy,
   ArrowLeftRight, GraduationCap, RotateCcw, X, Pencil, ClipboardList, CalendarCheck, History,
-  MessageSquare, ArrowUpDown, Sparkles, EyeOff, PhoneCall,
+  MessageSquare, ArrowUpDown, Sparkles, EyeOff, PhoneCall, Award,
 } from 'lucide-react'
 import type { AbsenceReason, MasteryLevel, Group, GroupMember } from '@/types'
 import {
@@ -21,7 +21,7 @@ import {
   type GroupCurriculum,
 } from '@/api/services/curriculum'
 import {
-  activateMember, freezeMember, returnMemberToTrial, getClass, getGroupSmsRecipients, updateClass,
+  activateMember, freezeMember, returnMemberToTrial, completeMember, getClass, getGroupSmsRecipients, updateClass,
   getGroupMembers, getGroupRoster, removeGroupMember, type ClassPayload, type GroupRosterRow,
 } from '@/api/services/classes'
 import { getGroupPayments, type GroupPaymentsReport } from '@/api/services/finance'
@@ -173,7 +173,7 @@ export function ClassDetailPage() {
   /** Ro'yxatdagi "⋮" menyudan tanlangan a'zo + amal. */
   const [rosterTarget, setRosterTarget] = useState<GroupMember | null>(null)
   /** `yearFreeze` — «Aktiv muzlatish»: o'sha muzlatishning O'ZI, faqat yangi o'quv yili belgisi bilan. */
-  const [rosterReason, setRosterReason] = useState<'freeze' | 'yearFreeze' | 'return' | 'remove' | 'activate' | null>(null)
+  const [rosterReason, setRosterReason] = useState<'freeze' | 'yearFreeze' | 'return' | 'remove' | 'activate' | 'complete' | null>(null)
   const [rosterTransferOpen, setRosterTransferOpen] = useState(false)
   const [rosterExtensionOpen, setRosterExtensionOpen] = useState(false)
   const [rosterDate, setRosterDate] = useState('')
@@ -590,6 +590,10 @@ export function ClassDetailPage() {
       else if (rosterReason === 'remove') {
         const res = await removeGroupMember(id, rosterTarget.studentId, reasonId, date, note, archive)
         if (res.archived) toast.success("O'quvchi arxivga o'tkazildi", rosterTarget.fullName)
+      } else if (rosterReason === 'complete') {
+        // Yakka «Kursni tugatdi» — ketish EMAS (o'qituvchi samaradorligiga ta'sir qilmaydi), sabab yo'q.
+        await completeMember(id, rosterTarget.studentId, date, note)
+        toast.success('Kursni tugatdi deb belgilandi', rosterTarget.fullName)
       } else await returnMemberToTrial(id, rosterTarget.studentId, reasonId)
       setRosterReason(null)
       setRosterTarget(null)
@@ -1000,6 +1004,7 @@ export function ClassDetailPage() {
                               onReturn={() => { openRoster(m); setRosterReason('return') }}
                               onTransfer={() => { openRoster(m); setRosterTransferOpen(true) }}
                               onExtension={() => { openRoster(m); setRosterExtensionOpen(true) }}
+                              onComplete={() => { openRoster(m); setRosterReason('complete') }}
                               onRemove={() => { openRoster(m); setRosterReason('remove') }}
                             />
                           ))}
@@ -1023,6 +1028,7 @@ export function ClassDetailPage() {
                                   onReturn={() => { openRoster(m); setRosterReason('return') }}
                                   onTransfer={() => { openRoster(m); setRosterTransferOpen(true) }}
                               onExtension={() => { openRoster(m); setRosterExtensionOpen(true) }}
+                                  onComplete={() => { openRoster(m); setRosterReason('complete') }}
                                   onRemove={() => { openRoster(m); setRosterReason('remove') }}
                                 />
                               ))}
@@ -1860,13 +1866,20 @@ export function ClassDetailPage() {
           rosterReason === 'freeze' || rosterReason === 'yearFreeze' ? 'freeze'
           : rosterReason === 'activate' ? 'activate'
           : rosterReason === 'remove' ? rosterRemoveCategory(rosterTarget?.status ?? 'trial')
+          : rosterReason === 'complete' ? 'complete'
           : 'return_trial'
         }
+        hideReason={rosterReason === 'complete'}
+        // Qarz bo'lsa — ogohlantirish (to'smaydi; yechim keyinroq, mijoz 2026-11-25). Balans — SHU guruh bo'yicha.
+        warning={rosterReason === 'complete' && rosterTarget && rosterTarget.balance < 0
+          ? `Diqqat: o'quvchining shu guruh bo'yicha ${formatMoney(-rosterTarget.balance)} qarzi bor — u balansda qoladi.`
+          : undefined}
         title={
           rosterReason === 'freeze' ? 'Muzlatish'
           : rosterReason === 'yearFreeze' ? 'Aktiv muzlatish'
           : rosterReason === 'activate' ? 'Aktivlashtirish'
           : rosterReason === 'remove' ? "Guruhdan chiqarish"
+          : rosterReason === 'complete' ? 'Kursni tugatdi'
           : 'Sinov darsiga qaytarish'
         }
         message={
@@ -1877,6 +1890,8 @@ export function ClassDetailPage() {
               ? `${rosterTarget.fullName} — shu sanadan muzlatiladi va «yangi o'quv yiliga o'tish» deb belgilanadi. Hisob-kitob oddiy muzlatish bilan bir xil.`
               : rosterReason === 'activate'
                 ? `${rosterTarget.fullName} — shu sanadan boshlab qisman oylik hisoblanadi.`
+                : rosterReason === 'complete'
+                  ? `${rosterTarget.fullName} kursni tugatgan deb belgilanadi va guruhdan chiqadi. Shu sanagacha qatnashgan darslari hisoblanadi, keyingi oylar hisobi bekor qilinadi. Bu ketish hisoblanmaydi — o'qituvchi samaradorligiga ta'sir qilmaydi, hisobotlarda «Tugatganlar» qatorida ko'rinadi.`
                 : rosterReason === 'remove'
                   ? rosterTarget.status === 'active'
                     ? `${rosterTarget.fullName} guruhdan chiqariladi — shu sanagacha qatnashgan darslari hisoblanadi, keyingi oylar hisobi bekor qilinadi.`
@@ -1889,14 +1904,16 @@ export function ClassDetailPage() {
           : rosterReason === 'yearFreeze' ? 'Aktiv muzlatish'
           : rosterReason === 'activate' ? 'Aktivlashtirish'
           : rosterReason === 'remove' ? 'Chiqarish'
+          : rosterReason === 'complete' ? 'Tugatdi deb belgilash'
           : 'Sinovga qaytarish'
         }
         tone={rosterReason === 'freeze' || rosterReason === 'yearFreeze' ? 'sky' : rosterReason === 'remove' ? 'red' : 'brand'}
         // Chiqarishda sana — faqat AKTIV a'zolikka (hisob shu sanagacha yopiladi).
         showDate={rosterReason === 'freeze' || rosterReason === 'yearFreeze' || rosterReason === 'activate'
+          || rosterReason === 'complete'
           || (rosterReason === 'remove' && rosterTarget?.status === 'active')}
         showRetentionBonus={rosterReason === 'activate' && canSetBonus}
-        showNote={rosterReason === 'remove'}
+        showNote={rosterReason === 'remove' || rosterReason === 'complete'}
         showArchive={rosterReason === 'remove' && can('students.list', 'create')}
         defaultDate={rosterDate}
         onConfirm={confirmRosterReason}
@@ -2068,7 +2085,7 @@ function Info({
 
 /** Chap ustundagi bitta a'zolik qatori — bosilsa profilga o'tadi, "⋮" menyu faqat FAOL a'zolarda. */
 function MemberRow({
-  m, back, canManage, canYearFreeze, onActivate, onFreeze, onYearFreeze, onReturn, onTransfer, onExtension, onRemove,
+  m, back, canManage, canYearFreeze, onActivate, onFreeze, onYearFreeze, onReturn, onTransfer, onExtension, onComplete, onRemove,
 }: {
   m: GroupMember
   /** Profilga o'tilganda "Orqaga" shu guruhga qaytarsin. */
@@ -2083,6 +2100,8 @@ function MemberRow({
   onTransfer: () => void
   /** «Uzaytirish qaydi» — kurs bosqichi tugab keyingisi boshlangani (KPI «Bonus B»). */
   onExtension: () => void
+  /** Yakka «Kursni tugatdi» — faqat AKTIV a'zoda (ketish emas, o'qituvchiga ta'sir qilmaydi). */
+  onComplete: () => void
   onRemove: () => void
 }) {
   // Rang ustuvorligi: chiqqan (line-through) → qarzdor (qizil) → sinov (sariq) → to'lagan (yashil).
@@ -2118,6 +2137,9 @@ function MemberRow({
         <span className={cn('min-w-0 flex-1 truncate text-sm font-medium', nameCls)}>{m.fullName}</span>
         {removed ? (
           <span className="shrink-0 text-[11px] text-slate-400">
+            {m.status === 'completed' && (
+              <span className="mr-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">Tugatdi</span>
+            )}
             {m.leftAt ? formatDate(m.leftAt) : 'Chiqgan'}
           </span>
         ) : (
@@ -2143,6 +2165,9 @@ function MemberRow({
               { label: "Boshqa guruhga o'tkazish", icon: ArrowLeftRight, onClick: onTransfer },
               // Uzaytirish — a'zolikni KO'CHIRMAYDI, faqat hodisani yozadi (`.claude/rules/kpi.md` §1).
               { label: 'Uzaytirish qaydi', icon: GraduationCap, onClick: onExtension },
+              ...(m.status === 'active'
+                ? [{ label: 'Kursni tugatdi', icon: Award, onClick: onComplete }]
+                : []),
               { label: 'Guruhdan chiqarish', icon: X, danger: true, onClick: onRemove },
             ]}
           />

@@ -54,7 +54,7 @@ export function TeacherRetentionCard({ teacherId }: { teacherId: string }) {
         <Loader label="Yuklanmoqda..." />
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
             <div className="rounded-xl bg-slate-50 p-3">
               <div className="font-mono text-xl font-semibold text-slate-800">{me?.leftActive ?? 0}</div>
               <div className="text-xs text-slate-500">aktivdan ketgan</div>
@@ -68,6 +68,11 @@ export function TeacherRetentionCard({ teacherId }: { teacherId: string }) {
                 {me?.lossRate == null ? '—' : `${Number(me.lossRate.toFixed(1))}%`}
               </div>
               <div className="text-xs text-slate-500">ketish foizi ({me?.activeBase ?? 0} aktivdan)</div>
+            </div>
+            {/* Kursni tugatganlar — ketish EMAS, foizga kirmaydi. */}
+            <div className="rounded-xl bg-emerald-50 p-3">
+              <div className="font-mono text-xl font-semibold text-emerald-700">{me?.completed ?? 0}</div>
+              <div className="text-xs text-emerald-700/80">kursni tugatgan</div>
             </div>
           </div>
 

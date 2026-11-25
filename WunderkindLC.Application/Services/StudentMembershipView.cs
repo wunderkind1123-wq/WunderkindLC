@@ -135,5 +135,17 @@ public static class StudentMembershipView
             s.MemberState = MembershipLifecycle.MemberState(mine);
             s.Active = s.MemberState == "active";
         }
+
+        // «Kursni tugatgan» (2026-11-25) — faqat tirik a'zoligi YO'Q, arxivlanmagan o'quvchilar uchun: ularning
+        // YOPILGAN a'zoliklari alohida (kichik) so'rov bilan o'qiladi, faol o'quvchilar uchun ortiqcha yuk yo'q.
+        var noLive = students.Where(s => !s.IsArchived && !byStudent.ContainsKey(s.Id)).Select(s => s.Id).ToList();
+        if (noLive.Count == 0) return;
+        var closed = (await db.StudentGroups.AsNoTracking()
+                .Where(sg => noLive.Contains(sg.StudentId)).ToListAsync(ct))
+            .GroupBy(m => m.StudentId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+        foreach (var s in students)
+            if (closed.TryGetValue(s.Id, out var all))
+                s.FinishedCourse = MembershipLifecycle.FinishedCourse(all);
     }
 }

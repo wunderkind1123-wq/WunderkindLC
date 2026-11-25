@@ -392,6 +392,11 @@ public partial class Student
     /// bilan o'tyapmiz").</para></summary>
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public string MemberState { get; set; } = string.Empty;
+    /// <summary>KURSNI TUGATIB chiqqan (2026-11-25): tirik a'zoligi yo'q va oxirgi chiqishi «kursni tugatdi»
+    /// (<c>MembershipLifecycle.FinishedCourse</c>). DB'ga yozilmaydi — ro'yxat endpointida hisoblanadi;
+    /// o'quvchilar «Arxiv» tabidagi qarzdorlar qidiruvi va «Kursni tugatgan» belgisi uchun.</summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public bool FinishedCourse { get; set; }
     /// <summary>Markazga kelgan (qabul) sanasi (ISO "YYYY-MM-DD"). Oylik to'lov shu oydan boshlanadi.</summary>
     public string EnrollmentDate { get; set; } = string.Empty;
     /// <summary>Tizimga kiritilgan vaqt (ISO). Ro'yxatni "yangi kiritilgani tepada" tartiblash uchun.

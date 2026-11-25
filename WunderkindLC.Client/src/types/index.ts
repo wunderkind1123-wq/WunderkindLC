@@ -857,6 +857,8 @@ export interface Student extends StudentListExtras {
    *  Bir nechta guruhda turlicha bo'lsa ustunlik: active > trial > yearFrozen > frozen.
    *  `yearFrozen` — muzlatilgan, lekin «Aktiv muzlatish» (yangi o'quv yili) bilan. */
   memberState?: 'active' | 'trial' | 'yearFrozen' | 'frozen' | ''
+  /** Kursni tugatib chiqqan (tirik a'zoligi yo'q, oxirgi chiqishi «kursni tugatdi») — server hisoblaydi. */
+  finishedCourse?: boolean
   /** Login/parol orqali tizimga kirish admin tomonidan cheklanganmi */
   loginBlocked?: boolean
   /** Markazga kelgan (qabul) sanasi (ISO) — oylik to'lov shu oydan boshlanadi */

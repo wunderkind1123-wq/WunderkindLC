@@ -45,7 +45,7 @@ Kartochkalar hammasi (`HOME_CARDS` tartibida), `cardsVisible = true`; bloklardan
 | `redList` | `students.attendance` | `RedListBlock` — `GET student-attendance/red-list?min=3`, eng uzun seriyalar top 10 (5+ qizil, 3+ sariq), o'quvchiga havola faqat `students.list` bo'lsa + «Barchasi» → `/admin/students/davomat?tab=qizil` |
 | `contactsToday` | `contacts` | `ContactsTodayBlock` — `contacts/meta` `due.todo` |
 | `aiAnalysis` | `ai` | `CenterAiAnalysisCard` |
-| `otherDebtors` | `students.list` | `OtherDebtorsBlock` — «Boshqa qarzdorlar»: guruhdan ketgan · arxivdagi · sinovdagi · muzlatilgan qarzdorlar (soni, jami, ro'yxat), `GET dashboard/other-debtors` |
+| `otherDebtors` | `students.list` | `OtherDebtorsBlock` — «Boshqa qarzdorlar»: guruhdan ketgan · arxivdagi · kursni tugatgan (2026-11-25, `retention-loss.md`) · sinovdagi · muzlatilgan qarzdorlar (soni, jami, ro'yxat), `GET dashboard/other-debtors` |
 
 ⚠️ **«Qarzdorlar» kartochkasi = FAQAT AKTIV o'quvchilar** (2026-11-03, egasining talabi): `DashboardSummary.DebtorKind`
 (arxiv → `archived`; aks holda `MemberState`: active / trial / frozen, tirik a'zoligi yo'q → `left`). Qolgan toifalar —

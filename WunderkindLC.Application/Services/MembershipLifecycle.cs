@@ -115,6 +115,24 @@ public static class MembershipLifecycle
             : frozen ? "frozen" : "";
     }
 
+    /// <summary>
+    /// O'quvchi KURSNI TUGATIB chiqqanmi (2026-11-25): birorta tirik a'zoligi YO'Q va OXIRGI chiqishi (eng kech
+    /// <c>LeftAt</c>) <c>completed</c> — guruhni «Tugatish» yoki yakka «Kursni tugatdi». Bitirib, keyin boshqa
+    /// guruhdan oddiy chiqqan — bitirgan EMAS (oxirgisi hal qiladi; <c>LeaverArchive.LastExit</c> bilan bir xil tartib).
+    /// Qarzdorlar «Kursni tugatganlar» toifasi va o'quvchilar ro'yxatidagi belgi shundan.
+    /// </summary>
+    public static bool FinishedCourse(IEnumerable<Domain.StudentGroup> memberships)
+    {
+        var list = memberships as IReadOnlyCollection<Domain.StudentGroup> ?? memberships.ToList();
+        if (list.Count == 0 || list.Any(m => m.IsActive)) return false;
+        var last = list
+            .Where(m => (m.LeftAt ?? "").Length >= 10)
+            .OrderByDescending(m => m.LeftAt, StringComparer.Ordinal)
+            .ThenByDescending(m => m.RecordedAt, StringComparer.Ordinal)
+            .FirstOrDefault();
+        return last?.Status == "completed";
+    }
+
     /// <summary>O'quvchi markazda FAOLmi — kamida BITTA tirik a'zoligi <c>Status=="active"</c>.
     /// <see cref="MemberState"/> bilan bitta manbadan (sinov/muzlatilgan — faol EMAS).</summary>
     public static bool IsActiveOverall(IEnumerable<Domain.StudentGroup> memberships) =>
