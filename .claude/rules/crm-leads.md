@@ -472,3 +472,29 @@ hisobot, «Tiklash») — faqat ko'rinish:
 - `leadMatchesStatus(…, 'all')` («Hammasi (arxivsiz)») ham yo'qotilganni OLMAYDI; Status filtridan «Yo'qotilgan (arxiv)» va
   «Yo'qotilganlar» (`lost=hide|only`) filtri OLIB TASHLANDI; «Arxivlash sababi» filtri — faqat Arxiv tabida.
 - Lid TO'LIQ ma'lumoti bilan (hodisalar, sinov darslari, topshiriqlar tarixi) bazada qoladi — Arxiv tabida ko'rinadi.
+
+## CALL CENTER «IMPORT» va SHAXSIY KONTAKTLAR (2026-11-25, egasi, migratsiya `AddLeadPrivateContacts`)
+
+Egasi: «call centerga import qilish tugmasi; bitta odam uchun kontakt yuklash — shu odamga ko'rinadi, boshqalarga yo'q,
+faqat director, superadmin va manager ko'ra oladi (amoCRM'dagidek)».
+
+- **`Lead.IsPrivate`** — SHAXSIY kontakt: faqat mas'ul (`AssigneeUserId`), superadmin, direktor (`admin` ROLI) va
+  **`leadContactsAll`** ruxsatli xodim (menejer) ko'radi. Standart `false` — mavjud lidlar o'zgarmadi. Mas'ul almashtirilsa
+  kontakt yangisiga o'tadi.
+- **Ko'rinish — bazaning GLOBAL filtri** (`AppDbContext.LeadViewerId`, `IsVoided` naqshi): Server middleware
+  (`Program.cs`, `UseAuthorization` dan keyin) `LeadVisibility.ViewerIdFor(User)` ni qo'yadi; cheklangan xodimning so'rovida
+  begona shaxsiy lid HAMMA joydan chiqadi — ro'yxat, kanban, lid sahifasi (`FindAsync` → 404), hisobotlar, MCP. Anonim
+  so'rov va fon xizmatlari — cheklovsiz. ⚠️ Lid ID bo'yicha BOSHQA jadvalni o'qiydigan endpoint (`events`, `trials`, lid
+  topshiriqlari) avval lidning ko'rinishini tekshiradi — yangi shunday endpoint yozsangiz, SHU tekshiruvni qo'ying.
+- ⚠️ **Takror tekshiruvi `IgnoreQueryFilters()`** — `LeadIntake.FindByPhoneAsync`, qo'lda lid yaratishdagi 409 (begona shaxsiy
+  kontakt «Boshqa operatorning shaxsiy kontakti» bo'lib, ismsiz va havolasiz), import. Aks holda o'sha odamga ikkinchi lid ochilardi.
+- ⚠️ **`leadContactsAll` — QATTIQ kalit** (bo'lim merosi yo'q, `permissions.md` §8): yalang `leads` ruxsatli eski operator
+  hammasini ko'rib qolmasin. Klient: `user.role === 'admin' || useSuperOrGranted('leadContactsAll')`.
+- **Import** — Call Center sarlavhasidagi «Import» (faqat yuqoridagilar), `LeadImportModal`: operator + `.xlsx`/`.csv`
+  (Ism · Telefon · Izoh, sarlavha ixtiyoriy, ≤ 2000, 5 MB), namuna CSV. `GET leads/import/operators` (staff — `leads.callcenter`
+  yoki `leads.list` bilan; + admin/superadmin), `POST leads/import`. Qoidalar — `LeadImport` (sof `BuildPlan`): xato telefon,
+  faylda takror, bazada LID bor (har qanday, filtrsiz), O'QUVCHI yoki ota-onasida bor — o'tkaziladi, natijada sababi bilan.
+  Lid: Call Center, birinchi bosqich, manba «Import», ismsiz — «Noma'lum (import)». Telegram kartasi va avto-xabar YO'Q;
+  har lidga `created` hodisasi, butun importga BITTA audit (`Lead`, `EntityId = "import"`).
+- Kanban kartasi (`LeadCard`, himoyalangan dizayn) O'ZGARTIRILMADI — DTO'da `IsPrivate` bor, belgi kerak bo'lsa mijoz bilan.
+- Testlar: `LeadPrivateContactsTests`.

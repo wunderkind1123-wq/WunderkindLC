@@ -38,7 +38,9 @@ import { TotalPill } from '@/components/ui/list/TotalPill'
 import { TablePagination, usePagination } from '@/components/ui/TablePagination'
 import { Loader } from '@/components/ui/Loader'
 import { apiErrorMessage } from '@/lib/utils'
-import { usePerm } from '@/lib/permissions'
+import { usePerm, useSuperOrGranted } from '@/lib/permissions'
+import { useAuth } from '@/context/auth-context'
+import { LeadImportModal } from './LeadImportModal'
 import { LeadColumn } from './LeadColumn'
 import { LeadCardContent } from './LeadCard'
 import { LeadFormModal, type LeadFormValues } from './LeadFormModal'
@@ -92,6 +94,12 @@ export function LeadsPage({ archive = false, mode }: { archive?: boolean; mode?:
   const navigate = useNavigate()
   const { values: f, set, clear, active: filtersActive, params } = useUrlFilters(FILTER_KEYS)
   const callCenter = !archive && mode === 'callcenter'
+  // Call Center «IMPORT» (2026-11-25) — faqat direktor (admin), superadmin va `leadContactsAll` ruxsatli menejer
+  // (server `LeadVisibility.SeesAll` bilan bir xil). `can()` bu yerda yaramaydi — kalit qattiq, meros yo'q.
+  const { user } = useAuth()
+  const leadContactsGranted = useSuperOrGranted('leadContactsAll')
+  const canImport = callCenter && (user?.role === 'admin' || leadContactsGranted)
+  const [importOpen, setImportOpen] = useState(false)
   const view: View = callCenter ? 'kanban' : 'table'
   /** Eski «Buyurtmalar → Kanban» havolasi (`?view=kanban`) — kanban endi Call Center'da. */
   const legacyKanban = !archive && !callCenter && params.get('view') === 'kanban'
@@ -491,6 +499,16 @@ export function LeadsPage({ archive = false, mode }: { archive?: boolean; mode?:
                 </p>
               </div>
             )}
+            {canImport && (
+              <button
+                type="button"
+                onClick={() => setImportOpen(true)}
+                className="h-[34px] shrink-0 rounded-lg border border-[#dbe0e6] bg-white px-3 text-[13px] font-medium text-black transition-colors hover:border-brand-600 hover:text-brand-600"
+                title="Fayldagi kontaktlarni bitta operatorga shaxsiy lid qilib yuklash"
+              >
+                Import
+              </button>
+            )}
             {/* Kanbanda edutizimdagidek keng "Qidirish" maydoni asboblar qatorida. */}
             {view === 'kanban' && (
               <div className="relative min-w-[200px] flex-1">
@@ -750,6 +768,14 @@ export function LeadsPage({ archive = false, mode }: { archive?: boolean; mode?:
             applyLossState(await markLeadLost(lostTarget.id, reasonId, comment))
             setLostTarget(null)
           }}
+        />
+      )}
+      {canImport && (
+        <LeadImportModal
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          // Yangi shaxsiy lidlar kanbanda darhol ko'rinsin (xato fon yangilashda — sahifa avvalgi holatda qoladi).
+          onImported={() => { getLeads().then(setLeads).catch(() => {}) }}
         />
       )}
     </div>

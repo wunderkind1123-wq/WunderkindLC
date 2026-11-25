@@ -416,3 +416,43 @@ export async function getFirstLessonLeads(filter: FirstLessonFilter = {}): Promi
   const { data } = await api.get<FirstLessonLead[]>('/admin/leads/first-lesson', { params })
   return data
 }
+
+// ---------- Call Center «Import» — shaxsiy kontaktlar (2026-11-25) ----------
+
+export interface LeadImportOperator {
+  id: string
+  fullName: string
+}
+
+export interface LeadImportSkip {
+  /** Fayldagi qator raqami (sarlavha — 1-qator). */
+  row: number
+  name: string
+  phone: string
+  reason: string
+}
+
+export interface LeadImportResult {
+  created: number
+  total: number
+  assigneeName: string
+  skipped: LeadImportSkip[]
+}
+
+/** Import qilinadigan operatorlar (faqat direktor/superadmin/menejer chaqira oladi). */
+export async function getLeadImportOperators(): Promise<LeadImportOperator[]> {
+  if (USE_MOCK) return []
+  const { data } = await api.get<LeadImportOperator[]>('/admin/leads/import/operators')
+  return data
+}
+
+/** Fayldagi kontaktlarni (.xlsx / .csv: Ism, Telefon, Izoh) tanlangan operatorga SHAXSIY lid qilib yuklaydi. */
+export async function importLeadContacts(file: File, assigneeUserId: string): Promise<LeadImportResult> {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('assigneeUserId', assigneeUserId)
+  const { data } = await api.post<LeadImportResult>('/admin/leads/import', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}

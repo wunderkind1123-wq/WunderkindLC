@@ -78,7 +78,9 @@ public static class LeadIntake
         // biriktirib yubormaslik uchun umuman qidirilmaydi.
         if (phoneKey.Length < 7) return null;
 
-        return await db.Leads
+        // ⚠️ IgnoreQueryFilters: begona operatorning SHAXSIY lidi ham topilsin (2026-11-25, `LeadVisibility`) —
+        // aks holda cheklangan xodim oqimida (Instagram «Lidga aylantirish» va h.k.) o'sha odamga ikkinchi lid ochilardi.
+        return await db.Leads.IgnoreQueryFilters()
             .Where(l => l.PhoneKey == phoneKey && l.ConvertedStudentId == null)
             .OrderBy(l => l.CreatedAt)
             .FirstOrDefaultAsync(ct);

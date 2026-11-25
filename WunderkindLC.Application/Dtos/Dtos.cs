@@ -938,7 +938,20 @@ public record LeadWithAttendanceDto(
     /// <summary>CALL CENTER navbatida (hali markazga kelmagan) — `Lead.InCallCenter`. false — «Buyurtmalar»da.</summary>
     bool InCallCenter = false,
     /// <summary>«Markazga keldi» vaqti (Call Center'dan o'tgan bo'lsa).</summary>
-    string? ArrivedAt = null);
+    string? ArrivedAt = null,
+    /// <summary>SHAXSIY kontakt (Call Center «Import», `Lead.IsPrivate`) — kartada «Shaxsiy» belgisi.</summary>
+    bool IsPrivate = false);
+
+/// <summary>Call Center «Import» natijasi (<c>POST api/admin/leads/import</c>).</summary>
+/// <param name="Created">Yangi ochilgan shaxsiy lidlar soni.</param>
+/// <param name="Skipped">O'tkazib yuborilgan qatorlar — sababi bilan (bazada bor raqam, faylda takror, xato telefon).</param>
+public record LeadImportResultDto(int Created, int Total, string AssigneeName, List<LeadImportSkipDto> Skipped);
+
+/// <param name="Row">Fayldagi qator raqami (sarlavha — 1-qator).</param>
+public record LeadImportSkipDto(int Row, string Name, string Phone, string Reason);
+
+/// <summary>Import uchun operator tanlovi — Call Center bilan ishlay oladigan faol panel xodimlari.</summary>
+public record LeadImportOperatorDto(string Id, string FullName);
 
 /// <summary>
 /// «Birinchi darsga yozilganlar» qatori (<c>GET api/admin/leads/first-lesson</c>). Tanlov qoidasi —

@@ -18,7 +18,7 @@ namespace WunderkindLC.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.33")
+                .HasAnnotation("ProductVersion", "8.0.34")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
@@ -6431,6 +6431,9 @@ namespace WunderkindLC.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsPrivate")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("LastRepeatAt")
                         .IsRequired()
                         .HasColumnType("text");
@@ -6495,6 +6498,8 @@ namespace WunderkindLC.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("PhoneKey");
+
+                    b.HasIndex("IsPrivate", "AssigneeUserId");
 
                     b.ToTable("Leads");
                 });

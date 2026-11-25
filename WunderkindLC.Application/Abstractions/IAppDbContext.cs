@@ -38,6 +38,9 @@ public partial interface IAppDbContext
     DbSet<StudentNote> StudentNotes { get; }
     DbSet<StudentDiscount> StudentDiscounts { get; }
     DbSet<Lead> Leads { get; }
+    /// <summary>SHAXSIY lidlar ko'rinishi: null — hammasi; aks holda shu xodim begona shaxsiy lidni ko'rmaydi
+    /// (global filtr, <c>LeadVisibility</c>). Chaqiruvchi faqat o'qiydi — qo'yuvchi middleware.</summary>
+    string? LeadViewerId { get; set; }
     DbSet<LeadStage> LeadStages { get; }
     DbSet<LeadEvent> LeadEvents { get; }
     /// <summary>Lid haqida Telegramga yuborilgan xabarlar (lid × chat) — kartani TAHRIRLASH uchun.</summary>

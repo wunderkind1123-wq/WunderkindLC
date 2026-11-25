@@ -1427,6 +1427,17 @@ app.Use(async (context, next) =>
 
 app.UseAuthorization();
 
+// SHAXSIY KONTAKTLAR (Call Center «Import», 2026-11-25): cheklangan xodimning so'rovida bazaning global filtri begona
+// operatorning shaxsiy lidini HAMMA joydan chiqaradi (`LeadVisibility`, `AppDbContext.LeadViewerId`). MCP ham shu yerdan
+// o'tadi. Anonim so'rov, fon xizmatlari — cheklovsiz (takror tekshiruvi hamma lidni ko'rishi shart).
+app.Use(async (context, next) =>
+{
+    var viewer = WunderkindLC.Application.Services.LeadVisibility.ViewerIdFor(context.User);
+    if (viewer is not null)
+        context.RequestServices.GetRequiredService<WunderkindLC.Infrastructure.Data.AppDbContext>().LeadViewerId = viewer;
+    await next();
+});
+
 // MCP: avtorizatsiyadan KEYIN (ulanish ma'lum) — bir ulanishga 2 ta, jami 6 ta parallel so'rov.
 app.UseMcpConcurrency();
 
