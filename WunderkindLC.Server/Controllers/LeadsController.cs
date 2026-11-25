@@ -109,7 +109,7 @@ public class LeadsController(
             LostComment: lead.LostComment, LostByName: lead.LostByName,
             NextTaskAt: nextTask?.DueAt, NextTaskType: nextTask?.Type, NextTaskText: nextTask?.Text,
             NextTaskAllDay: nextTask?.AllDay ?? false, OpenTasks: nextTask?.OpenCount ?? 0,
-            InCallCenter: lead.InCallCenter, ArrivedAt: lead.ArrivedAt);
+            InCallCenter: lead.InCallCenter, ArrivedAt: lead.ArrivedAt, IsPrivate: lead.IsPrivate);
         }).ToList();
     }
 
@@ -304,12 +304,19 @@ public class LeadsController(
         var phoneKey = PhoneUtil.Key(lead.Phone);
         if (!force && phoneKey.Length >= 7)
         {
-            var same = await db.Leads.AsNoTracking()
+            // IgnoreQueryFilters — begona operatorning SHAXSIY kontakti ham takror sanaladi (2026-11-25), lekin uning
+            // ismi va havolasi cheklangan xodimga OCHILMAYDI (pastda yashiriladi).
+            var viewer = db.LeadViewerId;
+            var same = (await db.Leads.IgnoreQueryFilters().AsNoTracking()
                 .Where(l => l.PhoneKey == phoneKey)
                 .OrderBy(l => l.CreatedAt)
-                .Select(l => new { l.Id, l.FullName, l.Stage, l.ConvertedStudentId, l.LostAt })
+                .Select(l => new { l.Id, l.FullName, l.Stage, l.ConvertedStudentId, l.LostAt, l.IsPrivate, l.AssigneeUserId })
                 .Take(5)
-                .ToListAsync();
+                .ToListAsync())
+                .Select(l => viewer is null || !l.IsPrivate || l.AssigneeUserId == viewer
+                    ? l
+                    : l with { Id = "", FullName = "Boshqa operatorning shaxsiy kontakti", Stage = "" })
+                .ToList();
             if (same.Count > 0)
             {
                 var stageIds = same.Select(x => x.Stage).Distinct().ToList();
@@ -341,6 +348,63 @@ public class LeadsController(
         // Botda ro'yxatdan o'tgan admin/xodimlarga yangi lid xabarnomasi (kim kiritgani bilan).
         await LeadNotifier.NotifyNewLeadAsync(db, telegram, lead, createdBy: Actor(), logger: logger);
         return lead;
+    }
+
+    /// <summary>
+    /// CALL CENTER «IMPORT» — operator tanlovi (2026-11-25): Call Center/lidlar bilan ishlay oladigan panel xodimlari
+    /// (+ direktor/superadmin). Faqat import qila oladiganga (<see cref="LeadVisibility.SeesAll"/>).
+    /// </summary>
+    [HttpGet("import/operators")]
+    public async Task<ActionResult<List<LeadImportOperatorDto>>> ImportOperators()
+    {
+        if (!LeadVisibility.SeesAll(User))
+            return StatusCode(403, new { message = "Kontakt importi — faqat direktor, superadmin va menejer uchun" });
+        var users = await db.Users.AsNoTracking()
+            .Where(u => u.Role == Roles.Staff || u.Role == Roles.Admin || u.Role == Roles.SuperAdmin)
+            .Select(u => new { u.Id, u.FullName, u.Role, u.Permissions }).ToListAsync();
+        return users
+            .Where(u => u.Role != Roles.Staff
+                        || PermissionRules.HasSection(u.Permissions, "leads.callcenter")
+                        || PermissionRules.HasSection(u.Permissions, "leads.list"))
+            .OrderBy(u => u.FullName, StringComparer.OrdinalIgnoreCase)
+            .Select(u => new LeadImportOperatorDto(u.Id, u.FullName))
+            .ToList();
+    }
+
+    /// <summary>
+    /// CALL CENTER «IMPORT» (2026-11-25, amoCRM kabi): fayldagi kontaktlar TANLANGAN operatorga SHAXSIY lid bo'lib
+    /// tushadi — uni faqat o'sha operator, direktor, superadmin va <c>leadContactsAll</c> ruxsatli menejer ko'radi
+    /// (<see cref="LeadVisibility"/>). Qoidalar — <see cref="LeadImport"/>. Import qilish ham faqat ular uchun (403).
+    /// </summary>
+    [HttpPost("import")]
+    [RequestSizeLimit(5 * 1024 * 1024)]
+    public async Task<ActionResult<LeadImportResultDto>> Import([FromForm] IFormFile? file, [FromForm] string? assigneeUserId)
+    {
+        if (!LeadVisibility.SeesAll(User))
+            return StatusCode(403, new { message = "Kontakt importi — faqat direktor, superadmin va menejer uchun" });
+        if (file is null || file.Length == 0) return BadRequest(new { message = "Fayl tanlanmagan" });
+        if (string.IsNullOrWhiteSpace(assigneeUserId)) return BadRequest(new { message = "Operatorni tanlang" });
+
+        var operators = (await ImportOperators()).Value ?? [];
+        var op = operators.FirstOrDefault(o => o.Id == assigneeUserId);
+        if (op is null) return BadRequest(new { message = "Operator topilmadi yoki Call Center ruxsati yo'q" });
+
+        List<LeadImport.InputRow> rows;
+        await using (var stream = file.OpenReadStream())
+        {
+            // OpenXML qidiruv (seek) talab qiladi — xotiraga nusxa (hajm 5 MB bilan cheklangan).
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            ms.Position = 0;
+            var (read, error) = LeadImport.ReadFile(ms, file.FileName);
+            if (error is not null) return BadRequest(new { message = error });
+            rows = read;
+        }
+
+        var fileName = Path.GetFileName(file.FileName);
+        var plan = await LeadImport.ApplyAsync(db, audit, rows, op.Id, op.FullName, Actor(), UserId(), fileName);
+        if (plan.Create.Count > 0) await db.SaveChangesAsync();
+        return new LeadImportResultDto(plan.Create.Count, plan.Create.Count + plan.Skipped.Count, op.FullName, plan.Skipped);
     }
 
     /// <summary>Lid uchun BIR MARTALIK daraja-testi havolasini yaratadi va QAYTARADI — operator uni nusxalab
@@ -491,11 +555,15 @@ public class LeadsController(
     // ---------- Hodisalar tarixi ----------
 
     [HttpGet("{id}/events")]
-    public async Task<ActionResult<IEnumerable<LeadEventDto>>> Events(string id) =>
-        await db.LeadEvents.Where(e => e.LeadId == id)
+    public async Task<ActionResult<IEnumerable<LeadEventDto>>> Events(string id)
+    {
+        // Lid KO'RINADIMI — global filtr orqali (begona operatorning SHAXSIY lidi tarixi id bilan ham ochilmasin, 2026-11-25).
+        if (!await db.Leads.AnyAsync(l => l.Id == id)) return NotFound(new { message = "Lid topilmadi" });
+        return await db.LeadEvents.Where(e => e.LeadId == id)
             .OrderByDescending(e => e.CreatedAt)
             .Select(e => new LeadEventDto(e.Id, e.Type, e.Text, e.ActorName, e.CreatedAt))
             .ToListAsync();
+    }
 
     [HttpPost("{id}/events")]
     public async Task<IActionResult> AddEventEndpoint(string id, AddLeadEventRequest req)
@@ -511,14 +579,18 @@ public class LeadsController(
     // ---------- Sinov darslari ----------
 
     [HttpGet("{id}/trials")]
-    public async Task<ActionResult<IEnumerable<TrialLessonDto>>> Trials(string id) =>
-        await (from t in db.TrialLessons
+    public async Task<ActionResult<IEnumerable<TrialLessonDto>>> Trials(string id)
+    {
+        // Lid KO'RINADIMI — global filtr orqali (shaxsiy kontaktlar, 2026-11-25).
+        if (!await db.Leads.AnyAsync(l => l.Id == id)) return NotFound(new { message = "Lid topilmadi" });
+        return await (from t in db.TrialLessons
                where t.LeadId == id
                join c in db.Classes on t.GroupId equals c.Id into gj
                from c in gj.DefaultIfEmpty()
                orderby t.ScheduledAt descending
                select new TrialLessonDto(t.Id, t.LeadId, t.GroupId, c != null ? c.Name : "", t.ScheduledAt, t.Result, t.CreatedAt, t.AttendedAt))
               .ToListAsync();
+    }
 
     /// <summary>Lid uchun sinov darsi belgilash (guruh + vaqt).</summary>
     [HttpPost("{id}/trials")]

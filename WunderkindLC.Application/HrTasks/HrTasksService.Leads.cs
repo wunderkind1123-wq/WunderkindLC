@@ -31,6 +31,12 @@ public sealed partial class HrTasksService
                 join t in db.HrTasks.AsNoTracking() on l.TaskId equals t.Id
                 select new { Link = l, Task = t };
         if (!string.IsNullOrWhiteSpace(leadId)) q = q.Where(x => x.Link.LeadId == leadId);
+        // SHAXSIY KONTAKTLAR (2026-11-25, `LeadVisibility`): cheklangan xodimga begona operatorning shaxsiy lidi
+        // topshiriqlari (lid ismi bilan) chiqmasin. Lidi o'chirilgan (yetim) topshiriq — avvalgidek ko'rinadi.
+        var viewer = db.LeadViewerId;
+        if (viewer is not null)
+            q = q.Where(x => !db.Leads.IgnoreQueryFilters()
+                .Any(l => l.Id == x.Link.LeadId && l.IsPrivate && l.AssigneeUserId != viewer));
         var st = string.IsNullOrWhiteSpace(status) ? LeadTasks.StatusOpen : status.Trim();
         q = st switch
         {

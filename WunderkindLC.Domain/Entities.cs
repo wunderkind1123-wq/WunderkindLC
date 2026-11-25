@@ -1450,6 +1450,13 @@ public class Lead
 
     /// <summary>Lidni ISHLAGAN operator (<see cref="AppUser"/>.Id). KPI: "leads" ko'rsatkichi.</summary>
     public string? AssigneeUserId { get; set; }
+    /// <summary>
+    /// SHAXSIY kontakt (2026-11-25, Call Center «Import», amoCRM kabi): faqat mas'ul operator
+    /// (<see cref="AssigneeUserId"/>), superadmin, direktor (admin) va <c>leadContactsAll</c> ruxsatli xodim ko'radi.
+    /// Ko'rinish — <c>AppDbContext</c> GLOBAL filtri (har so'rovda; fon xizmatlari va ommaviy formalar cheklanmaydi).
+    /// Mas'ul almashtirilsa kontakt yangi mas'ulga o'tadi. Standart <c>false</c> — mavjud lidlar o'zgarmaydi.
+    /// </summary>
+    public bool IsPrivate { get; set; }
     /// <summary>Shartnomani YOPGAN admin (<see cref="AppUser"/>.Id). KPI: "contracts" ko'rsatkichi —
     /// bonus AYNAN shu xodimga yoziladi (lidni ochgan boshqa odam bo'lishi mumkin).</summary>
     public string? ClosedByUserId { get; set; }

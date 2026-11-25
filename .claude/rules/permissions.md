@@ -185,6 +185,9 @@ jadvalda controller ko'rsatilmagan).
   ruxsat, rol bilan xodim qo'shish yoki rolini almashtirish — aks holda admin o'zi yaratgan akkauntga kalitni berib, o'z
   chiqimlarini o'zi tasdiqlardi. Tasdiqlovchiga Moliya sahifasi uchun `finance.main` (ko'rish) ham kerak — «Chiqimlar tasdig'i»
   Moliya ichidagi tab.
+- **`leadContactsAll`** (2026-11-25) — Call Center SHAXSIY kontaktlarini (`Lead.IsPrivate`) HAMMA operator bo'yicha ko'rish
+  va IMPORT: superadmin, direktor (`admin` ROLI) yoki ANIQ berilgan xodim — menejer (`LeadVisibility.SeesAll`). Yalang `leads`
+  YETMAYDI (aks holda eski operatorlar hammasini ko'rardi). Batafsil: `crm-leads.md` «CALL CENTER «IMPORT»».
 - **`retentionBonus`** (aktivlashtirishdagi «Bonus hisoblansin» ptichkasi) —
   `useSuperOrGranted` / `AdminPermAttribute.IsSuperAdminOrGranted`: oddiy `admin` roli ham
   KO'RMAYDI, faqat superadmin va ANIQ ruxsat berilgan xodim. Sahifa kalitlari bu yerda

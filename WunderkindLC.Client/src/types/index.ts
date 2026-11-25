@@ -683,6 +683,8 @@ export interface Lead {
   inCallCenter?: boolean
   /** «Markazga keldi» vaqti (Call Center'dan o'tgan bo'lsa). */
   arrivedAt?: string | null
+  /** SHAXSIY kontakt (Call Center «Import») — faqat o'z operatori, direktor, superadmin va menejer ko'radi. */
+  isPrivate?: boolean
 }
 
 /**

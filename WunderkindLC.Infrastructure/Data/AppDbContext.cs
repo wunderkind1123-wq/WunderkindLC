@@ -14,6 +14,13 @@ namespace WunderkindLC.Infrastructure.Data;
 public partial class AppDbContext(DbContextOptions<AppDbContext> options)
     : DbContext(options), IAppDbContext
 {
+    /// <summary>
+    /// SHAXSIY lidlar ko'rinishi (2026-11-25): <c>null</c> — hamma lid; aks holda shu xodim (AppUser.Id) begona operatorning
+    /// shaxsiy (<see cref="Lead.IsPrivate"/>) lidini ko'rmaydi. Global filtr har so'rovda shu QIYMATNI o'qiydi.
+    /// Qo'yuvchi — Server `LeadVisibility` middleware'i.
+    /// </summary>
+    public string? LeadViewerId { get; set; }
+
     // Maktab ma'lumotlari
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
@@ -445,6 +452,13 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options)
         // hal qiladi (`LeadIntake.FindByPhoneAsync`). Qiymatni SaveChanges o'zi yozadi.
         b.Entity<Lead>().Property(l => l.PhoneKey).HasMaxLength(16);
         b.Entity<Lead>().HasIndex(l => l.PhoneKey);
+        // SHAXSIY KONTAKTLAR (Call Center «Import», 2026-11-25): cheklangan xodimning so'rovida begona operatorning
+        // shaxsiy lidi HAMMA joydan chiqadi (ro'yxat, kanban, lid sahifasi, qidiruv, hisobot, MCP) — 40+ faylda shart
+        // qo'shib birini unutish o'rniga (IsVoided naqshi). `LeadViewerId` FAQAT HTTP so'rovida, cheklangan xodim uchun
+        // qo'yiladi (`LeadVisibility` middleware); null — cheklov yo'q (superadmin, direktor, ruxsatli menejer, fon
+        // xizmatlari, ommaviy formalar). Takror tekshiruvi kabi "hammasini ko'rishi shart" joylar `IgnoreQueryFilters()`.
+        b.Entity<Lead>().HasQueryFilter(l => LeadViewerId == null || !l.IsPrivate || l.AssigneeUserId == LeadViewerId);
+        b.Entity<Lead>().HasIndex(l => new { l.IsPrivate, l.AssigneeUserId });
         b.Entity<StudentNote>().HasIndex(n => n.StudentId);
         b.Entity<TrialLesson>().HasIndex(t => t.LeadId);
         b.Entity<FinanceTransaction>().HasIndex(t => t.Date);

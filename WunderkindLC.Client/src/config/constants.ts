@@ -309,6 +309,10 @@ export const adminPermissions: AdminPermSection[] = [
   // yoki superadmin tasdiqlagach kassadan chiqadi. `retentionBonus` kabi QATTIQ: oddiy admin ham, yalang `finance` ham
   // yetmaydi — faqat ANIQ berilgan kalit (`useSuperOrGranted('expenseApproval')`, server `IsSuperAdminOrGranted`).
   { key: 'expenseApproval', label: 'Chiqimlarni tasdiqlash (bosh buxgalter)' },
+  // SHAXSIY KONTAKTLAR (Call Center «Import», 2026-11-25) — import qilingan kontaktni faqat o'z operatori ko'radi; bu kalit
+  // MENEJERGA hamma operatorlar kontaktlarini ko'rish va IMPORT qilish huquqini beradi. QATTIQ: yalang `leads` ham yetmaydi
+  // (`useSuperOrGranted`-ga o'xshash, lekin direktor/admin ham ko'radi — server `LeadVisibility.SeesAll`).
+  { key: 'leadContactsAll', label: 'Barcha operatorlar kontaktlarini ko\'rish va import (menejer)' },
   // AI ULANISH (read-only MCP) — xodim o'z AI ilovasini (Claude, ChatGPT) tizimga ulab, ma'lumotni
   // FAQAT O'QIY oladi. Admin/superadmin bu ruxsatsiz ham ulanadi. AI faqat xodimning O'Z bo'limlarini
   // ko'radi (shu matritsadagi qolgan ruxsatlar bo'yicha) — bu kalit faqat "ulanish mumkin" degani.
