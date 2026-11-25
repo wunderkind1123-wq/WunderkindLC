@@ -634,6 +634,23 @@ export async function returnMemberToTrial(id: string, studentId: string, reasonI
   await api.post(`/admin/classes/${id}/members/${studentId}/return-trial`, { reasonId })
 }
 
+/**
+ * YAKKA «KURSNI TUGATDI» (2026-11-25): faol a'zolik `completed` bo'lib yopiladi — ketish EMAS (o'qituvchi
+ * samaradorligiga ta'sir qilmaydi), hisobotlarda «Tugatganlar». Hisob «Guruhdan chiqarish» bilan bir xil yopiladi.
+ * `date` bo'sh — bugun. Natija: keyingi oylardan bekor qilingan summa.
+ */
+export async function completeMember(
+  id: string, studentId: string, date?: string, note?: string,
+): Promise<{ restored: number }> {
+  if (USE_MOCK) {
+    await delay(150)
+    return { restored: 0 }
+  }
+  const { data } = await api.post<{ restored: number }>(
+    `/admin/classes/${id}/members/${studentId}/complete`, { date: date || null, note: note || null })
+  return data
+}
+
 /** O'quvchining barcha guruh a'zoliklari. */
 export async function getStudentGroups(studentId: string): Promise<StudentGroupMembership[]> {
   if (USE_MOCK) {

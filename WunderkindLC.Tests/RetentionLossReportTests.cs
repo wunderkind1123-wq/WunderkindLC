@@ -98,6 +98,41 @@ public class RetentionLossReportTests
         Assert.Empty(r.Rows);
     }
 
+    /// <summary>
+    /// YAKKA «Kursni tugatdi» (2026-11-25): o'qituvchiga KETISH bo'lib yozilmaydi (foizi tushmaydi), lekin
+    /// «Tugatganlar» sonida o'sha oydagi o'qituvchiga ko'rinadi. Faqat `completed` + chiqish sanasi davrda.
+    /// </summary>
+    [Fact]
+    public void Kursni_tugatgan_OQITUVCHI_FOIZIGA_tasir_qilmaydi_va_Tugatganlar_da_sanaladi()
+    {
+        var r = RetentionLossReport.Compute(Data(
+        [
+            M("grad", "gA", "completed", "2026-05-01", activated: "2026-05-03", left: "2026-09-10", frozen: "2026-09-10"),
+            M("stay", "gA", "active", "2026-05-01", activated: "2026-05-03"),
+            M("old", "gA", "completed", "2026-01-01", activated: "2026-01-03", left: "2026-06-10", frozen: "2026-06-10"),
+            M("mgrad", "gM", "completed", "2026-05-01", activated: "2026-05-03", left: "2026-09-20", frozen: "2026-09-20"),
+        ]), Sep);
+
+        Assert.Equal(0, r.Totals.Left);
+        Assert.Equal(2, r.Totals.Completed);
+        var ali = r.Teachers.Single(t => t.TeacherId == "t1");
+        Assert.Equal(0, ali.LeftActive);
+        Assert.Equal(0.0, ali.LossRate);
+        Assert.Equal(1, ali.Completed);
+        Assert.Equal(1, r.Teachers.Single(t => t.TeacherId == "t2").Completed);
+
+        // O'qituvchi filtri — faqat o'ziniki; «faqat sinovdan» turi — bitiruvchi yo'q.
+        Assert.Equal(1, RetentionLossReport.Compute(Data(
+        [
+            M("grad", "gA", "completed", "2026-05-01", activated: "2026-05-03", left: "2026-09-10", frozen: "2026-09-10"),
+            M("mgrad", "gM", "completed", "2026-05-01", activated: "2026-05-03", left: "2026-09-20", frozen: "2026-09-20"),
+        ]), Sep with { TeacherId = "t1" }).Totals.Completed);
+        Assert.Equal(0, RetentionLossReport.Compute(Data(
+        [
+            M("grad", "gA", "completed", "2026-05-01", activated: "2026-05-03", left: "2026-09-10", frozen: "2026-09-10"),
+        ]), Sep with { Kind = RetentionLossReport.KindTrial }).Totals.Completed);
+    }
+
     [Fact]
     public void Hisobot_bosh_sahifa_kartochkasi_bilan_BIR_XIL_sanaydi()
     {

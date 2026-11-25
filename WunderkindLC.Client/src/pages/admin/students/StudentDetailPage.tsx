@@ -33,7 +33,7 @@ import {
 } from '@/api/services/students'
 import type { StudentPayload } from '@/api/services/students'
 import {
-  getStudentGroups, getClasses, freezeMember, activateMember, returnMemberToTrial, addGroupMember,
+  getStudentGroups, getClasses, freezeMember, activateMember, returnMemberToTrial, completeMember, addGroupMember,
   removeGroupMember,
 } from '@/api/services/classes'
 import {
@@ -273,7 +273,7 @@ export function StudentDetailPage() {
   const [groupModal, setGroupModal] = useState<StudentGroupMembership | null>(null)
   const [groupActionDate, setGroupActionDate] = useState('')
   /** `yearFreeze` — «Aktiv muzlatish»: o'sha muzlatishning O'ZI, faqat yangi o'quv yili belgisi bilan. */
-  const [groupReasonAction, setGroupReasonAction] = useState<'freeze' | 'yearFreeze' | 'return' | 'remove' | 'activate' | null>(null)
+  const [groupReasonAction, setGroupReasonAction] = useState<'freeze' | 'yearFreeze' | 'return' | 'remove' | 'activate' | 'complete' | null>(null)
   const [groupTransferOpen, setGroupTransferOpen] = useState(false)
   const [groupBusy, setGroupBusy] = useState(false)
   /** "Guruhga qo'shish" — barcha (arxivlanmagan) guruhlar ro'yxati + o'qituvchi→guruh tanlash modali. */
@@ -705,6 +705,10 @@ export function StudentDetailPage() {
       } else if (groupReasonAction === 'remove') {
         const res = await removeGroupMember(groupModal.groupId, id, reasonId, date, note, archive)
         if (res.archived) toast.success("O'quvchi arxivga o'tkazildi")
+      } else if (groupReasonAction === 'complete') {
+        // Yakka «Kursni tugatdi» — ketish EMAS (o'qituvchi samaradorligiga ta'sir qilmaydi), sabab yo'q.
+        await completeMember(groupModal.groupId, id, date, note)
+        toast.success('Kursni tugatdi deb belgilandi', groupModal.groupName)
       } else {
         await returnMemberToTrial(groupModal.groupId, id, reasonId)
       }
@@ -1181,6 +1185,13 @@ export function StudentDetailPage() {
                             label: "Boshqa guruhga o'tkazish", icon: ArrowLeftRight,
                             onClick: () => { openGroupModal(gr); setGroupTransferOpen(true) },
                           },
+                          // Yakka «Kursni tugatdi» — faqat AKTIV a'zolikda (ketish emas).
+                          ...(gr.status === 'active'
+                            ? [{
+                                label: 'Kursni tugatdi', icon: Award,
+                                onClick: () => { openGroupModal(gr); setGroupReasonAction('complete') },
+                              }]
+                            : []),
                           {
                             label: 'Guruhdan chiqarish', icon: X, danger: true,
                             onClick: () => { openGroupModal(gr); setGroupReasonAction('remove') },
@@ -2022,13 +2033,20 @@ export function StudentDetailPage() {
           groupReasonAction === 'freeze' || groupReasonAction === 'yearFreeze' ? 'freeze'
           : groupReasonAction === 'activate' ? 'activate'
           : groupReasonAction === 'remove' ? removeGroupCategory(groupModal?.status ?? 'trial')
+          : groupReasonAction === 'complete' ? 'complete'
           : 'return_trial'
         }
+        hideReason={groupReasonAction === 'complete'}
+        // Qarz bo'lsa — ogohlantirish (to'smaydi; yechim keyinroq, mijoz 2026-11-25).
+        warning={groupReasonAction === 'complete' && data && data.balance < 0
+          ? `Diqqat: o'quvchining ${formatMoney(-data.balance)} qarzi bor — u balansda qoladi.`
+          : undefined}
         title={
           groupReasonAction === 'freeze' ? 'Muzlatish'
           : groupReasonAction === 'yearFreeze' ? 'Aktiv muzlatish'
           : groupReasonAction === 'activate' ? 'Aktivlashtirish'
           : groupReasonAction === 'remove' ? "Guruhdan chiqarish"
+          : groupReasonAction === 'complete' ? 'Kursni tugatdi'
           : 'Sinovga qaytarish'
         }
         message={
@@ -2039,6 +2057,8 @@ export function StudentDetailPage() {
               ? `${groupModal.groupName} — shu sanadan muzlatiladi va «yangi o'quv yiliga o'tish» deb belgilanadi. Hisob-kitob oddiy muzlatish bilan bir xil.`
               : groupReasonAction === 'activate'
                 ? `${groupModal.groupName} — shu sanadan boshlab oylik to'lov hisoblanadi.`
+                : groupReasonAction === 'complete'
+                  ? `${groupModal.groupName} — kursni tugatgan deb belgilanadi va guruhdan chiqadi. Shu sanagacha qatnashgan darslari hisoblanadi, keyingi oylar hisobi bekor qilinadi. Bu ketish hisoblanmaydi — o'qituvchi samaradorligiga ta'sir qilmaydi, hisobotlarda «Tugatganlar» qatorida ko'rinadi.`
                 : groupReasonAction === 'remove'
                   ? groupModal.status === 'active'
                     ? `${groupModal.groupName} guruhidan chiqariladi — shu sanagacha qatnashgan darslari hisoblanadi, keyingi oylar hisobi bekor qilinadi.`
@@ -2051,13 +2071,15 @@ export function StudentDetailPage() {
           : groupReasonAction === 'yearFreeze' ? 'Aktiv muzlatish'
           : groupReasonAction === 'activate' ? 'Aktivlashtirish'
           : groupReasonAction === 'remove' ? 'Chiqarish'
+          : groupReasonAction === 'complete' ? 'Tugatdi deb belgilash'
           : 'Sinovga qaytarish'
         }
         tone={groupReasonAction === 'freeze' || groupReasonAction === 'yearFreeze' ? 'sky' : groupReasonAction === 'remove' ? 'red' : 'brand'}
         showDate={groupReasonAction === 'freeze' || groupReasonAction === 'yearFreeze' || groupReasonAction === 'activate'
+          || groupReasonAction === 'complete'
           || (groupReasonAction === 'remove' && groupModal?.status === 'active')}
         showRetentionBonus={groupReasonAction === 'activate' && canSetBonus}
-        showNote={groupReasonAction === 'remove'}
+        showNote={groupReasonAction === 'remove' || groupReasonAction === 'complete'}
         showArchive={groupReasonAction === 'remove' && can('students.list', 'create')}
         defaultDate={groupActionDate}
         onConfirm={confirmGroupReason}

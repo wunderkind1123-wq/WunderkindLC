@@ -40,6 +40,13 @@ interface Props {
    */
   showArchive?: boolean
   /**
+   * Sabab tanlovi YASHIRILSINmi — sababi bo'lmagan amal (yakka «Kursni tugatdi»: ketish emas, sabab yozilmaydi).
+   * Yashirilsa `onConfirm` ga `reasonId` doim `undefined`.
+   */
+  hideReason?: boolean
+  /** Qizil OGOHLANTIRISH qatori (amalni to'smaydi) — masalan kursni tugatayotgan o'quvchining qarzi. */
+  warning?: string
+  /**
    * Tasdiqlash. Promise qaytarsa — tugma u tugaguncha qulf, keyin (masalan xatodan so'ng) qayta
    * yoqiladi. `void` qaytarsa — oyna yopilguncha qulf (eski xatti-harakat).
    */
@@ -59,7 +66,7 @@ interface Props {
  */
 export function ReasonPromptModal({
   open, category, title, message, confirmLabel, tone = 'red', showDate, defaultDate,
-  showRetentionBonus, showNote, showArchive, onConfirm, onClose,
+  showRetentionBonus, showNote, showArchive, hideReason, warning, onConfirm, onClose,
 }: Props) {
   const [reasons, setReasons] = useState<ActionReason[]>([])
   const [selected, setSelected] = useState<string | undefined>(undefined)
@@ -82,10 +89,14 @@ export function ReasonPromptModal({
     setNote('')
     setArchive(true)
     setDate(defaultDate ?? localIsoDate(new Date()))
+    if (hideReason) {
+      setReasons([])
+      return
+    }
     getActionReasons()
       .then((all) => setReasons(all.filter((r) => r.category === category)))
       .catch(() => setReasons([]))
-  }, [open, category, defaultDate])
+  }, [open, category, defaultDate, hideReason])
 
   const toneCls =
     tone === 'sky' ? 'bg-sky-600 hover:bg-sky-700'
@@ -132,6 +143,9 @@ export function ReasonPromptModal({
     >
       <div className="space-y-3">
         {message && <p className="text-sm text-slate-600">{message}</p>}
+        {warning && (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{warning}</p>
+        )}
 
         {showDate && (
           <div>
@@ -162,6 +176,7 @@ export function ReasonPromptModal({
           </label>
         )}
 
+        {!hideReason && (
         <div>
           <span className="mb-1.5 block text-sm font-medium text-slate-600">
             Sabab {reasons.length === 0 && <span className="text-xs font-normal text-slate-400">(Sabablar bo'limida sozlanadi)</span>}
@@ -188,6 +203,7 @@ export function ReasonPromptModal({
             <p className="text-xs text-slate-400">Sabab tanlanmaydi — to'g'ridan-to'g'ri davom etadi.</p>
           )}
         </div>
+        )}
 
         {showNote && (
           <label className="block">

@@ -311,7 +311,18 @@ export function StudentsPage() {
   }, [])
 
   // Joriy tab manbai.
-  const source = tab === 'active' ? students : archived
+  // «Arxiv» tabida QARZDORLAR qidirilsa — kursni TUGATIB chiqqan (arxivlanmagan) qarzdorlar ham shu ro'yxatda
+  // (mijoz, 2026-11-25: "arxivdagilardan qarzdorlarni qidirsa bitirgan qarzdorlar ham chiqsin"). Ular
+  // «Kursni tugatgan» belgisi bilan, «Arxivdan qaytarish» o'rniga to'lov tugmalari bilan chiqadi.
+  const source = useMemo(
+    () =>
+      tab === 'active'
+        ? students
+        : balanceFilter === 'debt'
+          ? [...archived, ...students.filter((s) => s.finishedCourse && s.balance < 0)]
+          : archived,
+    [tab, students, archived, balanceFilter],
+  )
   /** Telegram filtridagi sonlar (faol tab bo'yicha) — filtrning O'ZI bilan sanaladi (son = ro'yxat). */
   const telegramCounts = useMemo(() => {
     const count = (f: TelegramFilter) =>
@@ -1435,7 +1446,11 @@ export function StudentsPage() {
                     )}
                     {tab === 'archived' && (
                       <td className="max-w-[18rem] truncate text-slate-600" title={s.archiveReason ?? ''}>
-                        {s.archiveReason || '—'}
+                        {!s.isArchived && s.finishedCourse ? (
+                          <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700">
+                            Kursni tugatgan
+                          </span>
+                        ) : (s.archiveReason || '—')}
                       </td>
                     )}
                     <td onClick={(e) => e.stopPropagation()}>
@@ -1464,6 +1479,13 @@ export function StudentsPage() {
                               active={s.loginBlocked}
                               onClick={() => handleToggleLoginBlock(s)}
                             />
+                          </>
+                        ) : !s.isArchived ? (
+                          // Arxiv tabidagi kursni TUGATGAN qarzdor (arxivlanmagan) — qarzni yopish uchun to'lov tugmalari.
+                          <>
+                            <IconBtn icon={Wallet} title="To'lov kiritish" onClick={() => setPaying(s)} />
+                            <IconBtn icon={History} title="To'lov tarixi" onClick={() => setHistoryOf(s)} />
+                            <IconBtn icon={Phone} title="Qo'ng'iroq qilish" onClick={() => setCallStudent(s)} />
                           </>
                         ) : (
                           <>

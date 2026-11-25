@@ -25,6 +25,8 @@ export interface RetentionLossTotals {
   /** Aktivdan ketganlar / activeBase × 100; null — maxraj 0. */
   lossRate: number | null
   retention: number | null
+  /** Davrda KURSNI TUGATGANLAR (a'zolik `completed`) — ketish EMAS, foizga kirmaydi. */
+  completed?: number
 }
 
 export interface RetentionLossReason {
@@ -42,6 +44,8 @@ export interface RetentionLossTeacher {
   leftTrial: number
   activeBase: number
   lossRate: number | null
+  /** Shu o'qituvchidan kursni tugatganlar (ketish emas). */
+  completed?: number
 }
 
 export interface RetentionLossMonth {

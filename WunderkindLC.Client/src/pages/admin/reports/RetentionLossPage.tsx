@@ -4,7 +4,7 @@ import {
   Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
-import { RefreshCw, Search, ShieldAlert, ShieldCheck, UserMinus, Users } from 'lucide-react'
+import { Award, RefreshCw, Search, ShieldAlert, ShieldCheck, UserMinus, Users } from 'lucide-react'
 import {
   getRetentionLoss,
   type RetentionKind,
@@ -338,7 +338,7 @@ export function RetentionLossPage() {
       ) : !data || !t ? null : (
         <div className={cn('space-y-4', loading && 'opacity-60')}>
           {/* ==================== KPI ==================== */}
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard
               label="Ketganlar"
               value={t.left}
@@ -370,6 +370,15 @@ export function RetentionLossPage() {
               iconBg="bg-slate-100"
               iconColor="text-slate-600"
               hint="Chiqarishda sabab tanlanmagan"
+            />
+            {/* Ketish EMAS — foizga kirmaydi (guruhni «Tugatish» yoki yakka «Kursni tugatdi»). */}
+            <StatCard
+              label="Kursni tugatganlar"
+              value={t.completed ?? 0}
+              icon={Award}
+              iconBg="bg-emerald-50"
+              iconColor="text-emerald-600"
+              hint="Ketish hisoblanmaydi — o'qituvchi foiziga ta'sir qilmaydi"
             />
           </div>
 
@@ -546,6 +555,7 @@ export function RetentionLossPage() {
                       <th className="num">Sinovdan ketgan</th>
                       <th className="num">Ketish foizi</th>
                       <th className="num">Ushlab qolish</th>
+                      <th className="num">Kursni tugatgan</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -563,10 +573,11 @@ export function RetentionLossPage() {
                         <td className="num text-amber-700">{x.leftTrial || '—'}</td>
                         <td className="num">{pct(x.lossRate)}</td>
                         <td className="num">{x.lossRate == null ? '—' : pct(100 - x.lossRate)}</td>
+                        <td className="num font-semibold text-emerald-700">{x.completed || '—'}</td>
                       </tr>
                     ))}
                     {data.teachers.length === 0 && (
-                      <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">Ma'lumot yo'q</td></tr>
+                      <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">Ma'lumot yo'q</td></tr>
                     )}
                   </tbody>
                 </table>

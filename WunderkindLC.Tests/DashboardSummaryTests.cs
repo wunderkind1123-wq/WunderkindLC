@@ -414,26 +414,53 @@ public class DashboardSummaryTests
         var archived = new Student { FullName = "Arxiv", Balance = -50_000, IsArchived = true, ArchivedAt = "2026-10-01" };
         var trial = new Student { FullName = "Sinov", Balance = -20_000 };
         var paid = new Student { FullName = "Toza", Balance = 0 };
-        ctx.Students.AddRange(active, leaver, archived, trial, paid);
+        var grad = new Student { FullName = "Bitirgan", Balance = -70_000 };
+        ctx.Students.AddRange(active, leaver, archived, trial, paid, grad);
         ctx.StudentGroups.AddRange(
             M(active.Id, g.Id, "active", "2026-05-01", activated: "2026-05-01"),
             M(leaver.Id, g.Id, "active", "2026-05-01", activated: "2026-05-01", left: "2026-10-10"),
             M(trial.Id, g.Id, "trial", "2026-10-20"),
-            M(paid.Id, g.Id, "active", "2026-05-01", activated: "2026-05-01"));
+            M(paid.Id, g.Id, "active", "2026-05-01", activated: "2026-05-01"),
+            // Yakka «Kursni tugatdi» — guruhsiz qoldi, lekin «Guruhdan ketganlar» EMAS (2026-11-25).
+            M(grad.Id, g.Id, "completed", "2026-05-01", activated: "2026-05-01", left: "2026-11-20", frozen: "2026-11-20"));
         await ctx.SaveChangesAsync();
 
         var r = await DashboardSummary.OtherDebtorsAsync(ctx);
 
         Assert.Equal((1, 100_000m), (r.ActiveCount, r.ActiveTotal));
-        Assert.Equal(["left", "archived", "trial", "frozen"], r.Groups.Select(x => x.Kind));
+        Assert.Equal(["left", "archived", "completed", "trial", "frozen"], r.Groups.Select(x => x.Kind));
         Assert.Equal((1, 300_000m), (r.Groups[0].Count, r.Groups[0].Total));
         Assert.Equal((1, 50_000m), (r.Groups[1].Count, r.Groups[1].Total));
-        Assert.Equal((1, 20_000m), (r.Groups[2].Count, r.Groups[2].Total));
-        Assert.Equal((0, 0m), (r.Groups[3].Count, r.Groups[3].Total));
+        Assert.Equal((1, 70_000m), (r.Groups[2].Count, r.Groups[2].Total));
+        Assert.Equal((1, 20_000m), (r.Groups[3].Count, r.Groups[3].Total));
+        Assert.Equal((0, 0m), (r.Groups[4].Count, r.Groups[4].Total));
         // Aktiv qarzdor ro'yxatda YO'Q, eng katta qarz tepada, summa musbat.
-        Assert.Equal(["Ketgan", "Arxiv", "Sinov"], r.Items.Select(i => i.FullName));
+        Assert.Equal(["Ketgan", "Bitirgan", "Arxiv", "Sinov"], r.Items.Select(i => i.FullName));
         Assert.Equal(300_000m, r.Items[0].Debt);
-        Assert.Equal("2026-10-01", r.Items[1].ArchivedAt);
+        Assert.Equal("2026-10-01", r.Items[2].ArchivedAt);
         Assert.False(r.Truncated);
+    }
+
+    /// <summary>«Kursni tugatgan» = tirik a'zolik YO'Q va OXIRGI chiqish `completed` (2026-11-25).</summary>
+    [Fact]
+    public void FinishedCourse_faqat_oxirgi_chiqish_completed_va_tirik_azolik_yoq()
+    {
+        Assert.True(MembershipLifecycle.FinishedCourse(
+            [M("s", "gA", "completed", "2026-05-01", activated: "2026-05-01", left: "2026-11-20")]));
+        // Bitirib, keyingi bosqichda o'qiyapti — tirik a'zolik bor.
+        Assert.False(MembershipLifecycle.FinishedCourse(
+        [
+            M("s", "gA", "completed", "2026-05-01", activated: "2026-05-01", left: "2026-09-01"),
+            M("s", "gB", "active", "2026-09-02", activated: "2026-09-02"),
+        ]));
+        // Bitirgan, keyin BOSHQA guruhdan oddiy chiqib ketgan — oxirgisi hal qiladi: ketgan.
+        Assert.False(MembershipLifecycle.FinishedCourse(
+        [
+            M("s", "gA", "completed", "2026-05-01", activated: "2026-05-01", left: "2026-09-01"),
+            M("s", "gB", "active", "2026-09-02", activated: "2026-09-02", left: "2026-11-01"),
+        ]));
+        Assert.False(MembershipLifecycle.FinishedCourse(
+            [M("s", "gA", "active", "2026-05-01", activated: "2026-05-01", left: "2026-11-01")]));
+        Assert.False(MembershipLifecycle.FinishedCourse([]));
     }
 }

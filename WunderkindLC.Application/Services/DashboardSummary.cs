@@ -220,12 +220,16 @@ public static class DashboardSummary
     public const string DebtArchived = "archived";
     public const string DebtTrial = "trial";
     public const string DebtFrozen = "frozen";
+    /// <summary>KURSNI TUGATIB chiqqan, arxivlanmagan qarzdor (<see cref="MembershipLifecycle.FinishedCourse"/>,
+    /// 2026-11-25) — «Guruhdan ketganlar» dan AJRATILGAN: u ketmagan, bitirgan; qarzi esa qolgan.</summary>
+    public const string DebtCompleted = "completed";
 
     /// <summary>Vidjetdagi toifalar va yorliqlari — ko'rsatish tartibida.</summary>
     public static readonly IReadOnlyList<(string Kind, string Label)> OtherDebtKinds =
     [
         (DebtLeft, "Guruhdan ketganlar"),
         (DebtArchived, "Arxivdagilar"),
+        (DebtCompleted, "Kursni tugatganlar"),
         (DebtTrial, "Sinovdagilar"),
         (DebtFrozen, "Muzlatilganlar"),
     ];
@@ -249,12 +253,19 @@ public static class DashboardSummary
     public static Dictionary<string, string> DebtorKinds(
         IEnumerable<StudentRow> students, IEnumerable<StudentGroup> memberships)
     {
-        var states = memberships.GroupBy(m => m.StudentId, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => MembershipLifecycle.MemberState(g), StringComparer.Ordinal);
+        var byStudent = memberships.GroupBy(m => m.StudentId, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
         return students.Where(s => s.Balance < 0)
             .ToDictionary(
                 s => s.Id,
-                s => DebtorKind(s.IsArchived, states.GetValueOrDefault(s.Id, "")),
+                s =>
+                {
+                    var mine = byStudent.GetValueOrDefault(s.Id) ?? [];
+                    var kind = DebtorKind(s.IsArchived, MembershipLifecycle.MemberState(mine));
+                    // Guruhsiz qolgan, lekin OXIRGI chiqishi «kursni tugatdi» — ketgan emas, bitirgan.
+                    // ⚠️ Chaqiruvchi YOPILGAN a'zoliklarni ham uzatishi SHART (faqat tiriklari kelsa bu toifa bo'sh qoladi).
+                    return kind == DebtLeft && MembershipLifecycle.FinishedCourse(mine) ? DebtCompleted : kind;
+                },
                 StringComparer.Ordinal);
     }
 
@@ -272,8 +283,9 @@ public static class DashboardSummary
             .Select(s => new { s.Id, s.FullName, s.IsArchived, s.ArchivedAt, s.Balance })
             .ToListAsync(ct);
         var ids = debtors.Select(d => d.Id).ToList();
+        // YOPILGANLARI ham kerak — «Kursni tugatganlar» toifasi oxirgi chiqishga qaraydi (2026-11-25).
         var memberships = await db.StudentGroups.AsNoTracking()
-            .Where(m => ids.Contains(m.StudentId) && m.IsActive)
+            .Where(m => ids.Contains(m.StudentId))
             .ToListAsync(ct);
         var kinds = DebtorKinds(debtors.Select(d => new StudentRow(d.Id, d.IsArchived, d.Balance)), memberships);
 

@@ -199,6 +199,24 @@ public static class RetentionLossReport
         foreach (var d in all.Where(d => d.Event.EverActive))
             AddBase(d.TeacherId, d.Event.StudentId + "|" + d.Event.CourseKey);
 
+        // ---------- 2.5. Kursni TUGATGANLAR (ketish EMAS — foizga kirmaydi, 2026-11-25) ----------
+        // Har `completed` a'zolik — bitta bitiruv (guruhni «Tugatish» yoki yakka «Kursni tugatdi»), o'sha
+        // oyda guruhni o'qitgan o'qituvchiga. Keyingi bosqich guruhiga o'tganlar ham sanaladi: ular shu
+        // bosqichni TUGATGAN (LeftEvents ularni ketish deb sanamaydi — bu yerda faqat qo'shimcha ma'lumot).
+        var completedByTeacher = new Dictionary<string, int>(StringComparer.Ordinal);
+        var completedTotal = 0;
+        if (q.Kind != KindTrial)
+            foreach (var m in memberships)
+            {
+                if (m.Status != "completed" || m.IsActive) continue;
+                var left = m.LeftAt ?? "";
+                if (left.Length < 7 || !monthSet.Contains(left[..7]) || !CourseOk(m.GroupId)) continue;
+                var t = TeacherAt(m.GroupId, left[..7]);
+                if (!TeacherOk(t)) continue;
+                completedByTeacher[t] = completedByTeacher.GetValueOrDefault(t) + 1;
+                completedTotal++;
+            }
+
         var activeBase = baseByTeacher.Values
             .SelectMany(s => s).ToHashSet(StringComparer.Ordinal).Count;
         var leftActive = all.Count(d => d.Event.EverActive);
@@ -214,7 +232,8 @@ public static class RetentionLossReport
             NoReason: shown.Count(d => d.Reason.Label.Length == 0),
             ActiveBase: activeBase,
             LossRate: lossRate,
-            Retention: lossRate is null ? null : Math.Round(100 - lossRate.Value, 1));
+            Retention: lossRate is null ? null : Math.Round(100 - lossRate.Value, 1),
+            Completed: completedTotal);
 
         // ---------- 3. Sabablar ----------
         var reasons = shown
@@ -230,7 +249,8 @@ public static class RetentionLossReport
         string TeacherName(string id) => id.Length == 0
             ? NoTeacherLabel
             : data.TeacherNames.GetValueOrDefault(id) ?? "O'qituvchi o'chirilgan";
-        var teacherIds = all.Select(d => d.TeacherId).Concat(baseByTeacher.Keys).Distinct(StringComparer.Ordinal);
+        var teacherIds = all.Select(d => d.TeacherId).Concat(baseByTeacher.Keys)
+            .Concat(completedByTeacher.Keys).Distinct(StringComparer.Ordinal);
         var teachers = teacherIds
             .Select(id =>
             {
@@ -238,7 +258,7 @@ public static class RetentionLossReport
                 var act = mine.Count(d => d.Event.EverActive);
                 var b = baseByTeacher.GetValueOrDefault(id)?.Count ?? 0;
                 return new RetentionLossTeacherDto(id, TeacherName(id), mine.Count(KindOk), act,
-                    mine.Count - act, b, b == 0 ? null : Pct(act, b));
+                    mine.Count - act, b, b == 0 ? null : Pct(act, b), completedByTeacher.GetValueOrDefault(id));
             })
             .OrderByDescending(t => t.Left).ThenByDescending(t => t.LossRate ?? 0)
             .ThenBy(t => t.TeacherName, StringComparer.OrdinalIgnoreCase)

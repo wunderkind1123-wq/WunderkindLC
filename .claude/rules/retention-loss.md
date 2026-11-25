@@ -165,3 +165,29 @@ sahifasi, guruhlar ro'yxatidagi sariq qator va «O'quvchilar davomati» sahifasi
 - «O'quvchilar davomati» sahifasida: «Davomat olinmagan» kartochkasi (kechikkanlar soni) va
   ro'yxat (Kechikkanlar · Hammasi), to'liq monitorga havola faqat `classes.notAttended` bo'lsa.
   Filtr/tartib — `lib/attendanceWatch.ts` (qoidani QAYTA hisoblamaydi).
+
+## YAKKA «KURSNI TUGATDI» (2026-11-25, mijoz)
+
+Mijoz: *"o'quvchini bitirdi deb belgilasa o'qituvchi samaradorligiga ta'sir qilmasin va statistikasi hisobotlarda
+ko'rinsin"*. Guruh davom etadi, bitta o'quvchi tugatadi — ilgari yagona yo'l «Guruhdan chiqarish» edi va u KETISH bo'lib
+o'qituvchi foiziga tushardi.
+
+- `POST classes/{id}/members/{studentId}/complete { date?, note? }` (`ClassesController.CompleteMember`; ruxsat — boshqa
+  a'zolik amallari bilan bir xil: `classes.list` POST → `create`). UCHTA joy: guruh sahifasi chap ro'yxati → a'zo «⋮» →
+  «Kursni tugatdi»; guruh → «A'zolar» oynasi → «Tugatdi» tugmasi; o'quvchi profili → guruh kartasi «⋮» → «Kursni tugatdi»
+  (faqat AKTIV a'zoda; sabab so'ralmaydi — `ReasonPromptModal hideReason`).
+- Holat guruhni «Tugatish»dagi bitta a'zo bilan AYNAN bir xil: `LeaveGroupAsync` (chiqish oyi qisman, keyingi oylar
+  bekor) + `Status="completed"`, `FrozenAt=LeftAt`. Sertifikat BERILMAYDI (mijoz qarori). `MembershipReasons` YOZILMAYDI.
+- Faqat `active` va arxivda bo'lmagan o'quvchi (sinov/muzlatilgan — 400): "bitirdi" bilan haqiqiy ketish yashirilmasin.
+- Hisobotlar o'zgarishsiz to'g'ri: `LeftEvents` `completed` oraliqni ketish deb sanamaydi (bosh sahifa, KPI, bu hisobot).
+- **«Kursni tugatganlar»** (`Totals.Completed`, `Teachers[].Completed`): davrda chiqish sanasi bo'lgan har `completed`
+  a'zolik, o'sha oydagi o'qituvchiga; keyingi bosqich guruhiga ko'chganlar ham (bosqichni tugatgan). Foizga KIRMAYDI;
+  «faqat sinovdan» turida 0. UI: shu hisobot kartochkasi + o'qituvchilar jadvali ustuni + `TeacherRetentionCard`.
+- Testlar: `RetentionLossReportTests.Kursni_tugatgan_OQITUVCHI_FOIZIGA_tasir_qilmaydi_va_Tugatganlar_da_sanaladi`.
+- **Qarz (2026-11-25):** «Kursni tugatdi» qarzni KECHIRMAYDI va TO'SMAYDI — oynada qizil ogohlantirish
+  (`ReasonPromptModal warning`: guruh sahifalarida SHU guruh balansi, profilda umumiy balans). Qarzdor bitiruvchi:
+  bosh sahifa «Boshqa qarzdorlar» → **«Kursni tugatganlar»** (`DashboardSummary.DebtCompleted`, «Guruhdan ketganlar»dan
+  ajratilgan) va O'quvchilar → «Arxiv» tabi + «Qarzdorlar» filtri (arxivdagilar bilan birga, «Kursni tugatgan» belgisi,
+  to'lov tugmalari). Ta'rif bitta — `MembershipLifecycle.FinishedCourse` (tirik a'zolik yo'q + OXIRGI chiqish
+  `completed`); ro'yxatda `Student.FinishedCourse` (`StudentMembershipView.EnrichAsync`, faqat guruhsiz o'quvchilar
+  uchun qo'shimcha so'rov). Taqiq/avtomatik yechim — keyinroq (mijoz).

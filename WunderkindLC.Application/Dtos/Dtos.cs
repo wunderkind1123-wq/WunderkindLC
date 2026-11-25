@@ -589,6 +589,10 @@ public record AddStudentToGroupRequest(string StudentId, string? JoinedAt);
 public record MembershipStatusRequest(
     string? Date, string? ReasonId = null, bool? RetentionBonus = null, bool? YearFreeze = null);
 
+/// <summary>Yakka «Kursni tugatdi» (<c>ClassesController.CompleteMember</c>). <paramref name="Date"/> —
+/// tugatgan kun ("yyyy-MM-dd"), bo'sh — bugun; <paramref name="Note"/> — ixtiyoriy izoh (profil izohlariga).</summary>
+public record CompleteMemberRequest(string? Date, string? Note = null);
+
 /// <summary>Aktiv a'zolikning AKTIVLASHTIRISH SANASINI o'zgartirish (<c>ActivationDateChange</c>).
 /// <paramref name="Preview"/> = true — hech narsa saqlanmaydi, faqat natija (qaysi oy qanchaga o'zgaradi).</summary>
 public record ActivationDateRequest(string? Date, bool Preview = false);
